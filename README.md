@@ -1,11 +1,26 @@
-# Counter-Strike : Global Offensive Server Launcher
+# CS:GO Multi-Mode Server Manager
 
-A simple script to create and launch your Counter-Strike : Global Offensive Dedicated Server.
-Tested on Debian and Ubuntu.
+Launch and setup your Counter-Strike : Global Offensive Dedicated Server.
+
+## About this fork
+
+This fork shall remove problems of the original csgo-server-launcher (it seemed primarily designed for remote-hosted servers) and allow multiple configurations and set up sourcemod plugins - for using the script in LAN events. 
+
+At some point in the future, it is planned to make a docker container for easier deployment out of this.
+
+### Planned additions
+
+* **MULTIPLE CONFIGURATIONS** for different modes (like competitive/deathmatch/surfing) that can be chosen when starting the server
+    * e.g using **csgo-server** start competitive
+    * More options shall be controlled using environment variables, like **MAPS** (a mapcycle generator), **TEAM_T**, **TEAM_CT** (automatic team assignment, depends on plugins)
+* sourcemod plugin management (including downloading them), and enabling/disabling them based on configuration
+* support for Gameserver auth tokens and various other improvements
 
 ## Requirements
 
 Of course a Steam account is required to create a Counter-Strike : Global Offensive dedicated server.
+
+Get Gameserver auth tokens for CS:GO (App-ID 730) [here](http://steamcommunity.com/dev/managegameservers)
 
 Required commands :
 
@@ -14,19 +29,9 @@ Required commands :
 * [wget](http://en.wikipedia.org/wiki/Wget) is required.
 * [tar](http://linuxcommand.org/man_pages/tar1.html) is required.
 
-## Installation
+## Installation - TO BE DONE
 
-Execute the following commands to download the script :
-```console
-$ cd /etc/init.d/
-$ wget https://raw.githubusercontent.com/crazy-max/csgo-server-launcher/master/csgo-server-launcher.sh -O csgo-server-launcher --no-check-certificate
-$ chmod +x csgo-server-launcher
-$ update-rc.d csgo-server-launcher defaults
-$ mkdir /etc/csgo-server-launcher/
-$ wget https://raw.githubusercontent.com/crazy-max/csgo-server-launcher/master/csgo-server-launcher.conf -O /etc/csgo-server-launcher/csgo-server-launcher.conf --no-check-certificate
-```
-
-Before running the script, you must change some vars in the config file ``/etc/csgo-server-launcher/csgo-server-launcher.conf``.
+## Environment Variables - TO BE REWORKED
 
 * **SCREEN_NAME** - The screen name, you can put what you want but it must be unique and must contain only alphanumeric character.
 * **USER** - Name of the user who started the server.

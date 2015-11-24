@@ -1,28 +1,28 @@
 #! /bin/bash
 ### BEGIN INIT INFO
-# Provides: csgo-server-launcher
+# Provides: csgo-server
 # Required-Start: $remote_fs $syslog
 # Required-Stop: $remote_fs $syslog
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
-# Short-Description: Counter-Strike - Global Offensive Server Launcher
+# Short-Description: CS:GO Multi-Mode Server Manager
 ### END INIT INFO
 
 ##################################################################################
 #                                                                                #
-#  Counter-Strike : Global Offensive Server Launcher v1.9                        #
+#  CS:GO Multi-Mode Server Manager                                               #
 #                                                                                #
-#  A simple script to launch your Counter-Strike : Global Offensive              #
-#  Dedicated Server.                                                             #
+#  Launch and setup your Counter-Strike : Global Offensive Dedicated Server.     #
 #                                                                                #
 #  Copyright (C) 2013-2015 Cr@zy <webmaster@crazyws.fr>                          #
+#  Copyright (C) 2015      Maximilian Wende <maximilian.wende@gmail.com>         #
 #                                                                                #
-#  Counter-Strike : Global Offensive Server Launcher is free software; you can   #
+#  CS:GO Multi-Mode Server Manager is free software; you can                     #
 #  redistribute it and/or modify it under the terms of the GNU Lesser General    #
 #  Public License as published by the Free Software Foundation, either version 3 #
 #  of the License, or (at your option) any later version.                        #
 #                                                                                #
-#  Counter-Strike : Global Offensive Server Launcher is distributed in the hope  #
+#  CS:GO Multi-Mode Server Manager is distributed in the hope                    #
 #  that it will be useful, but WITHOUT ANY WARRANTY; without even the implied    #
 #  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the      #
 #  GNU Lesser General Public License for more details.                           #
@@ -30,7 +30,6 @@
 #  You should have received a copy of the GNU Lesser General Public License      #
 #  along with this program. If not, see http://www.gnu.org/licenses/.            #
 #                                                                                #
-#  Related post: http://goo.gl/HFFGy                                             #
 #  Usage: ./csgo-server-launcher.sh {start|stop|status|restart|console|update}   #
 #    - start: start the server                                                   #
 #    - stop: stop the server                                                     #
@@ -219,13 +218,6 @@ function update {
 }
 
 function create {
-  # IP should never exist: RFC 5735 TEST-NET-2
-  if [ "$IP" = "198.51.100.0" ]
-  then
-    echo "ERROR: You must configure the script before you create a server."
-    exit 1
-  fi
-  
   # If steamcmd already exists just install the server
   if [ -e "$DIR_STEAMCMD/steamcmd.sh" ]
   then
