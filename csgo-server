@@ -10,7 +10,7 @@
 
 ##################################################################################
 #                                                                                #
-#  CS:GO Multi-Mode Server Manager                                               #
+#  CS:GO Multi-Mode Server Manager (MSM)                                         #
 #                                                                                #
 #  Launch and setup your Counter-Strike : Global Offensive Dedicated Server.     #
 #                                                                                #
@@ -42,9 +42,28 @@
 #                                                                                #
 ##################################################################################
 
-CONFIG_FILE="/etc/csgo-server-launcher/csgo-server-launcher.conf"
+# General Configuration file location
+# if a relative path is given, it is interpreted as relative to the user's home directory
+MSM_CFG=csgo-msm.cfg
 
-# No edits necessary beyond this line
+# Get absolute config file location, based on MSM_CFG
+# $1 is the base directory, if omitted, the current home directory is taken
+function cfgfile {
+    if [ `echo $MSM_CFG | grep ^/` ]; then
+        echo $MSM_CFG
+    else
+        if [ $1 ]; then
+            echo $1/$MSM_CFG
+        else
+            echo ~/$MSM_CFG
+        fi
+    fi
+}
+
+# Important Variables
+THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+CFG=`cfgfile`
+APPID=740 #CS:GO
 
 function start {
   if [ ! -d $DIR_ROOT ]; then echo "ERROR: $DIR_ROOT is not a directory"; exit 1; fi
@@ -118,177 +137,306 @@ function console {
 }
 
 function update {
-  # Create the log directory
-  if [ ! -d $DIR_LOGS ];
-  then 
-    echo "$DIR_LOGS does not exist, creating..."
-    if [ `whoami` = root ]
-    then
-      su - $USER -c "mkdir -p $DIR_LOGS";
-    else
-      mkdir -p "$DIR_LOGS"
+    echo
+    if [ `whoami` != $ADMIN ]; then
+        echo "Only the admin ($ADMIN) can manage and update the game installation."
+        echo
+        prompt "Do you wish to switch users to perform the update"
+        echo
+        echo "Please log in to the account of $ADMIN now!"
+        su - $ADMIN -c "$THIS_SCRIPT update"
+        return $?
     fi
-  fi
-
-  if [ ! -d $DIR_LOGS ]
-  then
-    echo "ERROR: Could not create $DIR_LOGS"
-    exit 1
-  fi
-
-  # Create the game root
-  if [ ! -d $DIR_ROOT ]
-  then
-    echo "$DIR_ROOT does not exist, creating..."
-    if [ `whoami` = root ]
-    then
-      su - $USER -c "mkdir -p $DIR_ROOT";
+    LOGFILE="$STEAMCMD_DIR/update.log"
+    rm "$LOGFILE" &> /dev/null
+    echo "Starting Game Update."
+    echo "Log File: $LOGFILE"
+    echo
+    tries=1
+    try=0
+    until [ $SUCCESS -o $try -ge $tries]; do
+        let try=try+1
+        echo "Current Time: $(date)" | tee -a "$LOGFILE"
+        printf "[%2d/%2d] Trying to update the game using SteamCMD.\n\n" $try $tries | tee -a "$LOGFILE"
+        "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update" 2>&1 | tee -a "$LOGFILE"
+        printf "\n\n" | tee -a "$LOGFILE"
+    done
+    if [ $SUCCESS ]; then
+        echo "Update completed successfully"
+        echo
+        return 0
     else
-      mkdir -p "$DIR_ROOT"
+        echo "Update failed. For more information, see the log file at"
+        echo "                $LOGFILE"
+        echo
+        return 1
     fi
-  fi
-
-  if [ ! -d $DIR_ROOT ]
-  then
-    echo "ERROR: Could not create $DIR_ROOT"
-    exit 1
-  fi
-  
-  if [ -z "$1" ]; then retry=0; else retry=$1; fi
-  
-  if [ -z "$2" ]
-  then
-    if status
-    then
-      stop
-      echo "Stop $SCREEN_NAME before update..."
-      sleep 5
-      relaunch=1
-    else
-      relaunch=0
-    fi
-  else
-    relaunch=$2
-  fi
-  
-  # Save motd.txt before update
-  if [ -f "$DIR_GAME/motd.txt" ]; then cp $DIR_GAME/motd.txt $DIR_GAME/motd.txt.bck; fi
-  
-  echo "Starting the $SCREEN_NAME update..."
-  
-  if [ `whoami` = root ]
-  then
-    su - $USER -c "cd $DIR_STEAMCMD ; ./steamcmd.sh $PARAM_UPDATE 2>&1 | tee $UPDATE_LOG"
-  else
-    cd $DIR_STEAMCMD
-    ./steamcmd.sh $PARAM_UPDATE 2>&1 | tee $UPDATE_LOG
-  fi
-  
-  # Restore motd.txt
-  if [ -f "$DIR_GAME/motd.txt.bck" ]; then mv $DIR_GAME/motd.txt.bck $DIR_GAME/motd.txt; fi
-
-  # Check for update
-  if [ `egrep -ic "Success! App '740' fully installed." "$UPDATE_LOG"` -gt 0 ] || [ `egrep -ic "Success! App '740' already up to date" "$UPDATE_LOG"` -gt 0 ]
-  then
-    echo "$SCREEN_NAME updated successfully"
-  else
-    if [ $retry -lt $UPDATE_RETRY ]
-    then
-      retry=`expr $retry + 1`
-      echo "$SCREEN_NAME update failed... retry $retry/3..."
-      update $retry $relaunch
-    else
-      echo "$SCREEN_NAME update failed... exit..."
-      exit 1
-    fi
-  fi
-  
-  # Send e-mail
-  if [ ! -z "$UPDATE_EMAIL" ]; then cat $UPDATE_LOG | mail -s "$SCREEN_NAME update for $(hostname -f)" $UPDATE_EMAIL; fi
-  
-  if [ $relaunch = 1 ]
-  then
-    echo "Restart $SCREEN_NAME..."
-    start
-    sleep 5
-    echo "$SCREEN_NAME restarted successfully"
-  else
-    exit 1
-  fi
 }
 
-function create {
-  # If steamcmd already exists just install the server
-  if [ -e "$DIR_STEAMCMD/steamcmd.sh" ]
-  then
-    echo "steamcmd already exists..."
-    echo "Installing/Updating $SCREEN_NAME"
-    update
-    return
-  fi
-  
-  # Install steamcmd in the specified directory 
-  if [ ! -d "$DIR_STEAMCMD" ]
-  then
-    echo "$DIR_STEAMCMD does not exist, creating..."
-    if [ `whoami` = "root" ]
-    then
-      su - $USER -c "mkdir -p $DIR_STEAMCMD"
-    else
-      mkdir -p $DIR_STEAMCMD
+function checkvars {
+    if [ $1 ]; then TESTUSER=$1; else TESTUSER=`whoami`; fi
+    if [ -z "$ADMIN" ]; then
+        echo "ERROR: ADMIN is not defined"
+        return 1
     fi
-    if [ ! -d "$DIR_STEAMCMD" ]
-    then
-      echo "ERROR: Could not create $DIR_STEAMCMD"
-      exit 1
+    if [ "$TESTUSER" == "$ADMIN" -a -z "$STEAMCMD_DIR" -a ! -x "$STEAMCMD_DIR/steamcmd.sh" ]; then
+        echo "ERROR: STEAMCMD_DIR is not defined or steamcmd.sh was not found in it"
+        return 1
     fi
-  fi 
+    if [ -z "$INSTALL_DIR" ]; then
+        echo "ERROR: INSTALL_DIR is not defined"
+        return 1
+    fi
+    return 0
+}
 
-  # Download steamcmd
-  echo "Downloading steamcmd from http://media.steampowered.com/client/steamcmd_linux.tar.gz"
-  if [ `whoami` = "root" ]
-  then
-    su - $USER -c "cd $DIR_STEAMCMD ; wget http://media.steampowered.com/client/steamcmd_linux.tar.gz"
-  else
-    cd $DIR_STEAMCMD ; wget http://media.steampowered.com/client/steamcmd_linux.tar.gz
-  fi
-  if [ "$?" -ne "0" ]
-  then
-    echo "ERROR: Unable to download steamcmd"
-    exit 1
-  fi
-  
-  # Extract it
-  echo "Extracting and removing the archive"
-  if [ `whoami` = "root" ]
-  then
-    su - $USER -c "cd $DIR_STEAMCMD ; tar xzvf ./steamcmd_linux.tar.gz"
-    su - $USER -c "cd $DIR_STEAMCMD ; rm ./steamcmd_linux.tar.gz"
-  else
-    cd $DIR_STEAMCMD ; tar xzvf ./steamcmd_linux.tar.gz
-    cd $DIR_STEAMCMD ; rm ./steamcmd_linux.tar.gz
-  fi
-  
-  # Did it install?
-  if [ ! -e "$DIR_STEAMCMD/steamcmd.sh" ]
-  then
-    echo "ERROR: Failed to install steamcmd"
-    exit 1
-  fi
-  
-  # Run steamcmd for the first time to update it, telling it to quit when it is done
-  echo "Updating steamcmd"
-  if [ `whoami` = "root" ]
-  then
-  su - $USER -c "echo quit | $DIR_STEAMCMD/steamcmd.sh"
-  else
-    echo quit | $DIR_STEAMCMD/steamcmd.sh
-  fi
-  
-  # Done installing steamcmd, install the server
-  echo "Done installing steamcmd. Installing the game"
-  echo "This will take a while"
-  update
+function readcfg {
+    if [ -r $CFG ]; then
+        source $CFG
+        checkvars
+        ERR=$?
+        if [ $ERR -ne 0 ]; then
+            echo "ERROR: One or more errors in the configuration file $CFG"
+        fi
+        return $ERR
+    fi
+    return 1
+}
+
+function createcfg {
+    checkvars
+    if [ $? -ne 0 ]; then exit; fi
+    CFG=`cfgfile`
+    echo "Creating CS:GO MSM Config File in $CFG"
+    echo
+    rm $CFG &> /dev/null
+
+    function printcfg {
+        echo "#! /bin/bash"
+        echo "ADMIN=$ADMIN"
+        echo "INSTALL_DIR=$INSTALL_DIR"
+        # Vars that are only interesting for the admin
+        if [ `whoami` == "$ADMIN" ]; then
+            echo "STEAMCMD_DIR=$STEAMCMD_DIR"
+        fi
+    }
+
+    printcfg > $CFG
+}
+
+# A yes/no prompt. With the first parameter $1, an alternative prompt message can be given
+# By default, a no will exit the program with an exit code of 1. By putting anything as $2,
+# the function will instead return with a value of 1.
+function prompt {
+    PROMPT="Continue"
+    if [ "$1" ]; then PROMPT=$1; fi
+    read -r -p "$PROMPT? (Y/n) " INPUT
+    if [[ "$INPUT" && "$INPUT" != "y" && "$INPUT" != "Y" ]] ; then 
+        if [ "$2" ]; then return 1; else exit 1; fi
+    fi
+}
+
+function setup {
+    # First-time setup
+    echo
+    echo "-------------------------------------------------------------------------------"
+    echo "                CS:GO Multi-Mode Server Manager - Initial Setup"
+    echo "-------------------------------------------------------------------------------"
+    echo
+    echo "It seems like this is the first time you use this script on this machine."
+    echo "Before advancing, be aware of a few things:"
+    echo
+    echo ">>  A configuration file will be created in the location:"
+    echo "                $CFG"
+    echo
+    echo "    If you want to use a different location, exit and edit"
+    echo "    the \$MSM_CFG variable within this file accordingly."
+    echo
+    echo ">>  When installing for multiple users, make sure that this script (located in"
+    echo "    $THIS_SCRIPT), is readable to every user."
+    echo
+    prompt "Do you want to continue"
+    # Query steam installation admin user
+    echo
+    echo "Please choose the user that is responsible for the game installation and"
+    echo "updates on this machine. As long as the access rights are correctly set,"
+    echo "this server will use the game data provided by that user, which makes"
+    echo "re-downloading the game for multiple users unnecessary."
+    echo
+    while [ ! "$ADMIN_HOME" ]; do
+        read -p "Admin's username (default: $USER) " -r ADMIN
+        if [ ! $ADMIN ]; then ADMIN=$USER; fi
+        if [ ! `getent passwd $ADMIN` ]; then
+            echo
+            echo "User $ADMIN does not exist. Please try again!"
+            echo
+        fi
+        ADMIN_HOME=$(eval echo "~$ADMIN")
+        if [ ! -r "$ADMIN_HOME" ]; then
+            echo
+            echo "That user's home directory ($ADMIN_HOME) is not readable. Please specify a different admin."
+            echo
+            ADMIN_HOME=
+        fi
+    done
+    ADMIN_CFG=`cfgfile $ADMIN_HOME`
+    # Check if the admin has a working configuration already
+    if [ `whoami` != "$ADMIN" ]; then
+        echo
+        if [ -r "$ADMIN_CFG" ]; then
+            source "$ADMIN_CFG"
+            checkvars $ADMIN
+            if [ $? -ne 0 ]; then
+                echo "INFO: One or more errors in the configuration of $ADMIN. Reinstalling."
+                INSTALL_REQUIRED=1
+            fi
+        else 
+            INSTALL_REQUIRED=1
+        fi
+        if [ $INSTALL_REQUIRED ]; then
+            echo
+            echo "Additional installation steps have to be taken on the admin account ($ADMIN)"
+            echo "Please log in to the account of $ADMIN now!"
+            su - $ADMIN -c "$THIS_SCRIPT admin_install"
+            if [ $? -ne 0 ]; then
+                echo
+                echo "ERROR: Installing as $ADMIN failed!"
+                exit 1
+            fi
+            source "$ADMIN_CFG"
+        fi
+        createcfg
+    else
+        admin_install
+    fi
+}
+
+function admin_install {
+    echo
+    echo "-------------------------------------------------------------------------------"
+    echo "                CS:GO Multi-Mode Server Manager - Admin Install"
+    echo "-------------------------------------------------------------------------------"
+    echo
+    # Check for an existing configuration
+    readcfg > /dev/null
+    if [ $? -eq 0 ]; then
+        if [ $ADMIN == `whoami` ]; then
+            echo "A valid admin configuration already exists for the user $ADMIN."
+            echo "If you wish to start over, delete the configuration file"
+            echo "                $CFG"
+            echo "and try again."
+            echo
+            exit
+        else
+            echo "This user is currently configured as client of user $ADMIN."
+            echo "If you continue, this user will create an own installation of the game instead."
+            echo
+            prompt
+        fi
+    fi
+    ADMIN=`whoami`
+    ADMIN_HOME=~
+    echo "Admin Installation for user $ADMIN"
+    echo
+    echo "This will create a configuration file in the location:"
+    echo "                $CFG"
+    echo
+    prompt
+    echo
+    # Check for an existing SteamCMD
+    if [ -x "$ADMIN_HOME/steamcmd/steamcmd.sh" ]; then
+        STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
+        echo "An existing SteamCMD installation was found in $STEAMCMD_DIR"
+        echo
+    else
+        # Ask for the SteamCMD directory
+        echo "To download/update the game, installing SteamCMD is required. Be aware that"
+        echo "this will use a lot of data! Please specify the place for SteamCMD to be"
+        echo "installed in (absolute or relative to your home directory)."
+        echo
+        read -r -p "SteamCMD install directory (default: steamcmd) " STEAMCMD_DIR
+        echo
+        if [ -z "$STEAMCMD_DIR" ]; then 
+            STEAMCMD_DIR=steamcmd; 
+        fi
+        if [ ! `echo $STEAMCMD_DIR | grep ^/` ]; then
+            STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
+        fi
+        # Download and install SteamCMD
+        WDIR=`pwd`
+        mkdir -p "$STEAMCMD_DIR"
+        cd "$STEAMCMD_DIR"
+        echo "Downloading SteamCMD ..."
+        until [ $SUCCESS ]; do
+            wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+            if [ $? -ne 0 ]; then
+                echo "SteamCMD Download failed."
+                prompt "Retry"
+            else
+                SUCCESS=1
+            fi
+        done
+        echo "Extracting ..."
+        tar xzvf steamcmd_linux.tar.gz
+        rm steamcmd_linux.tar.gz &> /dev/null
+        if [ ! -x "$STEAMCMD_DIR/steamcmd.sh" ]; then
+            echo "ERROR: SteamCMD installation failed."
+            exit 1
+        fi
+        echo "Updating SteamCMD ..."
+        echo "quit" | "$STEAMCMD_DIR/steamcmd.sh"
+        echo
+        echo "SteamCMD installed successfully."
+        echo
+        cd "$WDIR"
+    fi
+    # Now, ask for the Game Directory
+    echo "Next, please select the directory for the game server to be installed in"
+    read -r -p "Game Server Installation Directory (default: server-base) " INSTALL_DIR
+    echo
+    if [ -z "$INSTALL_DIR" ]; then 
+        INSTALL_DIR=server-base; 
+    fi
+    if [ ! `echo $INSTALL_DIR | grep ^/` ]; then
+        INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
+    fi
+    mkdir -p "$INSTALL_DIR"
+
+    # Create Update Script
+    UPSCRIPT="$STEAMCMD_DIR/update"
+    rm "$UPSCRIPT" &> /dev/null
+    echo "login anonymous" >> "$UPSCRIPT"
+    echo "force_install_dir $INSTALL_DIR" >> "$UPSCRIPT"
+    echo "app_update $APPID" >> "$UPSCRIPT"
+    echo "quit" >> "$UPSCRIPT"
+
+    # Create Repair Script
+    UPSCRIPT="$STEAMCMD_DIR/repair"
+    rm "$UPSCRIPT" &> /dev/null
+    echo "login anonymous" >> "$UPSCRIPT"
+    echo "force_install_dir $INSTALL_DIR" >> "$UPSCRIPT"
+    echo "app_update $APPID validate" >> "$UPSCRIPT"
+    echo "quit" >> "$UPSCRIPT"
+
+    # Create Config
+    createcfg
+
+    # Make the game and config files readable to all.
+    # This will not override permissions for your home directory itself
+    chmod a+r "$ADMIN_CFG"
+    chmod a+r "$INSTALL_DIR"
+    echo "Basic Setup Complete!"
+    echo
+    echo "Do you want to install the game right now? If you choose No, you can"
+    echo "install the game later using 'csgo-server update' or copy the files manually."
+    echo
+    prompt "Install Now" noexit
+    if [ $? -eq 0 ]; then
+        update
+    else
+        echo
+    fi
+    return 0
 }
 
 function usage {
@@ -298,21 +446,22 @@ function usage {
 
 ### BEGIN ###
 
-# Read config file
-if [ ! -f "$CONFIG_FILE" ]
-then
-  echo "ERROR: Config file $CONFIG_FILE not found..."
-  exit 1
-else
-  source "$CONFIG_FILE"
-fi
-
 # Check required packages
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 if [ ! -x `which awk` ]; then echo "ERROR: You need awk for this script (try apt-get install awk)"; exit 1; fi
 if [ ! -x `which screen` ]; then echo "ERROR: You need screen for this script (try apt-get install screen)"; exit 1; fi
 if [ ! -x `which wget` ]; then echo "ERROR: You need wget for this script (try apt-get install wget)"; exit 1; fi
 if [ ! -x `which tar` ]; then echo "ERROR: You need tar for this script (try apt-get install tar)"; exit 1; fi
+
+
+# Commands that override initial setup
+if [ `echo "$1" | grep "^-*help"` ]; then usage; exit; fi
+if [ "$1" == "admin_install" ]; then admin_install; exit; fi
+
+
+# Load config, else start initial setup
+readcfg
+if [ $? -ne 0 ]; then setup; exit; fi
 
 case "$1" in
 
