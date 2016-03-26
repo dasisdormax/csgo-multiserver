@@ -116,7 +116,7 @@ function delete-all-tmuxes {
 function start {
 
     # Exit if server is already running
-    status && {
+    status || {
         echo "ERROR: Server instance < $INSTANCE > is already running!"
         echo "       Type \`csgo-server --help' for further options"
         echo
@@ -138,14 +138,18 @@ function start {
         echo
         return 1
     fi
-    
-    echo "Nothing failed ... yet ..."
+
+    echo
+    echo "Server instance < $INSTANCE > started successfully."
+    echo "To enter the console, type "
     echo
     return 0
 }
 
 function stop {
-    if ! status; then return 0; fi
+    # If not running, nothing to do
+    status && { echo; return 0; }
+    echo;
 }
 
 # Status (Up/Down and extra info) of the server in tmux session $SESSION_NAME
@@ -207,6 +211,7 @@ function update {
         su - $ADMIN -c "$THIS_SCRIPT update"
         return $?
     fi
+    echo
     local LOGFILE="$STEAMCMD_DIR/update.log"
     rm "$LOGFILE" &> /dev/null
     echo "Starting Game Update."
@@ -626,12 +631,13 @@ while [ "$1" ]; do
         ;;
 
         status)
+            shift
             # TODO
         ;;
 
         console)
-            # TODO
             shift
+            # TODO
             console
         ;;
 
