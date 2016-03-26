@@ -84,6 +84,22 @@ function prompt {
     fi
 }
 
+# Sets the instance to the value of $1
+function set-instance {
+    INSTANCE="$1"
+    if [ "$INSTANCE" ];
+    then 
+        INSTANCE_DIR="$(eval echo "~/$APPNAME-@$INSTANCE")"
+        SERVER_TEXT="Server Instance @$INSTANCE"
+    else 
+        INSTANCE_DIR="$INSTALL_DIR"
+        SERVER_TEXT="Base Installation"
+    fi
+    SESSION_NAME="$USER-$APPID-@$INSTANCE"
+    # Prints usage if no more commands are given
+    printusage=1
+}
+
 
 
 ############################## VARIABLE DEFINITIONS ##############################
@@ -114,42 +130,50 @@ function delete-all-tmuxes {
 
 ############################ SERVER CONTROL FUNCTIONS ############################
 function start {
-
-    # Exit if server is already running
+    echo "Starting $SERVER_TEXT ..."
+    # Nothing to do if server is already running
     status || {
-        echo "ERROR: Server instance < $INSTANCE > is already running!"
-        echo "       Type \`csgo-server --help' for further options"
+        echo "INFO:  $SERVER_TEXT is already running!"
+        echo "       Enter the console using \`csgo-server @$INSTANCE console'"
         echo
-        return 1
+        return 0
     }
 
+    if [ ! -d "$INSTANCE_DIR" ]; then
+        echo "ERROR: Instance directory < $INSTANCE_DIR > does not exist!"
+        echo "       Create an instance using \`csgo-server @$INSTANCE create-instance'"
+        echo
+        return 1
+    fi
+
     if [ ! -w "$INSTANCE_DIR" ]; then
-        echo "ERROR: You do not have write access to < $INSTANCE_DIR >"
-        echo "       Remember that only < $ADMIN > can modify and launch the base installation."
-        echo "       Try creating an own instance using \`csgo-server create-instance <name>'."
+        echo "ERROR: You do not have write access to < $INSTANCE_DIR > !"
+        echo "       Only < $ADMIN > can modify and launch the base installation! Try creating"
+        echo "       an own instance using \`csgo-server @name create-instance' instead."
         echo
         return 1
     fi
 
     if [ ! -x "$INSTANCE_DIR/$SERVER_EXEC" ]; then
         echo "ERROR: Server Executable not found at < $INSTANCE_DIR/$SERVER_EXEC > !"
-        echo "       Try \`csgo-server update' or \`csgo-server repair' or"
-        echo "       rebuild the instance"
+        echo "       Try repairing the installation using \`csgo-server update',"
+        echo "       \`csgo-server repair' or rebuild this instance."
         echo
         return 1
     fi
 
     echo
-    echo "Server instance < $INSTANCE > started successfully."
-    echo "To enter the console, type "
+    echo "$SERVER_TEXT started successfully!"
+    echo "To enter the game's console, type \`csgo-server @$INSTANCE console'."
     echo
     return 0
 }
 
 function stop {
-    # If not running, nothing to do
+    echo "Stopping $SERVER_TEXT ..."
     status && { echo; return 0; }
-    echo;
+
+    echo
 }
 
 # Status (Up/Down and extra info) of the server in tmux session $SESSION_NAME
@@ -174,7 +198,7 @@ function status {
 
 
     eval "local $(tmux -S "$TMUX_SOCKET" showenv SERVER_PID)"
-    local SOCKET_OWNER=ls -ld "$TMUX_SOCKET" | awk 'NR==1 {print $3}'
+    local SOCKET_OWNER="$(ls -ld "$TMUX_SOCKET" | awk 'NR==1 {print $3}')"
     if [ "$(ps -o uname= -o command= -p "$SERVER_PID" 2>/dev/null)" != "$SOCKET_OWNER $SERVER_EXEC" ]; then
         # Within the tmux session, no game server is running
         delete-tmux
@@ -209,9 +233,13 @@ function update {
         echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
         echo
         su - $ADMIN -c "$THIS_SCRIPT update"
-        return $?
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Update as < $ADMIN > failed!"
+            echo
+            return 1
+        fi
+        return 0;
     fi
-    echo
     local LOGFILE="$STEAMCMD_DIR/update.log"
     rm "$LOGFILE" &> /dev/null
     echo "Starting Game Update."
@@ -226,18 +254,18 @@ function update {
         echo   "-------------------------------------------------" | tee -a "$LOGFILE"
         echo | tee -a "$LOGFILE"
         "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update" 2>&1 | tee -a "$LOGFILE"
-        printf "\n\n" | tee -a "$LOGFILE"
+        echo | tee -a "$LOGFILE"
         if [ "$(grep "Success! App '$APPID' already up to date." "$LOGFILE")" ]; then
             local SUCCESS=1
         fi
     done
     if [ $SUCCESS ]; then
-        echo "Update completed successfully"
+        echo "Update completed successfully!"
         echo
         return 0
     else
         echo "Update failed. For more information, see the log file at"
-        echo "                < $LOGFILE >"
+        echo "               < $LOGFILE >"
         echo
         return 1
     fi
@@ -568,76 +596,47 @@ if [ "$1" == "admin-install" ]; then admin-install; shift; if [ ! "$1" ]; then e
 # Load config, else start initial setup
 readcfg || { setup; exit 0; }
 
-if [ ! "$1" ]; then usage; exit 0; fi
-
+set-instance ""
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
 while [ "$1" ]; do
+    unset printusage
     if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
 
     # Reload possible config changes
     readcfg
 
     case "$1" in
+        @*)
+            set-instance ${1:1}
+            shift
+        ;;
+
         start)
             shift
-            INSTANCE=$1
-            shift
-            if [ "$(echo "$INSTANCE " | grep "^ *-* *$")" ]; then
-                INSTANCE="-"
-                INSTANCE_DIR="$INSTALL_DIR"
-                echo "Starting Base Installation Server ..."
-            else
-                INSTANCE_DIR="~/$APPNAME-$INSTANCE"
-                echo "Starting Server < $INSTANCE > ..."
-            fi
-            SESSION_NAME="$USER-$APPID-$INSTANCE"
-
             start || exit 1
         ;;
 
         stop)
             shift
-            INSTANCE=$1
-            shift
-            if [ "$(echo "$INSTANCE " | grep "^ *-* *$")" ]; then
-                INSTANCE="-"
-                INSTANCE_DIR="$INSTALL_DIR"
-                echo "Stopping Base Installation Server ..."
-            else
-                INSTANCE_DIR="~/$APPNAME-$INSTANCE"
-                echo "Stopping Server < $INSTANCE > ..."
-            fi
-            SESSION_NAME="$USER-$APPID-$INSTANCE"
-
             stop
         ;;
 
         restart)
             shift
-            INSTANCE=$1
-            shift
-            if [ "$(echo "$INSTANCE " | grep "^ *-* *$")" ]; then
-                INSTANCE="-"
-                INSTANCE_DIR="$INSTALL_DIR"
-                echo "Restarting Base Installation Server ..."
-            else
-                INSTANCE_DIR="~/$APPNAME-$INSTANCE"
-                echo "Restarting Server < $INSTANCE > ..."
-            fi
-            SESSION_NAME="$USER-$APPID-$INSTANCE"
-
             stop
-            start
+            start || exit 1
         ;;
 
         status)
             shift
-            # TODO
+            if status; 
+                then echo "$SERVER_TEXT is STOPPED!"; echo
+                else echo "$SERVER_TEXT is RUNNING!"; echo
+            fi
         ;;
 
         console)
             shift
-            # TODO
             console
         ;;
 
@@ -647,13 +646,15 @@ while [ "$1" ]; do
         ;;
 
         *)
-            echo "ERROR: Option $1 unrecognized!"
+            echo "ERROR: Unrecognized Option: $1"
             echo
             usage
             exit 1
         ;;
     esac
 done
+
+if [ "$printusage" ]; then unset printusage; usage; exit 1; fi
 
 exit 0
 
