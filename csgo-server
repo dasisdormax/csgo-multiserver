@@ -62,12 +62,12 @@ MSM_CFG="$APPNAME-msm.conf"
 # $1 is the base directory, if omitted, the current home directory is taken
 function cfgfile {
     if [ `echo "$MSM_CFG" | grep ^/` ]; then
-        echo "$MSM_CFG"
+        local CFG="$MSM_CFG"
     else
         if [ $1 ]; then
             echo "$1/$MSM_CFG"
         else
-            echo "~/$MSM_CFG"
+            echo "$(eval echo ~)/$MSM_CFG"
         fi
     fi
 }
@@ -89,6 +89,26 @@ function prompt {
 ############################## VARIABLE DEFINITIONS ##############################
 THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 CFG=`cfgfile`
+
+
+
+############################# TMUX CONTROL FUNCTIONS #############################
+function delete-tmux {
+    tmux -S "$TMUX_SOCKET" kill-server
+    rm $TMUX_SOCKET
+    return 0
+}
+
+function delete-all-tmuxes {
+    local BASEPATH="$INSTALL_DIR/.msm/clients"
+    for socket in $(ls "$BASEPATH"); do
+        local TMUX_SOCKET="$BASEPATH/$socket"
+        if [ -w "$TMUX_SOCKET" ]; then
+            delete-tmux
+        fi
+    done
+    unset socket
+}
 
 
 
@@ -142,18 +162,10 @@ function status {
         exit 1
     fi
 
-    # delete socket if no server instance is found in it
-    function del-socket {
-        tmux -S "$TMUX_SOCKET" kill-server
-        rm $TMUX_SOCKET
-        unset -f del-socket
-        return 0
-    }
-
     # Note: tmux has-session will only output anything if NO session was found
     if [ "$(tmux -S "$TMUX_SOCKET" has-session 2>&1 )" ]; then
         # No session runs within tmux
-        del-socket
+        delete-tmux
     fi
 
 
@@ -161,11 +173,10 @@ function status {
     local SOCKET_OWNER=ls -ld "$TMUX_SOCKET" | awk 'NR==1 {print $3}'
     if [ "$(ps -o uname= -o command= -p "$SERVER_PID" 2>/dev/null)" != "$SOCKET_OWNER $SERVER_EXEC" ]; then
         # Within the tmux session, no game server is running
-        del-socket
+        delete-tmux
     fi
 
     # Game Server found
-    unset -f del-socket
     return 1
 }
 
@@ -189,7 +200,6 @@ function create-instance {
 
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 function update {
-    echo
     if [ `whoami` != $ADMIN ]; then
         echo "Only the admin < $ADMIN > can manage and update the game installation."
         echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
@@ -207,8 +217,9 @@ function update {
     until [ "$SUCCESS" -o $try -ge $tries ]; do
         let local try=try+1
         echo "Current Time: $(date)" | tee -a "$LOGFILE"
-        printf "[%2d/%2d] Trying to update the game using SteamCMD.\n"
-        printf "-------------------------------------------------\n\n" $try $tries | tee -a "$LOGFILE"
+        printf "[%2d/%2d] Trying to update the game using SteamCMD.\n" $try $tries | tee -a "$LOGFILE"
+        echo   "-------------------------------------------------" | tee -a "$LOGFILE"
+        echo | tee -a "$LOGFILE"
         "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update" 2>&1 | tee -a "$LOGFILE"
         printf "\n\n" | tee -a "$LOGFILE"
         if [ "$(grep "Success! App '$APPID' already up to date." "$LOGFILE")" ]; then
@@ -334,29 +345,28 @@ function setup {
     echo
     # Check if the admin has a working configuration already
     if [ `whoami` != "$ADMIN" ]; then
-        client_install
+        client-install
         if [ $? -ne 0 ]; then
             echo "Additional installation steps have to be taken on the admin account < $ADMIN >"
             echo "Please log in to the account of < $ADMIN > now!"
             echo
-            su - $ADMIN -c "$THIS_SCRIPT admin_install"
-            echo
+            su - $ADMIN -c "$THIS_SCRIPT admin-install"
             if [ $? -ne 0 ]; then
                 echo "ERROR: Admin Installation for < $ADMIN > failed!"
                 exit 1
             fi
-            client_install
+            client-install
             if [ $? -ne 0 ]; then
                 echo "ERROR: Client Installation failed!"
                 exit 1
             fi
         fi
     else
-        admin_install
+        admin-install
     fi
 }
 
-function client_install {
+function client-install {
     echo "Trying to import settings from < $ADMIN > ..."
     ADMIN_HOME=$(eval echo "~$ADMIN")
     if [ ! -r "$ADMIN_HOME" ]; then
@@ -372,7 +382,7 @@ function client_install {
     return 0
 }
 
-function admin_install {
+function admin-install {
     echo "-------------------------------------------------------------------------------"
     echo "                CS:GO Multi-Mode Server Manager - Admin Install"
     echo "-------------------------------------------------------------------------------"
@@ -492,15 +502,23 @@ function admin_install {
     echo "app_update $APPID validate" >> "$UPSCRIPT"
     echo "quit" >> "$UPSCRIPT"
 
+    # Cleaning existing clients up
+    delete-all-tmuxes
+    rm -rf "$INSTALL_DIR/.msm/clients" &>/dev/null
+
     # Create settings directory within INSTALL_DIR
     mkdir -p "$INSTALL_DIR/.msm"
+    # Make game and settings readable for all users
+    chmod -R a+r "$INSTALL_DIR"
+    # ... but make sure the authtokens stay private
+    touch "$INSTALL_DIR/.msm/authtoken"
+    chmod o-rwx "$INSTALL_DIR/msm/authtoken"
+
+    # Create other info and clients directory
     echo "$APPID" > "$INSTALL_DIR/.msm/appid"
     echo "$APPNAME" > "$INSTALL_DIR/.msm/appname"
     mkdir -p "$INSTALL_DIR/.msm/clients"
     chmod a+rwx,g+s "$INSTALL_DIR/.msm/clients"
-
-    # Make the game files readable for all users
-    chmod -R a+r "$INSTALL_DIR"
 
     # Create Config and make it readable
     createcfg
@@ -513,6 +531,7 @@ function admin_install {
     echo
     prompt "Install Now?" noexit
     if [ $? -eq 0 ]; then
+        echo
         update
     else
         echo
@@ -526,7 +545,7 @@ function usage {
   echo
 }
 
-### BEGIN ###
+############################### PROGRAM STARTS HERE ##############################
 
 # Check required packages
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
@@ -538,16 +557,20 @@ if [ ! -x "$(which tar)" ];  then echo "ERROR: You need tar for this script (try
 # Make some space
 echo
 
+if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
+if [ "$1" == "admin-install" ]; then admin-install; shift; if [ ! "$1" ]; then exit 0; fi; fi
+
+# Load config, else start initial setup
+readcfg || { setup; exit 0; }
+
 if [ ! "$1" ]; then usage; exit 0; fi
+
+########################### LOOP THROUGH ALL PARAMETERS ##########################
 while [ "$1" ]; do
-
-    # Commands that override initial checks and setup
     if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
-    if [ "$1" == "admin_install" ]; then admin_install; shift; if [ ! "$1" ]; then exit 0; fi; fi
 
-    # Load config, else start initial setup
+    # Reload possible config changes
     readcfg
-    if [ $? -ne 0 ]; then setup; exit 0; fi
 
     case "$1" in
         start)
@@ -599,6 +622,7 @@ while [ "$1" ]; do
             SESSION_NAME="$USER-$APPID-$INSTANCE"
 
             stop
+            start
         ;;
 
         status)
@@ -607,10 +631,12 @@ while [ "$1" ]; do
 
         console)
             # TODO
+            shift
             console
         ;;
 
         update)
+            shift
             update
         ;;
 
