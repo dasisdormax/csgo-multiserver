@@ -538,10 +538,11 @@ if [ ! -x "$(which tar)" ];  then echo "ERROR: You need tar for this script (try
 # Make some space
 echo
 
+if [ ! "$1" ]; then usage; exit 0; fi
 while [ "$1" ]; do
 
     # Commands that override initial checks and setup
-    if [ ! "$1" -o "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
+    if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
     if [ "$1" == "admin_install" ]; then admin_install; shift; if [ ! "$1" ]; then exit 0; fi; fi
 
     # Load config, else start initial setup
