@@ -53,7 +53,7 @@ SERVER_EXEC="srcds_run"
 
 # MSM_CFG: General Configuration file location
 # if a relative path is given, it is interpreted as relative to the user's home directory
-MSM_CFG="$APPNAME-msm.cfg"
+MSM_CFG="$APPNAME-msm.conf"
 
 
 
@@ -94,20 +94,21 @@ CFG=`cfgfile`
 
 ############################ SERVER CONTROL FUNCTIONS ############################
 function start {
-    SESSION_NAME="$USER-$APPID-$INSTANCE"
-    status
-    if [ $? -ne 0 ]; then
+
+    # Exit if server is already running
+    status && {
         echo "ERROR: Server instance < $INSTANCE > is already running!"
         echo "       Type \`csgo-server --help' for further options"
         echo
-        exit 1
-    fi
+        return 1
+    }
 
     if [ ! -w "$INSTANCE_DIR" ]; then
         echo "ERROR: You do not have write access to < $INSTANCE_DIR >"
         echo "       Remember that only < $ADMIN > can modify and launch the base installation."
         echo "       Try creating an own instance using \`csgo-server create-instance <name>'."
         echo
+        return 1
     fi
 
     if [ ! -x "$INSTANCE_DIR/$SERVER_EXEC" ]; then
@@ -115,54 +116,24 @@ function start {
         echo "       Try \`csgo-server update' or \`csgo-server repair' or"
         echo "       rebuild the instance"
         echo
+        return 1
     fi
     
-
-  if [ ! -d $DIR_ROOT ]; then echo "ERROR: $DIR_ROOT is not a directory"; exit 1; fi
-  if [ ! -x $DIR_ROOT/$DAEMON_GAME ]; then echo "ERROR: $DIR_ROOT/$DAEMON_GAME does not exist or is not executable"; exit 1; fi
-  
-  # Generated misc args
-  GENERATED_ARGS="";
-  if [ -z "${API_AUTHORIZATION_KEY}" -a -f $DIR_GAME/webapi_authkey.txt ]; then API_AUTHORIZATION_KEY="`cat $DIR_GAME/webapi_authkey.txt`"; fi
-  if [ ! -z "${API_AUTHORIZATION_KEY}" ]
-  then
-    GENERATED_ARGS="-authkey ${API_AUTHORIZATION_KEY}"
-    if [ ! -z "${WORKSHOP_COLLECTION_ID}" ]; then GENERATED_ARGS="${GENERATED_ARGS} +host_workshop_collection ${WORKSHOP_COLLECTION_ID}"; fi
-    if [ ! -z "${WORKSHOP_START_MAP}" ]; then GENERATED_ARGS="${GENERATED_ARGS} +workshop_start_map ${WORKSHOP_START_MAP}"; fi
-  fi
-  
-  # Start game
-  PARAM_START="${PARAM_START} ${GENERATED_ARGS}"
-  echo "Start command : $PARAM_START"
-  
-  if [ `whoami` = root ]
-  then
-    su - $USER -c "cd $DIR_ROOT ; screen -AmdS $SCREEN_NAME ./$DAEMON_GAME $PARAM_START"
-  else
-    cd $DIR_ROOT
-    screen -AmdS $SCREEN_NAME ./$DAEMON_GAME $PARAM_START
-  fi
+    echo "Nothing failed ... yet ..."
+    echo
+    return 0
 }
 
 function stop {
-  if ! status; then echo "$SCREEN_NAME could not be found. Probably not running."; exit 1; fi
-
-  if [ `whoami` = root ]
-  then
-    tmp=$(su - $USER -c "screen -ls" | awk -F . "/\.$SCREEN_NAME\t/ {print $1}" | awk '{print $1}')
-    su - $USER -c "screen -r $tmp -X quit"
-  else
-    screen -r $(screen -ls | awk -F . "/\.$SCREEN_NAME\t/ {print $1}" | awk '{print $1}') -X quit
-  fi
+    if ! status; then return 0; fi
 }
 
+# Status (Up/Down and extra info) of the server in tmux session $SESSION_NAME
 function status {
     TMUX_SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
 
     # Check if tmux socket exists and is accessible
     if [ ! -e "$TMUX_SOCKET" ]; then
-        echo "Server < $SESSION_NAME > is not currently active."
-        echo
         return 0
     fi
     if [ ! -w "$TMUX_SOCKET" ]; then
@@ -173,8 +144,6 @@ function status {
 
     # delete socket if no server instance is found in it
     function del-socket {
-        echo "Server < $SESSION_NAME > is not currently active."
-        echo
         tmux -S "$TMUX_SOCKET" kill-server
         rm $TMUX_SOCKET
         unset -f del-socket
@@ -200,16 +169,9 @@ function status {
     return 1
 }
 
+# Switch to the game console in tmux session
 function console {
-  if ! status; then echo "$SCREEN_NAME could not be found. Probably not running."; exit 1; fi
-
-  if [ `whoami` = root ]
-  then
-    tmp=$(su - $USER -c "screen -ls" | awk -F . "/\.$SCREEN_NAME\t/ {print $1}" | awk '{print $1}')
-    su - $USER -c "screen -r $tmp"
-  else
-    screen -r $(screen -ls | awk -F . "/\.$SCREEN_NAME\t/ {print $1}" | awk '{print $1}')
-  fi
+    status
 }
 
 
@@ -296,12 +258,11 @@ function readcfg {
     if [ "$1" ]; then local CFG="$1"; fi
     if [ -r "$CFG" ]; then
         source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
-        checkvars
-        ERR=$?
-        if [ $ERR -ne 0 ]; then
+        checkvars || {
             echo "ERROR: One or more errors in the configuration file < $CFG >"
-        fi
-        return $ERR
+            return 1
+        }
+        return 0
     fi
     return 1
 }
@@ -318,8 +279,7 @@ function printcfg {
 
 # Create configuration file for the current user
 function createcfg {
-    checkvars
-    if [ $? -ne 0 ]; then exit 1; fi
+    checkvars || exit 1
     CFG=`cfgfile`
     echo "Creating CS:GO MSM Config File in < $CFG >"
     rm $CFG &> /dev/null
@@ -577,68 +537,90 @@ if [ ! -x "$(which tar)" ];  then echo "ERROR: You need tar for this script (try
 
 # Make some space
 echo
-# Commands that override initial checks and setup
-if [ ! "$1" -o "$(echo "$1" | grep "^-*help")" ]; then usage; exit; fi
-if [ "$1" == "admin_install" ]; then admin_install; exit; fi
 
+while [ "$1" ]; do
 
-# Load config, else start initial setup
-readcfg
-if [ $? -ne 0 ]; then setup; exit; fi
+    # Commands that override initial checks and setup
+    if [ ! "$1" -o "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
+    if [ "$1" == "admin_install" ]; then admin_install; shift; if [ ! "$1" ]; then exit 0; fi; fi
 
-case "$1" in
+    # Load config, else start initial setup
+    readcfg
+    if [ $? -ne 0 ]; then setup; exit 0; fi
 
-  start)
-    echo "Starting $SCREEN_NAME..."
-    start
-    sleep 5
-    echo "$SCREEN_NAME started successfully"
-  ;;
+    case "$1" in
+        start)
+            shift
+            INSTANCE=$1
+            shift
+            if [ "$(echo "$INSTANCE " | grep "^ *-* *$")" ]; then
+                INSTANCE="-"
+                INSTANCE_DIR="$INSTALL_DIR"
+                echo "Starting Base Installation Server ..."
+            else
+                INSTANCE_DIR="~/$APPNAME-$INSTANCE"
+                echo "Starting Server < $INSTANCE > ..."
+            fi
+            SESSION_NAME="$USER-$APPID-$INSTANCE"
 
-  stop)
-    echo "Stopping $SCREEN_NAME..."
-    stop
-    sleep 5
-    echo "$SCREEN_NAME stopped successfully"
-  ;;
- 
-  restart)
-    echo "Restarting $SCREEN_NAME..."
-    status && stop
-    sleep 5
-    start
-    sleep 5
-    echo "$SCREEN_NAME restarted successfully"
-  ;;
+            start || exit 1
+        ;;
 
-  status)
-    if status
-    then echo "$SCREEN_NAME is UP"
-    else echo "$SCREEN_NAME is DOWN"
-    fi
-  ;;
- 
-  console)
-    echo "Open console on $SCREEN_NAME..."
-    console
-  ;;
-  
-  update)
-    echo "Updating $SCREEN_NAME..."
-    update
-  ;;
-  
-  create)
-    echo "Creating $SCREEN_NAME..."
-    create
-  ;;
+        stop)
+            shift
+            INSTANCE=$1
+            shift
+            if [ "$(echo "$INSTANCE " | grep "^ *-* *$")" ]; then
+                INSTANCE="-"
+                INSTANCE_DIR="$INSTALL_DIR"
+                echo "Stopping Base Installation Server ..."
+            else
+                INSTANCE_DIR="~/$APPNAME-$INSTANCE"
+                echo "Stopping Server < $INSTANCE > ..."
+            fi
+            SESSION_NAME="$USER-$APPID-$INSTANCE"
 
-  *)
-    usage
-    exit 1
-  ;;
+            stop
+        ;;
 
-esac
+        restart)
+            shift
+            INSTANCE=$1
+            shift
+            if [ "$(echo "$INSTANCE " | grep "^ *-* *$")" ]; then
+                INSTANCE="-"
+                INSTANCE_DIR="$INSTALL_DIR"
+                echo "Restarting Base Installation Server ..."
+            else
+                INSTANCE_DIR="~/$APPNAME-$INSTANCE"
+                echo "Restarting Server < $INSTANCE > ..."
+            fi
+            SESSION_NAME="$USER-$APPID-$INSTANCE"
+
+            stop
+        ;;
+
+        status)
+            # TODO
+        ;;
+
+        console)
+            # TODO
+            console
+        ;;
+
+        update)
+            update
+        ;;
+
+        *)
+            echo "ERROR: Option $1 unrecognized!"
+            echo
+            usage
+            exit 1
+        ;;
+    esac
+done
 
 exit 0
 
