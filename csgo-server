@@ -48,6 +48,9 @@
 APPID=740
 APPNAME="csgo"
 
+# SERVER_EXEC: The executable file of the server, within INSTANCE_DIR
+SERVER_EXEC="srcds_run"
+
 # MSM_CFG: General Configuration file location
 # if a relative path is given, it is interpreted as relative to the user's home directory
 MSM_CFG="$APPNAME-msm.cfg"
@@ -58,20 +61,15 @@ MSM_CFG="$APPNAME-msm.cfg"
 # Get absolute config file location, based on MSM_CFG
 # $1 is the base directory, if omitted, the current home directory is taken
 function cfgfile {
-    if [ `echo $MSM_CFG | grep ^/` ]; then
-        echo $MSM_CFG
+    if [ `echo "$MSM_CFG" | grep ^/` ]; then
+        echo "$MSM_CFG"
     else
         if [ $1 ]; then
-            echo $1/$MSM_CFG
+            echo "$1/$MSM_CFG"
         else
-            echo ~/$MSM_CFG
+            echo "~/$MSM_CFG"
         fi
     fi
-}
-
-# make the screen command work in cases when you su'd to a different user
-function screen {
-    /usr/bin/script -q -c "/usr/bin/screen ${*}" /dev/null
 }
 
 # A yes/no prompt. With the first parameter $1, an alternative prompt message can be given
@@ -79,7 +77,7 @@ function screen {
 # the function will instead return with a value of 1.
 function prompt {
     PROMPT="Proceed?"
-    if [ "$1" ]; then PROMPT=$1; fi
+    if [ "$1" ]; then PROMPT="$1"; fi
     read -r -p "$PROMPT (Y/n) " INPUT
     if [[ "$INPUT" && "$INPUT" != "y" && "$INPUT" != "Y" ]] ; then 
         if [ "$2" ]; then return 1; else exit 1; fi
@@ -96,14 +94,32 @@ CFG=`cfgfile`
 
 ############################ SERVER CONTROL FUNCTIONS ############################
 function start {
-    if [ `status` ]; then
-        echo "Server $INSTANCE is already running!"
+    SESSION_NAME="$USER-$APPID-$INSTANCE"
+    status
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Server instance < $INSTANCE > is already running!"
+        echo "       Type \`csgo-server --help' for further options"
+        echo
+        exit 1
     fi
-    touch "$INSTALL_DIR/msm-clients/$USER"
+
+    if [ ! -w "$INSTANCE_DIR" ]; then
+        echo "ERROR: You do not have write access to < $INSTANCE_DIR >"
+        echo "       Remember that only < $ADMIN > can modify and launch the base installation."
+        echo "       Try creating an own instance using \`csgo-server create-instance <name>'."
+        echo
+    fi
+
+    if [ ! -x "$INSTANCE_DIR/$SERVER_EXEC" ]; then
+        echo "ERROR: Server Executable not found at < $INSTANCE_DIR/$SERVER_EXEC > !"
+        echo "       Try \`csgo-server update' or \`csgo-server repair' or"
+        echo "       rebuild the instance"
+        echo
+    fi
+    
 
   if [ ! -d $DIR_ROOT ]; then echo "ERROR: $DIR_ROOT is not a directory"; exit 1; fi
   if [ ! -x $DIR_ROOT/$DAEMON_GAME ]; then echo "ERROR: $DIR_ROOT/$DAEMON_GAME does not exist or is not executable"; exit 1; fi
-  if status; then echo "$SCREEN_NAME is already running"; exit 1; fi
   
   # Generated misc args
   GENERATED_ARGS="";
@@ -141,12 +157,47 @@ function stop {
 }
 
 function status {
-  if [ `whoami` = root ]
-  then
-    su - $USER -c "screen -ls" | grep [.]$SCREEN_NAME[[:space:]] > /dev/null
-  else
-    screen -ls | grep [.]$SCREEN_NAME[[:space:]] > /dev/null
-  fi
+    TMUX_SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
+
+    # Check if tmux socket exists and is accessible
+    if [ ! -e "$TMUX_SOCKET" ]; then
+        echo "Server < $SESSION_NAME > is not currently active."
+        echo
+        return 0
+    fi
+    if [ ! -w "$TMUX_SOCKET" ]; then
+        echo "ERROR: Cannot access socket of session < $SESSION_NAME> !"
+        echo
+        exit 1
+    fi
+
+    # delete socket if no server instance is found in it
+    function del-socket {
+        echo "Server < $SESSION_NAME > is not currently active."
+        echo
+        tmux -S "$TMUX_SOCKET" kill-server
+        rm $TMUX_SOCKET
+        unset -f del-socket
+        return 0
+    }
+
+    # Note: tmux has-session will only output anything if NO session was found
+    if [ "$(tmux -S "$TMUX_SOCKET" has-session 2>&1 )" ]; then
+        # No session runs within tmux
+        del-socket
+    fi
+
+
+    eval "local $(tmux -S "$TMUX_SOCKET" showenv SERVER_PID)"
+    local SOCKET_OWNER=ls -ld "$TMUX_SOCKET" | awk 'NR==1 {print $3}'
+    if [ "$(ps -o uname= -o command= -p "$SERVER_PID" 2>/dev/null)" != "$SOCKET_OWNER $SERVER_EXEC" ]; then
+        # Within the tmux session, no game server is running
+        del-socket
+    fi
+
+    # Game Server found
+    unset -f del-socket
+    return 1
 }
 
 function console {
@@ -165,7 +216,6 @@ function console {
 
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
 function create-instance {
-    echo
     echo "-------------------------------------------------------------------------------"
     echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
     echo "-------------------------------------------------------------------------------"
@@ -256,6 +306,16 @@ function readcfg {
     return 1
 }
 
+function printcfg {
+    echo "#! /bin/bash"
+    echo "ADMIN=\"$ADMIN\""
+    echo "INSTALL_DIR=\"$INSTALL_DIR\""
+    # Vars that are only interesting for the admin
+    if [ `whoami` == "$ADMIN" ]; then
+        echo "STEAMCMD_DIR=\"$STEAMCMD_DIR\""
+    fi
+}
+
 # Create configuration file for the current user
 function createcfg {
     checkvars
@@ -264,22 +324,12 @@ function createcfg {
     echo "Creating CS:GO MSM Config File in < $CFG >"
     rm $CFG &> /dev/null
 
-    function printcfg {
-        echo "#! /bin/bash"
-        echo "ADMIN=\"$ADMIN\""
-        echo "INSTALL_DIR=\"$INSTALL_DIR\""
-        # Vars that are only interesting for the admin
-        if [ `whoami` == "$ADMIN" ]; then
-            echo "STEAMCMD_DIR=\"$STEAMCMD_DIR\""
-        fi
-    }
     printcfg > $CFG
     echo
 }
 
 function setup {
     # First-time setup
-    echo
     echo "-------------------------------------------------------------------------------"
     echo "                CS:GO Multi-Mode Server Manager - Initial Setup"
     echo "-------------------------------------------------------------------------------"
@@ -321,9 +371,9 @@ function setup {
         fi
     done
 
+    echo
     # Check if the admin has a working configuration already
     if [ `whoami` != "$ADMIN" ]; then
-        echo
         client_install
         if [ $? -ne 0 ]; then
             echo "Additional installation steps have to be taken on the admin account < $ADMIN >"
@@ -363,7 +413,6 @@ function client_install {
 }
 
 function admin_install {
-    echo
     echo "-------------------------------------------------------------------------------"
     echo "                CS:GO Multi-Mode Server Manager - Admin Install"
     echo "-------------------------------------------------------------------------------"
@@ -514,20 +563,22 @@ function admin_install {
 function usage {
   echo "Usage: service csgo-server-launcher {start|stop|status|restart|console|update|create}"
   echo "On console, press CTRL+A then D to stop the screen without stopping the server."
+  echo
 }
 
 ### BEGIN ###
 
 # Check required packages
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
-if [ ! -x `which awk` ]; then echo "ERROR: You need awk for this script (try apt-get install awk)"; exit 1; fi
-if [ ! -x `which screen` ]; then echo "ERROR: You need screen for this script (try apt-get install screen)"; exit 1; fi
-if [ ! -x `which wget` ]; then echo "ERROR: You need wget for this script (try apt-get install wget)"; exit 1; fi
-if [ ! -x `which tar` ]; then echo "ERROR: You need tar for this script (try apt-get install tar)"; exit 1; fi
+if [ ! -x "$(which awk)" ];  then echo "ERROR: You need awk for this script (try apt-get install awk)";   exit 1; fi
+if [ ! -x "$(which tmux)" ]; then echo "ERROR: You need tmux for this script (try apt-get install tmux)"; exit 1; fi
+if [ ! -x "$(which wget)" ]; then echo "ERROR: You need wget for this script (try apt-get install wget)"; exit 1; fi
+if [ ! -x "$(which tar)" ];  then echo "ERROR: You need tar for this script (try apt-get install tar)";   exit 1; fi
 
-
-# Commands that override initial setup
-if [ `echo "$1" | grep "^-*help"` ]; then usage; exit; fi
+# Make some space
+echo
+# Commands that override initial checks and setup
+if [ ! "$1" -o "$(echo "$1" | grep "^-*help")" ]; then usage; exit; fi
 if [ "$1" == "admin_install" ]; then admin_install; exit; fi
 
 
