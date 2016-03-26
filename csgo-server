@@ -5,12 +5,12 @@
 # Required-Stop: $remote_fs $syslog
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
-# Short-Description: CS:GO Multi-Mode Server Manager
+# Short-Description: CS:GO Multi Server Manager
 ### END INIT INFO
 
 ##################################################################################
 #                                                                                #
-#  CS:GO Multi-Mode Server Manager (MSM)                                         #
+#  CS:GO Multi Server Manager (MSM)                                              #
 #                                                                                #
 #  Launch and setup your Counter-Strike : Global Offensive Dedicated Server.     #
 #                                                                                #
@@ -30,15 +30,7 @@
 #  You should have received a copy of the GNU Lesser General Public License      #
 #  along with this program. If not, see http://www.gnu.org/licenses/.            #
 #                                                                                #
-#  Usage: ./csgo-server-launcher.sh {start|stop|status|restart|console|update}   #
-#    - start: start the server                                                   #
-#    - stop: stop the server                                                     #
-#    - status: display the status of the server (down or up)                     #
-#    - restart: restart the server                                               #
-#    - console: display the server console where you can enter commands.         #
-#     To exit the console without stopping the server, press CTRL + A then D.    #
-#    - update: update the server                                                 #
-#    - create: creates a new server                                              #
+#  Usage: TO BE REWORKED                                                         #
 #                                                                                #
 ##################################################################################
 
@@ -88,14 +80,14 @@ function prompt {
 function set-instance {
     INSTANCE="$1"
     if [ "$INSTANCE" ];
-    then 
-        INSTANCE_DIR="$(eval echo "~/$APPNAME-@$INSTANCE")"
+    then
+        INSTANCE_DIR="$(eval echo "~/$APPNAME@$INSTANCE")"
         SERVER_TEXT="Server Instance @$INSTANCE"
-    else 
+    else
         INSTANCE_DIR="$INSTALL_DIR"
         SERVER_TEXT="Base Installation"
     fi
-    SESSION_NAME="$USER-$APPID-@$INSTANCE"
+    SESSION_NAME="$USER@$INSTANCE"
     # Prints usage if no more commands are given
     printusage=1
 }
@@ -103,7 +95,8 @@ function set-instance {
 
 
 ############################## VARIABLE DEFINITIONS ##############################
-THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+THIS_COMMAND="$(basename "${BASH_SOURCE[0]}")"
+THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$THIS_COMMAND"
 CFG=`cfgfile`
 
 
@@ -134,14 +127,14 @@ function start {
     # Nothing to do if server is already running
     status || {
         echo "INFO:  $SERVER_TEXT is already running!"
-        echo "       Enter the console using \`csgo-server @$INSTANCE console'"
+        echo "       Enter the console using \`$THIS_COMMAND @$INSTANCE console'"
         echo
         return 0
     }
 
     if [ ! -d "$INSTANCE_DIR" ]; then
         echo "ERROR: Instance directory < $INSTANCE_DIR > does not exist!"
-        echo "       Create an instance using \`csgo-server @$INSTANCE create-instance'"
+        echo "       Create an instance using \`$THIS_COMMAND @$INSTANCE create-instance'"
         echo
         return 1
     fi
@@ -149,22 +142,22 @@ function start {
     if [ ! -w "$INSTANCE_DIR" ]; then
         echo "ERROR: You do not have write access to < $INSTANCE_DIR > !"
         echo "       Only < $ADMIN > can modify and launch the base installation! Try creating"
-        echo "       an own instance using \`csgo-server @name create-instance' instead."
+        echo "       an own instance using \`$THIS_COMMAND @name create-instance' instead."
         echo
         return 1
     fi
 
     if [ ! -x "$INSTANCE_DIR/$SERVER_EXEC" ]; then
         echo "ERROR: Server Executable not found at < $INSTANCE_DIR/$SERVER_EXEC > !"
-        echo "       Try repairing the installation using \`csgo-server update',"
-        echo "       \`csgo-server repair' or rebuild this instance."
+        echo "       Try repairing the installation using \`$THIS_COMMAND update',"
+        echo "       \`$THIS_COMMAND repair' or rebuild this instance."
         echo
         return 1
     fi
 
     echo
     echo "$SERVER_TEXT started successfully!"
-    echo "To enter the game's console, type \`csgo-server @$INSTANCE console'."
+    echo "To enter the game's console, type \`$THIS_COMMAND @$INSTANCE console'."
     echo
     return 0
 }
@@ -348,7 +341,7 @@ function setup {
     echo "    the \$MSM_CFG variable within this file accordingly."
     echo
     echo ">>  For multi-user setups, this script must be readable for all users"
-    echo "    COMMAND:   < $THIS_SCRIPT >"
+    echo "               < $THIS_SCRIPT >"
     echo
     prompt
     # Query steam installation admin user
@@ -417,7 +410,7 @@ function client-install {
 
 function admin-install {
     echo "-------------------------------------------------------------------------------"
-    echo "                CS:GO Multi-Mode Server Manager - Admin Install"
+    echo "                  CS:GO Multi Server Manager - Admin Install"
     echo "-------------------------------------------------------------------------------"
     echo
     echo "Checking for an existing configuration ..."
@@ -560,7 +553,7 @@ function admin-install {
     echo "Basic Setup Complete!"
     echo
     echo "Do you want to install/update the game right now? If you choose No, you can"
-    echo "install the game later using 'csgo-server update' or copy the files manually."
+    echo "install the game later using \`$THIS_COMMAND update' or copy the files manually."
     echo
     prompt "Install Now?" noexit
     if [ $? -eq 0 ]; then
@@ -573,8 +566,8 @@ function admin-install {
 }
 
 function usage {
-  echo "Usage: service csgo-server-launcher {start|stop|status|restart|console|update|create}"
-  echo "On console, press CTRL+A then D to stop the screen without stopping the server."
+  echo "Usage: $THIS_COMMAND [@instance] {start|stop|status|restart|console|update|create}"
+  echo "On console, CTRL+D will detach (return) instead of exiting the server."
   echo
 }
 

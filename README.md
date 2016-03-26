@@ -1,41 +1,51 @@
-# CS:GO Multi-Mode Server Manager
+# CS:GO *Multi* Server Manager
 
-Launch and setup your Counter-Strike : Global Offensive Dedicated Server.
+Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
 ## About this fork
 
-This fork shall remove problems of the original csgo-server-launcher (it seemed primarily designed for remote-hosted servers) and allow multiple configurations and set up sourcemod plugins - for using the script in LAN events. 
+This fork is a complete rewrite of [csgo-server-launcher]{https://github.com/crazy-max/csgo-server-launcher} (which seemed to be primarily designed for rented root servers). Intention is to make server management easier in both shared server and LAN environments.
 
-At some point in the future, it is planned to make a docker container for easier deployment out of this.
+Currently licensed as LGPLv3. When all original code and documentation has been replaced by own, this is planned to be relicensed under Apache 2.0.
 
-### Planned additions
+### Currently working features
 
-* **MULTIPLE CONFIGURATIONS** for different modes (like competitive/deathmatch/surfing) that can be chosen when starting the server
+* SteamCMD and Game Installation
+
+### Planned features
+
+The emphasis is on **MULTI**
+* **_MULTIPLE_ USERS**: An admin-client system for sharing the base installation. This can save bandwidth/storage
+* **_MULTIPLE_ INSTANCES**: Each game server instance shares the base files, but has its own configuration. Multiple instances can run on a system simultaneously. Supporting network bridges would be nice for the future.
+* **_MULTIPLE_ CONFIGURATIONS**: Different gamemodes (like competitive/deathmatch/surfing) that can be chosen when starting the server
     * e.g using **csgo-server** start competitive
-    * More options shall be controlled using environment variables, like **MAPS** (a mapcycle generator), **TEAM_T**, **TEAM_CT** (automatic team assignment, depends on plugins)
-* sourcemod plugin management (including downloading them), and enabling/disabling them based on configuration
-* support for Gameserver auth tokens and various other improvements
+    * More options should be controlled using environment variables, like **MAPS** (a mapcycle generator), **TEAM_T**, **TEAM_CT** (automatic team assignment, depends on plugins)
+
+* It should, though, still be easy to set it up just for one user
+* Sourcemod plugin management for each instance (including downloading them), and enabling/disabling them based on configuration
+* Support for Gameserver auth tokens and various other improvements
 
 ## Requirements
 
-Of course a Steam account is required to create a Counter-Strike : Global Offensive dedicated server.
+Of course, a Steam account is required to create a CS:GO dedicated server. Also get Gameserver auth tokens for CS:GO (App-ID 730) [here](http://steamcommunity.com/dev/managegameservers)
 
-Get Gameserver auth tokens for CS:GO (App-ID 730) [here](http://steamcommunity.com/dev/managegameservers)
+Required commands on the server:
 
-Required commands :
-
-* [awk](http://en.wikipedia.org/wiki/Awk) is required.
-* [screen](http://linux.die.net/man/1/screen) is required.
-* [wget](http://en.wikipedia.org/wiki/Wget) is required.
-* [tar](http://linuxcommand.org/man_pages/tar1.html) is required.
+* awk  ([https://en.wikipedia.org/wiki/Awk]) (should be default)
+* tmux ([https://tmux.github.io/])
+* wget ([https://en.wikipedia.org/wiki/Wget])
+* tar  ([http://linuxcommand.org/man_pages/tar1.html])
 
 ## Installation - TO BE DONE
 
 ## Environment Variables - TO BE REWORKED
 
-* **SCREEN_NAME** - The screen name, you can put what you want but it must be unique and must contain only alphanumeric character.
+The main configuration file, by default, will be placed in ~/csgo-msm.conf. It will set up all the important environment variables.
+
+* **ADMIN** - Name of the user that 'controls' the installation
+* **
+
 * **USER** - Name of the user who started the server.
-* **IP** - Your WAN IP address.
 * **PORT** - The port that your server should listen on.
 <br /><br />
 * **DIR_STEAMCMD** - Path to steamcmd.
