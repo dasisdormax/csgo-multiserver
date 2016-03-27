@@ -199,7 +199,6 @@ status () {
 	# Check, if pid actually is the server and belongs to the user
 	local PS_OUT="$(ps -o uname=,comm= -p "$SERVER_PID"  2>/dev/null)"
 	if [[ $PS_OUT != "$SOCKET_OWNER $SERVER_EXEC" ]]; then
-	then
 		delete-tmux
 		return false
 	fi
@@ -227,35 +226,42 @@ create-instance () {
 
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 update () {
+	local ACTION="update"
+	if [[ $1 == "repair" ]]; then local ACTION="repair"; fi
 	if [[ $USER != $ADMIN ]]; then
-		echo "Only the admin < $ADMIN > can manage and update the game installation."
+		echo "Only the admin < $ADMIN > can manage and $ACTION the game installation."
 		echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
 		echo
-		su - "$ADMIN" -c "\"$THIS_SCRIPT\" update"
+		su - "$ADMIN" -c "'$THIS_SCRIPT' $ACTION"
 		if (( $? )); then
-			echo "ERROR: Update as < $ADMIN > failed!"
+			echo "ERROR: Executing $ACTION as < $ADMIN > failed!"
 			echo
 			return 1
 		fi
 		return 0
 	fi
 
-	local LOGFILE="$STEAMCMD_DIR/update.log"
-	rm "$LOGFILE" &> /dev/null
-	echo "Starting Game Update."
+	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
+	echo > "$LOGFILE"
+	echo "Starting $ACTION."
 	echo "Log File: < $LOGFILE >"
 	echo
 
-	tries=1
+	tries=5
 	try=0
 	until [[ $SUCCESS ]] || (( ++try > tries )); do
-		echo "Current Time: $(date)" >> "$LOGFILE"
-		printf "[%2d/%2d] Trying to update the game using SteamCMD.\n" $try $tries >> "$LOGFILE"
-		echo   "-------------------------------------------------" >> "$LOGFILE"
+		tee -a "$LOGFILE" <<-EOF
+			################################################
+			# $(printf "[%2d/%2d]%38s" $try $tries "$(date)") #
+			# Trying to $ACTION the game using SteamCMD ... #
+			################################################
+
+		EOF
+		$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/$ACTION" | tee -a "$LOGFILE"
+		echo >> "$LOGFILE" # an extra newline in the file because of the weird escape sequences that steam uses
 		echo | tee -a "$LOGFILE"
-		"$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update" >> "$LOGFILE" 2&>1
-		echo | tee -a "$LOGFILE"
-		if [ "$(grep "Success! App '$APPID' already up to date." "$LOGFILE")" ]; then
+
+		if ( egrep "Success! App '$APPID'.*(fully installed|up to date)" "$LOGFILE" > /dev/null ); then
 			local SUCCESS=1
 		fi
 	done
@@ -319,6 +325,7 @@ printcfg () {
 		# This is a configuration file for CS:GO Multi Server Manager
 		ADMIN="$ADMIN"
 		INSTALL_DIR="$INSTALL_DIR"
+		DEFAULT_INSTANCE="$DEFAULT_INSTANCE"
 		EOF
 	# Vars that are only interesting for the admin
 	if [[ $USER == $ADMIN ]]; then cat <<-EOF
@@ -554,7 +561,7 @@ admin-install () {
 	chmod -R a+r "$INSTALL_DIR"
 	# ... but make sure the authtokens stay private
 	touch "$INSTALL_DIR/.msm/authtoken"
-	chmod o-rwx "$INSTALL_DIR/msm/authtoken"
+	chmod o-rwx "$INSTALL_DIR/.msm/authtoken"
 
 	# Create other info and clients directory
 	echo "$APPID" > "$INSTALL_DIR/.msm/appid"
@@ -574,15 +581,14 @@ admin-install () {
 	prompt "Install Now?" noexit
 	if (( $? )); then
 		echo
-		update
-	else
-		echo
+		return 0
 	fi
+	update
 	return 0
 }
 
 usage () {
-  echo "Usage: $THIS_COMMAND [@instance] {start|stop|status|restart|console|update|create}"
+  echo "Usage: $THIS_COMMAND [@instance] {start|stop|status|restart|console|update|repair|create}"
   echo "On console, CTRL+D will detach (return) instead of exiting the server."
   echo
 }
@@ -599,17 +605,17 @@ if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but requ
 # Make some space
 echo
 
-if [[ grep "^-*help" <<< "$1" ]]; then usage; exit 0; fi
-if [[ $1 == "admin-install" ]]; then admin-install; shift; if [ ! "$1" ]; then exit 0; fi; fi
+if ( grep "^-*help$" > /dev/null <<< "$1" ); then usage; exit 0; fi
+if [[ $1 == "admin-install" ]]; then admin-install; shift; if [[ ! $1 ]]; then exit 0; fi; fi
 
 # Load config, else start initial setup
 readcfg || { setup; exit 0; }
 
-set-instance ""
+set-instance "$DEFAULT_INSTANCE"
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
 while [[ $1 ]]; do
 	unset printusage
-	if [[ grep "^-*help" <<< "$1" ]]; then usage; exit 0; fi
+	if ( grep "^-*help$" > /dev/null <<< "$1" ); then usage; exit 0; fi
 
 	# Reload possible config changes
 	readcfg
@@ -652,6 +658,11 @@ while [[ $1 ]]; do
 		update)
 			shift
 			update
+		;;
+
+		repair)
+			shift
+			update repair
 		;;
 
 		*)
