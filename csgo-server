@@ -198,7 +198,7 @@ status () {
 
 	# Check, if pid actually is the server and belongs to the user
 	local PS_OUT="$(ps -o uname=,comm= -p "$SERVER_PID"  2>/dev/null)"
-	if [[ ! $PS_OUT == "$SOCKET_OWNER $SERVER_EXEC" ]]; then
+	if [[ $PS_OUT != "$SOCKET_OWNER $SERVER_EXEC" ]]; then
 	then
 		delete-tmux
 		return false
@@ -232,7 +232,7 @@ update () {
 		echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
 		echo
 		su - "$ADMIN" -c "\"$THIS_SCRIPT\" update"
-		if [ $? -ne 0 ]; then
+		if (( $? )); then
 			echo "ERROR: Update as < $ADMIN > failed!"
 			echo
 			return 1
@@ -409,28 +409,28 @@ setup () {
 client-install () {
 	echo "Trying to import settings from < $ADMIN > ..."
 	ADMIN_HOME=$(eval echo "~$ADMIN")
-	if [ ! -r "$ADMIN_HOME" ]; then
+	if [[ ! -r $ADMIN_HOME ]]; then
 		echo "ERROR: The admin's home directory < $ADMIN_HOME > is not readable."
 		echo
 		return 1
 	fi
-	ADMIN_CFG=`cfgfile $ADMIN_HOME`
+	ADMIN_CFG="$(cfgfile $ADMIN_HOME)"
 	readcfg "$ADMIN_CFG"
-	if [ $? -ne 0 ]; then echo; return 1; fi
+	if (( $? )); then echo; return 1; fi
 	echo
 	createcfg
 	return 0
 }
 
-function admin-install {
+admin-install () {
 	echo "-------------------------------------------------------------------------------"
 	echo "                  CS:GO Multi Server Manager - Admin Install"
 	echo "-------------------------------------------------------------------------------"
 	echo
 	echo "Checking for an existing configuration ..."
 	readcfg
-	if [ $? -eq 0 ]; then
-		if [ $ADMIN == `whoami` ]; then
+	if (( $? )); then
+		if [[ $ADMIN == $USER ]]; then
 			echo
 			echo "A valid admin configuration already exists for this user < $ADMIN >."
 			echo "If you wish to start over, delete the configuration file"
@@ -446,14 +446,14 @@ function admin-install {
 			prompt
 		fi
 	fi
-	if [ ! "$APPNAME" -o ! "$APPID" ]; then
+	if [[ ! "$APPNAME" || ! "$APPID" ]]; then
 		echo "ERROR: APPNAME and APPID are not set. Check this script and your configuration"
 		echo "       file and try again"
 		echo
 		exit 1
 	fi
 	echo
-	ADMIN=`whoami`
+	ADMIN="$USER"
 	ADMIN_HOME=~
 	echo "You started the admin Installation for user < $ADMIN >"
 	echo "This will create a configuration file in the location:"
@@ -462,7 +462,7 @@ function admin-install {
 	prompt
 	echo
 	# Check for an existing SteamCMD
-	if [ -x "$ADMIN_HOME/steamcmd/steamcmd.sh" ]; then
+	if [[ -x $ADMIN_HOME/steamcmd/steamcmd.sh ]]; then
 		STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
 		echo "An existing SteamCMD installation was found in < $STEAMCMD_DIR >"
 		echo
@@ -474,20 +474,20 @@ function admin-install {
 		echo
 		read -r -p "SteamCMD install directory (default: steamcmd) " STEAMCMD_DIR
 		echo
-		if [ -z "$STEAMCMD_DIR" ]; then 
+		if [[ ! $STEAMCMD_DIR ]]; then 
 			STEAMCMD_DIR=steamcmd; 
 		fi
-		if [ ! "$(echo "$STEAMCMD_DIR" | grep "^/")" ]; then
+		if [[ ! $(echo "$STEAMCMD_DIR" | grep ^/) ]]; then
 			STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
 		fi
 		# Download and install SteamCMD
-		WDIR=`pwd`
+		WDIR=$(pwd)
 		mkdir -p "$STEAMCMD_DIR"
 		cd "$STEAMCMD_DIR"
 		echo "Downloading SteamCMD ..."
-		until [ $SUCCESS ]; do
+		until [[ $SUCCESS ]]; do
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
-			if [ $? -ne 0 ]; then
+			if (( $? )); then
 				echo "SteamCMD Download failed."
 				prompt "Retry?"
 			else
@@ -497,7 +497,7 @@ function admin-install {
 		echo "Extracting ..."
 		tar xzvf steamcmd_linux.tar.gz
 		rm steamcmd_linux.tar.gz &> /dev/null
-		if [ ! -x "$STEAMCMD_DIR/steamcmd.sh" ]; then
+		if [[ ! -x $STEAMCMD_DIR/steamcmd.sh ]]; then
 			echo "ERROR: SteamCMD installation failed."
 			exit 1
 		fi
@@ -509,7 +509,7 @@ function admin-install {
 		cd "$WDIR"
 	fi
 	# Now, check for game install directory
-	if [ "$(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null)" == "$APPID" ]; then
+	if [[ $(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null) == "$APPID" ]]; then
 		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
 		echo "A previous game installation was found in < $INSTALL_DIR >"
 		echo
@@ -517,30 +517,32 @@ function admin-install {
 		echo "Next, please select the directory for the game server to be installed in"
 		read -r -p "Game Server Installation Directory (default: $APPNAME) " INSTALL_DIR
 		echo
-		if [ -z "$INSTALL_DIR" ]; then 
+		if [[ ! $INSTALL_DIR ]]; then 
 			INSTALL_DIR="$APPNAME" 
 		fi
-		if [ ! "$(echo "$INSTALL_DIR" | grep "^/")" ]; then
+		if [[ ! $(echo "$INSTALL_DIR" | grep ^/) ]]; then
 			INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
 		fi
 		mkdir -p "$INSTALL_DIR"
 	fi
 
 	# Create Update Script
-	UPSCRIPT="$STEAMCMD_DIR/update"
-	rm "$UPSCRIPT" &> /dev/null
-	echo "login anonymous" >> "$UPSCRIPT"
-	echo "force_install_dir \"$INSTALL_DIR\"" >> "$UPSCRIPT"
-	echo "app_update $APPID" >> "$UPSCRIPT"
-	echo "quit" >> "$UPSCRIPT"
+	local UPSCRIPT="$STEAMCMD_DIR/update"
+	cat > "$UPSCRIPT" <<-EOF
+		login anonymous
+		force_install_dir "$INSTALL_DIR" 
+		app_update $APPID
+		quit
+	EOF
 
 	# Create Repair Script
-	UPSCRIPT="$STEAMCMD_DIR/repair"
-	rm "$UPSCRIPT" &> /dev/null
-	echo "login anonymous" >> "$UPSCRIPT"
-	echo "force_install_dir \"$INSTALL_DIR\"" >> "$UPSCRIPT"
-	echo "app_update $APPID validate" >> "$UPSCRIPT"
-	echo "quit" >> "$UPSCRIPT"
+	local REPSCRIPT="$STEAMCMD_DIR/repair"
+	cat > "$REPSCRIPT" <<-EOF
+		login anonymous
+		force_install_dir "$INSTALL_DIR" 
+		app_update $APPID validate
+		quit
+	EOF
 
 	# Cleaning existing clients up
 	delete-all-tmuxes
@@ -570,7 +572,7 @@ function admin-install {
 	echo "install the game later using \`$THIS_COMMAND update' or copy the files manually."
 	echo
 	prompt "Install Now?" noexit
-	if [ $? -eq 0 ]; then
+	if (( $? )); then
 		echo
 		update
 	else
@@ -579,7 +581,7 @@ function admin-install {
 	return 0
 }
 
-function usage {
+usage () {
   echo "Usage: $THIS_COMMAND [@instance] {start|stop|status|restart|console|update|create}"
   echo "On console, CTRL+D will detach (return) instead of exiting the server."
   echo
@@ -589,25 +591,25 @@ function usage {
 
 # Check required packages
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
-if [ ! -x "$(which awk)" ];  then echo "ERROR: You need awk for this script (try apt-get install awk)";   exit 1; fi
-if [ ! -x "$(which tmux)" ]; then echo "ERROR: You need tmux for this script (try apt-get install tmux)"; exit 1; fi
-if [ ! -x "$(which wget)" ]; then echo "ERROR: You need wget for this script (try apt-get install wget)"; exit 1; fi
-if [ ! -x "$(which tar)" ];  then echo "ERROR: You need tar for this script (try apt-get install tar)";   exit 1; fi
+if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!";  exit 1; fi
+if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; exit 1; fi
+if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; exit 1; fi
+if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!";  exit 1; fi
 
 # Make some space
 echo
 
-if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
-if [ "$1" == "admin-install" ]; then admin-install; shift; if [ ! "$1" ]; then exit 0; fi; fi
+if [[ grep "^-*help" <<< "$1" ]]; then usage; exit 0; fi
+if [[ $1 == "admin-install" ]]; then admin-install; shift; if [ ! "$1" ]; then exit 0; fi; fi
 
 # Load config, else start initial setup
 readcfg || { setup; exit 0; }
 
 set-instance ""
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
-while [ "$1" ]; do
+while [[ $1 ]]; do
 	unset printusage
-	if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
+	if [[ grep "^-*help" <<< "$1" ]]; then usage; exit 0; fi
 
 	# Reload possible config changes
 	readcfg
@@ -637,8 +639,8 @@ while [ "$1" ]; do
 		status)
 			shift
 			if status; 
-				then echo "$SERVER_TEXT is STOPPED!"; echo
-				else echo "$SERVER_TEXT is RUNNING!"; echo
+				then echo "$SERVER_TEXT is RUNNING!"; echo
+				else echo "$SERVER_TEXT is STOPPED!"; echo
 			fi
 		;;
 
@@ -661,7 +663,7 @@ while [ "$1" ]; do
 	esac
 done
 
-if [ "$printusage" ]; then unset printusage; usage; exit 1; fi
+if [[ $printusage ]]; then unset printusage; usage; exit 1; fi
 
 exit 0
 
