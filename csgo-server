@@ -52,44 +52,46 @@ MSM_CFG="$APPNAME-msm.conf"
 ################################ HELPER FUNCTIONS ################################
 # Get absolute config file location, based on MSM_CFG
 # $1 is the base directory, if omitted, the current home directory is taken
-function cfgfile {
-    if [ `echo "$MSM_CFG" | grep ^/` ]; then
-        local CFG="$MSM_CFG"
-    else
-        if [ $1 ]; then
-            echo "$1/$MSM_CFG"
-        else
-            echo "$(eval echo ~)/$MSM_CFG"
-        fi
-    fi
+cfgfile () {
+	if [[ $(echo "$MSM_CFG" | grep ^/) ]]; then
+		local CFG="$MSM_CFG"
+	else
+		if [[ $1 ]]; then
+			echo "$1/$MSM_CFG"
+		else
+			echo "$HOME/$MSM_CFG"
+		fi
+	fi
 }
 
 # A yes/no prompt. With the first parameter $1, an alternative prompt message can be given
 # By default, a no will exit the program with an exit code of 1. By putting anything as $2,
 # the function will instead return with a value of 1.
-function prompt {
-    PROMPT="Proceed?"
-    if [ "$1" ]; then PROMPT="$1"; fi
-    read -r -p "$PROMPT (Y/n) " INPUT
-    if [[ "$INPUT" && "$INPUT" != "y" && "$INPUT" != "Y" ]] ; then 
-        if [ "$2" ]; then return 1; else exit 1; fi
-    fi
+prompt () {
+	PROMPT="Proceed?"
+	if [[ $1 ]]; then PROMPT="$1"; fi
+
+	read -r -p "$PROMPT (Y/n) " INPUT
+
+	if [[ $INPUT && $INPUT != y && $INPUT != Y ]]; then 
+		if [[ $2 ]]; then return 1; else exit 1; fi
+	fi
 }
 
 # Sets the instance to the value of $1
-function set-instance {
-    INSTANCE="$1"
-    if [ "$INSTANCE" ];
-    then
-        INSTANCE_DIR="$(eval echo "~/$APPNAME@$INSTANCE")"
-        SERVER_TEXT="Server Instance @$INSTANCE"
-    else
-        INSTANCE_DIR="$INSTALL_DIR"
-        SERVER_TEXT="Base Installation"
-    fi
-    SESSION_NAME="$USER@$INSTANCE"
-    # Prints usage if no more commands are given
-    printusage=1
+set-instance () {
+	INSTANCE="$1"
+	if [[ $INSTANCE ]];
+	then
+		INSTANCE_DIR="$HOME/$APPNAME@$INSTANCE"
+		SERVER_TEXT="Server Instance @$INSTANCE"
+	else
+		INSTANCE_DIR="$INSTALL_DIR"
+		SERVER_TEXT="Base Installation"
+	fi
+	SESSION_NAME="$USER@$INSTANCE"
+	# Prints usage if no more commands are given
+	printusage=1
 }
 
 
@@ -102,467 +104,479 @@ CFG=`cfgfile`
 
 
 ############################# TMUX CONTROL FUNCTIONS #############################
-function delete-tmux {
-    tmux -S "$TMUX_SOCKET" kill-server
-    rm $TMUX_SOCKET
-    return 0
+delete-tmux () {
+	tmux -S "$TMUX_SOCKET" kill-server
+	rm $TMUX_SOCKET
+	return 0
 }
 
-function delete-all-tmuxes {
-    local BASEPATH="$INSTALL_DIR/.msm/clients"
-    for socket in $(ls "$BASEPATH"); do
-        local TMUX_SOCKET="$BASEPATH/$socket"
-        if [ -w "$TMUX_SOCKET" ]; then
-            delete-tmux
-        fi
-    done
-    unset socket
+delete-all-tmuxes () {
+	local BASEPATH="$INSTALL_DIR/.msm/clients"
+	for socket in $(ls "$BASEPATH"); do
+		local TMUX_SOCKET="$BASEPATH/$socket"
+		if [[ -w $TMUX_SOCKET ]]; then
+			delete-tmux
+		fi
+	done
+	unset socket
 }
 
 
 
 ############################ SERVER CONTROL FUNCTIONS ############################
-function start {
-    echo "Starting $SERVER_TEXT ..."
-    # Nothing to do if server is already running
-    status || {
-        echo "INFO:  $SERVER_TEXT is already running!"
-        echo "       Enter the console using \`$THIS_COMMAND @$INSTANCE console'"
-        echo
-        return 0
-    }
+start () {
+	echo "Starting $SERVER_TEXT ..."
+	# Nothing to do if server is already running
+	if status; then
+		echo "INFO:  $SERVER_TEXT is already running!"
+		echo "       Enter the console using \`$THIS_COMMAND @$INSTANCE console'"
+		echo
+		return true
+	fi
 
-    if [ ! -d "$INSTANCE_DIR" ]; then
-        echo "ERROR: Instance directory < $INSTANCE_DIR > does not exist!"
-        echo "       Create an instance using \`$THIS_COMMAND @$INSTANCE create-instance'"
-        echo
-        return 1
-    fi
+	if [[ ! -d $INSTANCE_DIR ]]; then
+		echo "ERROR: Instance directory < $INSTANCE_DIR > does not exist!"
+		echo "       Create an instance using \`$THIS_COMMAND @$INSTANCE create-instance'"
+		echo
+		return false
+	fi
 
-    if [ ! -w "$INSTANCE_DIR" ]; then
-        echo "ERROR: You do not have write access to < $INSTANCE_DIR > !"
-        echo "       Only < $ADMIN > can modify and launch the base installation! Try creating"
-        echo "       an own instance using \`$THIS_COMMAND @name create-instance' instead."
-        echo
-        return 1
-    fi
+	if [[ ! -w $INSTANCE_DIR ]]; then
+		echo "ERROR: You do not have write access to < $INSTANCE_DIR > !"
+		echo "       Only < $ADMIN > can modify and launch the base installation! Try creating"
+		echo "       an own instance using \`$THIS_COMMAND @name create-instance' instead."
+		echo
+		return false
+	fi
 
-    if [ ! -x "$INSTANCE_DIR/$SERVER_EXEC" ]; then
-        echo "ERROR: Server Executable not found at < $INSTANCE_DIR/$SERVER_EXEC > !"
-        echo "       Try repairing the installation using \`$THIS_COMMAND update',"
-        echo "       \`$THIS_COMMAND repair' or rebuild this instance."
-        echo
-        return 1
-    fi
+	if [[ ! -x $INSTANCE_DIR/$SERVER_EXEC ]]; then
+		echo "ERROR: Server Executable not found at < $INSTANCE_DIR/$SERVER_EXEC > !"
+		echo "       Try repairing the installation using \`$THIS_COMMAND update',"
+		echo "       \`$THIS_COMMAND repair' or rebuild this instance."
+		echo
+		return false
+	fi
 
-    echo
-    echo "$SERVER_TEXT started successfully!"
-    echo "To enter the game's console, type \`$THIS_COMMAND @$INSTANCE console'."
-    echo
-    return 0
+	echo
+	echo "$SERVER_TEXT started successfully!"
+	echo "To enter the game's console, type \`$THIS_COMMAND @$INSTANCE console'."
+	echo
+	return true
 }
 
-function stop {
-    echo "Stopping $SERVER_TEXT ..."
-    status && { echo; return 0; }
+stop () {
+	echo "Stopping $SERVER_TEXT ..."
+	status || { echo; return 0; }
 
-    echo
+	echo
 }
 
 # Status (Up/Down and extra info) of the server in tmux session $SESSION_NAME
-function status {
-    TMUX_SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
+status () {
+	TMUX_SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
 
-    # Check if tmux socket exists and is accessible
-    if [ ! -e "$TMUX_SOCKET" ]; then
-        return 0
-    fi
-    if [ ! -w "$TMUX_SOCKET" ]; then
-        echo "ERROR: Cannot access socket of session < $SESSION_NAME> !"
-        echo
-        exit 1
-    fi
+	# Check if tmux socket exists and is accessible
+	if [[ ! -e "$TMUX_SOCKET" ]]; then
+		return false
+	fi
+	if [[ ! -w "$TMUX_SOCKET" ]]; then
+		echo "ERROR: Cannot access socket of session < $SESSION_NAME> !"
+		echo
+		exit 1
+	fi
 
-    # Note: tmux has-session will only output anything if NO session was found
-    if [ "$(tmux -S "$TMUX_SOCKET" has-session 2>&1 )" ]; then
-        # No session runs within tmux
-        delete-tmux
-    fi
+	if ( tmux -S "$TMUX_SOCKET" has-session >/dev/null ); then
+		# No session runs within tmux
+		delete-tmux
+		return false
+	fi
 
+	# Get server pid and owner
+	eval "local $(tmux -S "$TMUX_SOCKET" showenv SERVER_PID)"
+	local SOCKET_OWNER="$(ls -ld "$TMUX_SOCKET" | awk 'NR==1 {print $3}')"
+	if [[ ! $SERVER_PID ]]; then delete-tmux; fi
 
-    eval "local $(tmux -S "$TMUX_SOCKET" showenv SERVER_PID)"
-    local SOCKET_OWNER="$(ls -ld "$TMUX_SOCKET" | awk 'NR==1 {print $3}')"
-    if [ "$(ps -o uname= -o command= -p "$SERVER_PID" 2>/dev/null)" != "$SOCKET_OWNER $SERVER_EXEC" ]; then
-        # Within the tmux session, no game server is running
-        delete-tmux
-    fi
-
-    # Game Server found
-    return 1
+	# Check, if pid actually is the server and belongs to the user
+	local PS_OUT="$(ps -o uname=,comm= -p "$SERVER_PID"  2>/dev/null)"
+	if [[ ! $PS_OUT == "$SOCKET_OWNER $SERVER_EXEC" ]]; then
+	then
+		delete-tmux
+		return false
+	fi
+	# Game Server found
+	return true
 }
 
 # Switch to the game console in tmux session
-function console {
-    status
+console () {
+	status
 }
 
 
 
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
-function create-instance {
-    echo "-------------------------------------------------------------------------------"
-    echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
-    echo "-------------------------------------------------------------------------------"
-    echo
-    echo ""
+create-instance () {
+	echo "-------------------------------------------------------------------------------"
+	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
+	echo "-------------------------------------------------------------------------------"
+	echo
+	echo ""
 }
 
 
 
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
-function update {
-    if [ `whoami` != $ADMIN ]; then
-        echo "Only the admin < $ADMIN > can manage and update the game installation."
-        echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
-        echo
-        su - $ADMIN -c "$THIS_SCRIPT update"
-        if [ $? -ne 0 ]; then
-            echo "ERROR: Update as < $ADMIN > failed!"
-            echo
-            return 1
-        fi
-        return 0;
-    fi
-    local LOGFILE="$STEAMCMD_DIR/update.log"
-    rm "$LOGFILE" &> /dev/null
-    echo "Starting Game Update."
-    echo "Log File: < $LOGFILE >"
-    echo
-    local tries=1
-    local try=0
-    until [ "$SUCCESS" -o $try -ge $tries ]; do
-        let local try=try+1
-        echo "Current Time: $(date)" | tee -a "$LOGFILE"
-        printf "[%2d/%2d] Trying to update the game using SteamCMD.\n" $try $tries | tee -a "$LOGFILE"
-        echo   "-------------------------------------------------" | tee -a "$LOGFILE"
-        echo | tee -a "$LOGFILE"
-        "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update" 2>&1 | tee -a "$LOGFILE"
-        echo | tee -a "$LOGFILE"
-        if [ "$(grep "Success! App '$APPID' already up to date." "$LOGFILE")" ]; then
-            local SUCCESS=1
-        fi
-    done
-    if [ $SUCCESS ]; then
-        echo "Update completed successfully!"
-        echo
-        return 0
-    else
-        echo "Update failed. For more information, see the log file at"
-        echo "               < $LOGFILE >"
-        echo
-        return 1
-    fi
+update () {
+	if [[ $USER != $ADMIN ]]; then
+		echo "Only the admin < $ADMIN > can manage and update the game installation."
+		echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
+		echo
+		su - "$ADMIN" -c "\"$THIS_SCRIPT\" update"
+		if [ $? -ne 0 ]; then
+			echo "ERROR: Update as < $ADMIN > failed!"
+			echo
+			return 1
+		fi
+		return 0
+	fi
+
+	local LOGFILE="$STEAMCMD_DIR/update.log"
+	rm "$LOGFILE" &> /dev/null
+	echo "Starting Game Update."
+	echo "Log File: < $LOGFILE >"
+	echo
+
+	tries=1
+	try=0
+	until [[ $SUCCESS ]] || (( ++try > tries )); do
+		echo "Current Time: $(date)" >> "$LOGFILE"
+		printf "[%2d/%2d] Trying to update the game using SteamCMD.\n" $try $tries >> "$LOGFILE"
+		echo   "-------------------------------------------------" >> "$LOGFILE"
+		echo | tee -a "$LOGFILE"
+		"$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update" >> "$LOGFILE" 2&>1
+		echo | tee -a "$LOGFILE"
+		if [ "$(grep "Success! App '$APPID' already up to date." "$LOGFILE")" ]; then
+			local SUCCESS=1
+		fi
+	done
+
+	unset try tries
+	if [[ $SUCCESS ]]; then
+		echo "Update completed successfully!"
+		echo
+		return 0
+	else
+		echo "Update failed. For more information, see the log file at"
+		echo "               < $LOGFILE >"
+		echo
+		return 1
+	fi
 }
 
 # Check environment variables for correctness
 # If an argument $1 is given, these variables are checked for that user instead of the current one
-function checkvars {
-    if [ $1 ]; then local TESTUSER=$1; else local TESTUSER=`whoami`; fi
-    if [ -z "$ADMIN" ]; then
-        echo "ERROR: ADMIN is not defined"
-        return 1
-    fi
-    if [ "$TESTUSER" == "$ADMIN" -a -z "$STEAMCMD_DIR" -a ! -x "$STEAMCMD_DIR/steamcmd.sh" ]; then
-        echo "ERROR: STEAMCMD_DIR is not defined or steamcmd.sh was not found in it"
-        return 1
-    fi
-    if [ -z "$INSTALL_DIR" ]; then
-        echo "ERROR: INSTALL_DIR is not defined"
-        return 1
-    fi
-    if [ ! -r "$INSTALL_DIR" ]; then
-        echo "ERROR: < $INSTALL_DIR > does not exist or is not readable"
-        return 1
-    fi
-    if [ "$(cat "$INSTALL_DIR/.msm/appid" 2> /dev/null)" != "$APPID" ]; then
-        echo "ERROR: The appid of the installation at < $INSTALL_DIR > does not match"
-        return 1
-    fi
-    return 0
+checkvars () {
+	if [[ $1 ]]; then local USER="$1"; fi
+	if [[ ! $ADMIN ]]; then
+		echo "ERROR: ADMIN is not defined"
+		return 1
+	fi
+	if [[ $USER == $ADMIN && ( ! $STEAMCMD_DIR || ! -x $STEAMCMD_DIR/steamcmd.sh ) ]]; then
+		echo "ERROR: STEAMCMD_DIR is not defined or steamcmd.sh was not found in it"
+		return 1
+	fi
+	if [[ ! $INSTALL_DIR ]]; then
+		echo "ERROR: INSTALL_DIR is not defined"
+		return 1
+	fi
+	if [[ ! -r $INSTALL_DIR ]]; then
+		echo "ERROR: < $INSTALL_DIR > does not exist or is not readable"
+		return 1
+	fi
+	if [[ $(cat "$INSTALL_DIR/.msm/appid" 2> /dev/null) != $APPID ]]; then
+		echo "ERROR: The appid of the installation at < $INSTALL_DIR > does not match"
+		return 1
+	fi
+	return 0
 }
 
-function readcfg {
-    if [ "$1" ]; then local CFG="$1"; fi
-    if [ -r "$CFG" ]; then
-        source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
-        checkvars || {
-            echo "ERROR: One or more errors in the configuration file < $CFG >"
-            return 1
-        }
-        return 0
-    fi
-    return 1
+readcfg () {
+	if [[ $1 ]]; then local CFG="$1"; fi
+	if [[ -r $CFG ]]; then
+		source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
+		checkvars || {
+			echo "ERROR: One or more errors in the configuration file < $CFG >"
+			return 1
+		}
+		return 0
+	fi
+	return 1
 }
 
-function printcfg {
-    echo "#! /bin/bash"
-    echo "ADMIN=\"$ADMIN\""
-    echo "INSTALL_DIR=\"$INSTALL_DIR\""
-    # Vars that are only interesting for the admin
-    if [ `whoami` == "$ADMIN" ]; then
-        echo "STEAMCMD_DIR=\"$STEAMCMD_DIR\""
-    fi
+printcfg () {
+	cat <<-EOF
+		#! /bin/bash
+		# This is a configuration file for CS:GO Multi Server Manager
+		ADMIN="$ADMIN"
+		INSTALL_DIR="$INSTALL_DIR"
+		EOF
+	# Vars that are only interesting for the admin
+	if [[ $USER == $ADMIN ]]; then cat <<-EOF
+		STEAMCMD_DIR="$STEAMCMD_DIR"
+		EOF
+	fi
 }
 
 # Create configuration file for the current user
-function createcfg {
-    checkvars || exit 1
-    CFG=`cfgfile`
-    echo "Creating CS:GO MSM Config File in < $CFG >"
-    rm $CFG &> /dev/null
+createcfg () {
+	checkvars || exit 1
+	CFG=`cfgfile`
+	echo "Creating CS:GO MSM Config File in < $CFG >"
+	rm $CFG &> /dev/null
 
-    printcfg > $CFG
-    echo
+	printcfg > $CFG
+	echo
 }
 
-function setup {
-    # First-time setup
-    echo "-------------------------------------------------------------------------------"
-    echo "                CS:GO Multi-Mode Server Manager - Initial Setup"
-    echo "-------------------------------------------------------------------------------"
-    echo
-    echo "It seems like this is the first time you use this script on this machine."
-    echo "Before advancing, be aware of a few things:"
-    echo
-    echo ">>  A configuration file will be created in the location:"
-    echo "               < $CFG >"
-    echo
-    echo "    If you want to use a different location, exit and edit"
-    echo "    the \$MSM_CFG variable within this file accordingly."
-    echo
-    echo ">>  For multi-user setups, this script must be readable for all users"
-    echo "               < $THIS_SCRIPT >"
-    echo
-    prompt
-    # Query steam installation admin user
-    echo
-    echo "Please choose the user that is responsible for the game installation and"
-    echo "updates on this machine. As long as the access rights are correctly set,"
-    echo "this server will use the game data provided by that user, which makes"
-    echo "re-downloading the game for multiple users unnecessary."
-    echo
-    while [ ! "$ADMIN_HOME" ]; do
-        read -p "Admin's username (default: $USER) " -r ADMIN
-        if [ ! $ADMIN ]; then ADMIN=$USER; fi
-        if [ ! `getent passwd $ADMIN` ]; then
-            echo
-            echo "User < $ADMIN > does not exist. Please try again!"
-            echo
-        fi
-        ADMIN_HOME=$(eval echo "~$ADMIN")
-        if [ ! -r "$ADMIN_HOME" ]; then
-            echo
-            echo "That user's home directory < $ADMIN_HOME > is not readable. Please specify a different admin."
-            echo
-            ADMIN_HOME=
-        fi
-    done
+setup () {
+	# First-time setup
+	echo "-------------------------------------------------------------------------------"
+	echo "                CS:GO Multi-Mode Server Manager - Initial Setup"
+	echo "-------------------------------------------------------------------------------"
+	echo
+	echo "It seems like this is the first time you use this script on this machine."
+	echo "Before advancing, be aware of a few things:"
+	echo
+	echo ">>  A configuration file will be created in the location:"
+	echo "               < $CFG >"
+	echo
+	echo "    If you want to use a different location, exit and edit"
+	echo "    the \$MSM_CFG variable within this file accordingly."
+	echo
+	echo ">>  For multi-user setups, this script must be readable for all users"
+	echo "               < $THIS_SCRIPT >"
+	echo
+	prompt
+	# Query steam installation admin user
+	echo
+	echo "Please choose the user that is responsible for the game installation and"
+	echo "updates on this machine. As long as the access rights are correctly set,"
+	echo "this server will use the game data provided by that user, which makes"
+	echo "re-downloading the game for multiple users unnecessary."
+	echo
+	while [[ ! $ADMIN_HOME ]]; do
+		read -p "Admin's username (default: $USER) " -r ADMIN
+		if [[ ! $ADMIN ]]; then ADMIN="$USER"; fi
+		if [[ ! $(getent passwd $ADMIN) ]]; then
+			echo
+			echo "User < $ADMIN > does not exist. Please try again!"
+			echo
+		fi
+		ADMIN_HOME=$(eval echo "~$ADMIN")
+		if [[ ! -r $ADMIN_HOME ]]; then
+			echo
+			echo "That user's home directory < $ADMIN_HOME > is not readable. Please specify a different admin."
+			echo
+			ADMIN_HOME=
+		fi
+	done
 
-    echo
-    # Check if the admin has a working configuration already
-    if [ `whoami` != "$ADMIN" ]; then
-        client-install
-        if [ $? -ne 0 ]; then
-            echo "Additional installation steps have to be taken on the admin account < $ADMIN >"
-            echo "Please log in to the account of < $ADMIN > now!"
-            echo
-            su - $ADMIN -c "$THIS_SCRIPT admin-install"
-            if [ $? -ne 0 ]; then
-                echo "ERROR: Admin Installation for < $ADMIN > failed!"
-                exit 1
-            fi
-            client-install
-            if [ $? -ne 0 ]; then
-                echo "ERROR: Client Installation failed!"
-                exit 1
-            fi
-        fi
-    else
-        admin-install
-    fi
+	echo
+	# Check if the admin has a working configuration already
+	if [[ $USER != $ADMIN ]]; then
+		# If client installation fails (e.g. the admin has no configuration himself,
+		# try admin installation
+		if ! client-install; then
+			echo "Additional installation steps have to be taken on the admin account < $ADMIN >"
+			echo "Please log in to the account of < $ADMIN > now!"
+			echo
+			su - $ADMIN -c "\"$THIS_SCRIPT\" admin-install"
+			if (( $? )); then
+				echo "ERROR: Admin Installation for < $ADMIN > failed!"
+				exit 1
+			fi
+			# Try client installation again!
+			if ! client-install; then
+				echo "ERROR: Client Installation failed!"
+				exit 1
+			fi
+		fi
+	else
+		admin-install
+	fi
 }
 
-function client-install {
-    echo "Trying to import settings from < $ADMIN > ..."
-    ADMIN_HOME=$(eval echo "~$ADMIN")
-    if [ ! -r "$ADMIN_HOME" ]; then
-        echo "ERROR: The admin's home directory < $ADMIN_HOME > is not readable."
-        echo
-        return 1
-    fi
-    ADMIN_CFG=`cfgfile $ADMIN_HOME`
-    readcfg "$ADMIN_CFG"
-    if [ $? -ne 0 ]; then echo; return 1; fi
-    echo
-    createcfg
-    return 0
+client-install () {
+	echo "Trying to import settings from < $ADMIN > ..."
+	ADMIN_HOME=$(eval echo "~$ADMIN")
+	if [ ! -r "$ADMIN_HOME" ]; then
+		echo "ERROR: The admin's home directory < $ADMIN_HOME > is not readable."
+		echo
+		return 1
+	fi
+	ADMIN_CFG=`cfgfile $ADMIN_HOME`
+	readcfg "$ADMIN_CFG"
+	if [ $? -ne 0 ]; then echo; return 1; fi
+	echo
+	createcfg
+	return 0
 }
 
 function admin-install {
-    echo "-------------------------------------------------------------------------------"
-    echo "                  CS:GO Multi Server Manager - Admin Install"
-    echo "-------------------------------------------------------------------------------"
-    echo
-    echo "Checking for an existing configuration ..."
-    readcfg
-    if [ $? -eq 0 ]; then
-        if [ $ADMIN == `whoami` ]; then
-            echo
-            echo "A valid admin configuration already exists for this user < $ADMIN >."
-            echo "If you wish to start over, delete the configuration file"
-            echo "               < $CFG >"
-            echo "and try again."
-            echo
-            exit
-        else
-            echo
-            echo "This user is currently configured as client of user < $ADMIN >."
-            echo "If you continue, this user will create an own installation of the game instead."
-            echo
-            prompt
-        fi
-    fi
-    if [ ! "$APPNAME" -o ! "$APPID" ]; then
-        echo "ERROR: APPNAME and APPID are not set. Check this script and your configuration"
-        echo "       file and try again"
-        echo
-        exit 1
-    fi
-    echo
-    ADMIN=`whoami`
-    ADMIN_HOME=~
-    echo "You started the admin Installation for user < $ADMIN >"
-    echo "This will create a configuration file in the location:"
-    echo "               < $CFG >"
-    echo
-    prompt
-    echo
-    # Check for an existing SteamCMD
-    if [ -x "$ADMIN_HOME/steamcmd/steamcmd.sh" ]; then
-        STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
-        echo "An existing SteamCMD installation was found in < $STEAMCMD_DIR >"
-        echo
-    else
-        # Ask for the SteamCMD directory
-        echo "To download/update the game, installing SteamCMD is required. Be aware that"
-        echo "this will use a lot of data! Please specify the place for SteamCMD to be"
-        echo "installed in (absolute or relative to your home directory)."
-        echo
-        read -r -p "SteamCMD install directory (default: steamcmd) " STEAMCMD_DIR
-        echo
-        if [ -z "$STEAMCMD_DIR" ]; then 
-            STEAMCMD_DIR=steamcmd; 
-        fi
-        if [ ! "$(echo "$STEAMCMD_DIR" | grep "^/")" ]; then
-            STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
-        fi
-        # Download and install SteamCMD
-        WDIR=`pwd`
-        mkdir -p "$STEAMCMD_DIR"
-        cd "$STEAMCMD_DIR"
-        echo "Downloading SteamCMD ..."
-        until [ $SUCCESS ]; do
-            wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
-            if [ $? -ne 0 ]; then
-                echo "SteamCMD Download failed."
-                prompt "Retry?"
-            else
-                SUCCESS=1
-            fi
-        done
-        echo "Extracting ..."
-        tar xzvf steamcmd_linux.tar.gz
-        rm steamcmd_linux.tar.gz &> /dev/null
-        if [ ! -x "$STEAMCMD_DIR/steamcmd.sh" ]; then
-            echo "ERROR: SteamCMD installation failed."
-            exit 1
-        fi
-        echo "Updating SteamCMD ..."
-        echo "quit" | "$STEAMCMD_DIR/steamcmd.sh"
-        echo
-        echo "SteamCMD installed successfully."
-        echo
-        cd "$WDIR"
-    fi
-    # Now, check for game install directory
-    if [ "$(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null)" == "$APPID" ]; then
-        INSTALL_DIR="$ADMIN_HOME/$APPNAME"
-        echo "A previous game installation was found in < $INSTALL_DIR >"
-        echo
-    else
-        echo "Next, please select the directory for the game server to be installed in"
-        read -r -p "Game Server Installation Directory (default: $APPNAME) " INSTALL_DIR
-        echo
-        if [ -z "$INSTALL_DIR" ]; then 
-            INSTALL_DIR="$APPNAME" 
-        fi
-        if [ ! "$(echo "$INSTALL_DIR" | grep "^/")" ]; then
-            INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
-        fi
-        mkdir -p "$INSTALL_DIR"
-    fi
+	echo "-------------------------------------------------------------------------------"
+	echo "                  CS:GO Multi Server Manager - Admin Install"
+	echo "-------------------------------------------------------------------------------"
+	echo
+	echo "Checking for an existing configuration ..."
+	readcfg
+	if [ $? -eq 0 ]; then
+		if [ $ADMIN == `whoami` ]; then
+			echo
+			echo "A valid admin configuration already exists for this user < $ADMIN >."
+			echo "If you wish to start over, delete the configuration file"
+			echo "               < $CFG >"
+			echo "and try again."
+			echo
+			exit
+		else
+			echo
+			echo "This user is currently configured as client of user < $ADMIN >."
+			echo "If you continue, this user will create an own installation of the game instead."
+			echo
+			prompt
+		fi
+	fi
+	if [ ! "$APPNAME" -o ! "$APPID" ]; then
+		echo "ERROR: APPNAME and APPID are not set. Check this script and your configuration"
+		echo "       file and try again"
+		echo
+		exit 1
+	fi
+	echo
+	ADMIN=`whoami`
+	ADMIN_HOME=~
+	echo "You started the admin Installation for user < $ADMIN >"
+	echo "This will create a configuration file in the location:"
+	echo "               < $CFG >"
+	echo
+	prompt
+	echo
+	# Check for an existing SteamCMD
+	if [ -x "$ADMIN_HOME/steamcmd/steamcmd.sh" ]; then
+		STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
+		echo "An existing SteamCMD installation was found in < $STEAMCMD_DIR >"
+		echo
+	else
+		# Ask for the SteamCMD directory
+		echo "To download/update the game, installing SteamCMD is required. Be aware that"
+		echo "this will use a lot of data! Please specify the place for SteamCMD to be"
+		echo "installed in (absolute or relative to your home directory)."
+		echo
+		read -r -p "SteamCMD install directory (default: steamcmd) " STEAMCMD_DIR
+		echo
+		if [ -z "$STEAMCMD_DIR" ]; then 
+			STEAMCMD_DIR=steamcmd; 
+		fi
+		if [ ! "$(echo "$STEAMCMD_DIR" | grep "^/")" ]; then
+			STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
+		fi
+		# Download and install SteamCMD
+		WDIR=`pwd`
+		mkdir -p "$STEAMCMD_DIR"
+		cd "$STEAMCMD_DIR"
+		echo "Downloading SteamCMD ..."
+		until [ $SUCCESS ]; do
+			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+			if [ $? -ne 0 ]; then
+				echo "SteamCMD Download failed."
+				prompt "Retry?"
+			else
+				SUCCESS=1
+			fi
+		done
+		echo "Extracting ..."
+		tar xzvf steamcmd_linux.tar.gz
+		rm steamcmd_linux.tar.gz &> /dev/null
+		if [ ! -x "$STEAMCMD_DIR/steamcmd.sh" ]; then
+			echo "ERROR: SteamCMD installation failed."
+			exit 1
+		fi
+		echo "Updating SteamCMD ..."
+		echo "quit" | "$STEAMCMD_DIR/steamcmd.sh"
+		echo
+		echo "SteamCMD installed successfully."
+		echo
+		cd "$WDIR"
+	fi
+	# Now, check for game install directory
+	if [ "$(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null)" == "$APPID" ]; then
+		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
+		echo "A previous game installation was found in < $INSTALL_DIR >"
+		echo
+	else
+		echo "Next, please select the directory for the game server to be installed in"
+		read -r -p "Game Server Installation Directory (default: $APPNAME) " INSTALL_DIR
+		echo
+		if [ -z "$INSTALL_DIR" ]; then 
+			INSTALL_DIR="$APPNAME" 
+		fi
+		if [ ! "$(echo "$INSTALL_DIR" | grep "^/")" ]; then
+			INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
+		fi
+		mkdir -p "$INSTALL_DIR"
+	fi
 
-    # Create Update Script
-    UPSCRIPT="$STEAMCMD_DIR/update"
-    rm "$UPSCRIPT" &> /dev/null
-    echo "login anonymous" >> "$UPSCRIPT"
-    echo "force_install_dir \"$INSTALL_DIR\"" >> "$UPSCRIPT"
-    echo "app_update $APPID" >> "$UPSCRIPT"
-    echo "quit" >> "$UPSCRIPT"
+	# Create Update Script
+	UPSCRIPT="$STEAMCMD_DIR/update"
+	rm "$UPSCRIPT" &> /dev/null
+	echo "login anonymous" >> "$UPSCRIPT"
+	echo "force_install_dir \"$INSTALL_DIR\"" >> "$UPSCRIPT"
+	echo "app_update $APPID" >> "$UPSCRIPT"
+	echo "quit" >> "$UPSCRIPT"
 
-    # Create Repair Script
-    UPSCRIPT="$STEAMCMD_DIR/repair"
-    rm "$UPSCRIPT" &> /dev/null
-    echo "login anonymous" >> "$UPSCRIPT"
-    echo "force_install_dir \"$INSTALL_DIR\"" >> "$UPSCRIPT"
-    echo "app_update $APPID validate" >> "$UPSCRIPT"
-    echo "quit" >> "$UPSCRIPT"
+	# Create Repair Script
+	UPSCRIPT="$STEAMCMD_DIR/repair"
+	rm "$UPSCRIPT" &> /dev/null
+	echo "login anonymous" >> "$UPSCRIPT"
+	echo "force_install_dir \"$INSTALL_DIR\"" >> "$UPSCRIPT"
+	echo "app_update $APPID validate" >> "$UPSCRIPT"
+	echo "quit" >> "$UPSCRIPT"
 
-    # Cleaning existing clients up
-    delete-all-tmuxes
-    rm -rf "$INSTALL_DIR/.msm/clients" &>/dev/null
+	# Cleaning existing clients up
+	delete-all-tmuxes
+	rm -rf "$INSTALL_DIR/.msm/clients" &>/dev/null
 
-    # Create settings directory within INSTALL_DIR
-    mkdir -p "$INSTALL_DIR/.msm"
-    # Make game and settings readable for all users
-    chmod -R a+r "$INSTALL_DIR"
-    # ... but make sure the authtokens stay private
-    touch "$INSTALL_DIR/.msm/authtoken"
-    chmod o-rwx "$INSTALL_DIR/msm/authtoken"
+	# Create settings directory within INSTALL_DIR
+	mkdir -p "$INSTALL_DIR/.msm"
+	# Make game and settings readable for all users
+	chmod -R a+r "$INSTALL_DIR"
+	# ... but make sure the authtokens stay private
+	touch "$INSTALL_DIR/.msm/authtoken"
+	chmod o-rwx "$INSTALL_DIR/msm/authtoken"
 
-    # Create other info and clients directory
-    echo "$APPID" > "$INSTALL_DIR/.msm/appid"
-    echo "$APPNAME" > "$INSTALL_DIR/.msm/appname"
-    mkdir -p "$INSTALL_DIR/.msm/clients"
-    chmod a+rwx,g+s "$INSTALL_DIR/.msm/clients"
+	# Create other info and clients directory
+	echo "$APPID" > "$INSTALL_DIR/.msm/appid"
+	echo "$APPNAME" > "$INSTALL_DIR/.msm/appname"
+	mkdir -p "$INSTALL_DIR/.msm/clients"
+	chmod a+rwx,g+s "$INSTALL_DIR/.msm/clients"
 
-    # Create Config and make it readable
-    createcfg
-    chmod a+r "$CFG"
+	# Create Config and make it readable
+	createcfg
+	chmod a+r "$CFG"
 
-    echo "Basic Setup Complete!"
-    echo
-    echo "Do you want to install/update the game right now? If you choose No, you can"
-    echo "install the game later using \`$THIS_COMMAND update' or copy the files manually."
-    echo
-    prompt "Install Now?" noexit
-    if [ $? -eq 0 ]; then
-        echo
-        update
-    else
-        echo
-    fi
-    return 0
+	echo "Basic Setup Complete!"
+	echo
+	echo "Do you want to install/update the game right now? If you choose No, you can"
+	echo "install the game later using \`$THIS_COMMAND update' or copy the files manually."
+	echo
+	prompt "Install Now?" noexit
+	if [ $? -eq 0 ]; then
+		echo
+		update
+	else
+		echo
+	fi
+	return 0
 }
 
 function usage {
@@ -592,59 +606,59 @@ readcfg || { setup; exit 0; }
 set-instance ""
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
 while [ "$1" ]; do
-    unset printusage
-    if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
+	unset printusage
+	if [ "$(echo "$1" | grep "^-*help")" ]; then usage; exit 0; fi
 
-    # Reload possible config changes
-    readcfg
+	# Reload possible config changes
+	readcfg
 
-    case "$1" in
-        @*)
-            set-instance ${1:1}
-            shift
-        ;;
+	case "$1" in
+		@*)
+			set-instance ${1:1}
+			shift
+		;;
 
-        start)
-            shift
-            start || exit 1
-        ;;
+		start)
+			shift
+			start || exit 1
+		;;
 
-        stop)
-            shift
-            stop
-        ;;
+		stop)
+			shift
+			stop
+		;;
 
-        restart)
-            shift
-            stop
-            start || exit 1
-        ;;
+		restart)
+			shift
+			stop
+			start || exit 1
+		;;
 
-        status)
-            shift
-            if status; 
-                then echo "$SERVER_TEXT is STOPPED!"; echo
-                else echo "$SERVER_TEXT is RUNNING!"; echo
-            fi
-        ;;
+		status)
+			shift
+			if status; 
+				then echo "$SERVER_TEXT is STOPPED!"; echo
+				else echo "$SERVER_TEXT is RUNNING!"; echo
+			fi
+		;;
 
-        console)
-            shift
-            console
-        ;;
+		console)
+			shift
+			console
+		;;
 
-        update)
-            shift
-            update
-        ;;
+		update)
+			shift
+			update
+		;;
 
-        *)
-            echo "ERROR: Unrecognized Option: $1"
-            echo
-            usage
-            exit 1
-        ;;
-    esac
+		*)
+			echo "ERROR: Unrecognized Option: $1"
+			echo
+			usage
+			exit 1
+		;;
+	esac
 done
 
 if [ "$printusage" ]; then unset printusage; usage; exit 1; fi
