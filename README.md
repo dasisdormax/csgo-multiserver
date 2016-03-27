@@ -2,13 +2,19 @@
 
 Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
+
+
 ## About this fork
 
 This fork is a complete rewrite of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be primarily designed for rented root servers). Intention is to make server management easier in both shared server and LAN environments.
 
+
+
 ### Currently working features
 
 * SteamCMD and Game Installation
+
+
 
 ### Planned features
 
@@ -24,35 +30,46 @@ The emphasis is on **MULTI**
 * Sourcemod plugin management for each instance (including downloading them), and enabling/disabling them based on configuration
 * Support for Gameserver auth tokens and various other improvements
 
+
+
 ## Requirements
 
 Of course, a Steam account is required to create a CS:GO dedicated server. Also get Gameserver auth tokens for CS:GO (App-ID 730) [here](http://steamcommunity.com/dev/managegameservers)
 
 Required commands on the server:
 
-* `awk ` ([https://en.wikipedia.org/wiki/Awk]) (should be default)
-* `tmux` ([https://tmux.github.io/])
-* `wget` ([https://en.wikipedia.org/wiki/Wget])
-* `tar ` ([http://linuxcommand.org/man_pages/tar1.html])
+* _awk_, see https://en.wikipedia.org/wiki/Awk (should be default on linux servers)
+* _tmux_, see https://tmux.github.io/
+* _wget_, see https://en.wikipedia.org/wiki/Wget
+* _tar_, see http://linuxcommand.org/man_pages/tar1.html
+
+
 
 ## Installation
 
-Executing ``csgo-server`` will present a simple setup if no configuration exists for that user. More details follow as soon as everything works
+Executing `csgo-server` will present a simple setup if no configuration exists for that user. More details follow as soon as everything works
+
+
 
 ## Environment Variables
 
-The main configuration file, by default, will be placed in ``~/csgo-msm.conf``. It will set up all the important environment variables.
+The main configuration file, by default, will be placed in `~/csgo-msm.conf`. It will set up all the important environment variables.
 
 * **ADMIN** - Name of the user that 'controls' the installation
 * **INSTALL_DIR** - The directory of the base installation. In **ADMIN**'s control.
-
 * **DEFAULT_INSTANCE** - The default server instance
+* **DEFAULT_MODE** - The default server gamemode
 
-** LOTS OF STUFF IS MISSING **
+Other variables will be set up by configs within the game instance's directory
+
+**LOTS OF STUFF IS MISSING**
+
+
 
 ## Usage - NEEDS TO BE REWORKED
 
 For the console mode, press CTRL+D to detach (return to your normal console) without stopping the server.
+
 
 
 ## License
