@@ -4,9 +4,11 @@ Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
 
 
-## About this fork
+## About this project
 
-This fork is a complete rewrite of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be primarily designed for rented root servers). Intention is to make server management easier in both shared server and LAN environments.
+This is a complete rewrite of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be primarily designed for rented root servers). Intention is to make server management easier in both shared server and LAN environments.
+
+There is still A LOT to do!
 
 
 
@@ -43,6 +45,10 @@ Required commands on the server:
 * _wget_, see https://en.wikipedia.org/wiki/Wget
 * _tar_, see http://linuxcommand.org/man_pages/tar1.html
 
+Recommended additions:
+
+* _unbuffer_, for ubuntu, in the _expect_ package, which makes update output and logging smoother
+
 
 
 ## Installation
@@ -74,4 +80,6 @@ For the console mode, press CTRL+D to detach (return to your normal console) wit
 
 ## License
 
-Currently licensed as LGPLv3. When all original code and documentation has been replaced by own, this is planned to be relicensed under Apache 2.0.
+Apache License 2.0. This should give nobody worries when using my program and making modifications to it. I would, though, appreciate if code improvements could make it back here.
+
+The original csgo-server-launcher by crazy is licensed as LGPLv3. At this point, no original code is being used anymore. See the branch [crazy](https://github.com/dasisdormax/csgo-multiserver/tree/crazy) for the last LGPL licensed state of this project.

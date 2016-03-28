@@ -1,38 +1,39 @@
 #! /bin/bash
-### BEGIN INIT INFO
-# Provides: csgo-server
-# Required-Start: $remote_fs $syslog
-# Required-Stop: $remote_fs $syslog
-# Default-Start: 2 3 4 5
-# Default-Stop: 0 1 6
-# Short-Description: CS:GO Multi Server Manager
-### END INIT INFO
 
-##################################################################################
-#                                                                                #
-#  CS:GO Multi Server Manager (MSM)                                              #
-#                                                                                #
-#  Launch and setup your Counter-Strike : Global Offensive Dedicated Server.     #
-#                                                                                #
-#  Copyright (C) 2013-2015 Cr@zy <webmaster@crazyws.fr>                          #
-#  Copyright (C) 2015      Maximilian Wende <maximilian.wende@gmail.com>         #
-#                                                                                #
-#  CS:GO Multi-Mode Server Manager is free software; you can                     #
-#  redistribute it and/or modify it under the terms of the GNU Lesser General    #
-#  Public License as published by the Free Software Foundation, either version 3 #
-#  of the License, or (at your option) any later version.                        #
-#                                                                                #
-#  CS:GO Multi-Mode Server Manager is distributed in the hope                    #
-#  that it will be useful, but WITHOUT ANY WARRANTY; without even the implied    #
-#  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the      #
-#  GNU Lesser General Public License for more details.                           #
-#                                                                                #
-#  You should have received a copy of the GNU Lesser General Public License      #
-#  along with this program. If not, see http://www.gnu.org/licenses/.            #
-#                                                                                #
-#  Usage: TO BE REWORKED                                                         #
-#                                                                                #
-##################################################################################
+basename="$(basename "${BASH_SOURCE[0]}")"
+dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+THIS_SCRIPT="$dirname/$basename"
+if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then THIS_COMM=$basename; else THIS_COMM="$0"; fi
+
+info () { cat <<EOF
+================================================================================
+
+                           CS:GO Multi Server Manager
+                           --------------------------
+
+   Launch and set up your Counter-Strike: Global Offensive Dedicated Servers.
+   Report bugs, get more information and receive updates to this script at:
+
+                https://github.com/dasisdormax/csgo-multiserver
+
+--------------------------------------------------------------------------------
+
+        Copyright (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+
+Licensed under the Apache License, Version 2.0 (the "License");  you may not use
+this  file except in compliance  with the License. You may obtain a  copy of the
+License at:
+                   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,  software distributed
+under  the License  is distributed on  an "AS IS"  BASIS,  WITHOUT WARRANTIES OR
+CONDITIONS  OF ANY KIND,  either  express or  implied.  See the  License for the
+specific language governing permissions and limitations under the License.
+
+================================================================================
+
+EOF
+}
 
 ################################## CONFIGURATION #################################
 
@@ -50,10 +51,44 @@ MSM_CFG="$APPNAME-msm.conf"
 
 
 ################################ HELPER FUNCTIONS ################################
+usage () {
+	cat <<-EOF
+		Usage: $THIS_COMM < commands >
+
+		GENERAL COMMANDS:
+		    usage    > Display this help message
+		    info     > About this script / copyright and license information
+
+		INSTANCE SELECTION:
+		    @...     > Select the server instance to apply the following commands on.
+		             > If no name is given, work on the base installation instead.
+		    The default instance \$DEFAULT_INSTANCE can be specified in the config file
+
+		INSTANCE-SPECIFIC COMMANDS:
+		    create   > Create a new server instance
+		    start | stop | restart
+		             > Start/Stop/Restart given server instance (using)
+		    status   > Check whether the server is currently running
+		    console  > Attach (connect) to the server's console. While inside, press
+		             > CTRL-D to detach (return to outside) without killing the server
+
+		ADMINISTRATION COMMANDS (regarding the base installation):
+		    admin-install
+		             > Configure this user as his own admin, install SteamCMD,
+		             > and optionally download the game
+		    update   > Install/Update the game server
+		    validate > Repair broken/missing game files
+
+		Commands will be executed in the order they are given. If a command fails,
+		subsequent commands will not be executed.
+
+	EOF
+}
+
 # Get absolute config file location, based on MSM_CFG
 # $1 is the base directory, if omitted, the current home directory is taken
 cfgfile () {
-	if [[ $(echo "$MSM_CFG" | grep ^/) ]]; then
+	if [[ $MSM_CFG =~ ^/ ]]; then
 		local CFG="$MSM_CFG"
 	else
 		if [[ $1 ]]; then
@@ -73,7 +108,7 @@ prompt () {
 
 	read -r -p "$PROMPT (Y/n) " INPUT
 
-	if [[ $INPUT && $INPUT != y && $INPUT != Y ]]; then 
+	if [[ $INPUT && ! $INPUT =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
 		if [[ $2 ]]; then return 1; else exit 1; fi
 	fi
 }
@@ -90,6 +125,7 @@ set-instance () {
 		SERVER_TEXT="Base Installation"
 	fi
 	SESSION_NAME="$USER@$INSTANCE"
+	SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
 	# Prints usage if no more commands are given
 	printusage=1
 }
@@ -97,28 +133,26 @@ set-instance () {
 
 
 ############################## VARIABLE DEFINITIONS ##############################
-THIS_COMMAND="$(basename "${BASH_SOURCE[0]}")"
-THIS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$THIS_COMMAND"
 CFG=`cfgfile`
 
 
 
 ############################# TMUX CONTROL FUNCTIONS #############################
 delete-tmux () {
-	tmux -S "$TMUX_SOCKET" kill-server
-	rm $TMUX_SOCKET
+	tmux -S "$SOCKET" kill-server
+	rm $SOCKET
 	return 0
 }
 
 delete-all-tmuxes () {
 	local BASEPATH="$INSTALL_DIR/.msm/clients"
-	for socket in $(ls "$BASEPATH"); do
-		local TMUX_SOCKET="$BASEPATH/$socket"
-		if [[ -w $TMUX_SOCKET ]]; then
+	for sock in $(ls "$BASEPATH"); do
+		local SOCKET="$BASEPATH/$sock"
+		if [[ -w $SOCKET ]]; then
 			delete-tmux
 		fi
 	done
-	unset socket
+	unset sock
 }
 
 
@@ -129,39 +163,41 @@ start () {
 	# Nothing to do if server is already running
 	if status; then
 		echo "INFO:  $SERVER_TEXT is already running!"
-		echo "       Enter the console using \`$THIS_COMMAND @$INSTANCE console'"
+		echo "       Enter the console using \`$THIS_COMM @$INSTANCE console'"
 		echo
-		return true
+		return 0 # already running
 	fi
 
 	if [[ ! -d $INSTANCE_DIR ]]; then
 		echo "ERROR: Instance directory < $INSTANCE_DIR > does not exist!"
-		echo "       Create an instance using \`$THIS_COMMAND @$INSTANCE create-instance'"
+		echo "       Create an instance using \`$THIS_COMM @$INSTANCE create-instance'"
 		echo
-		return false
+		return 1 # failure
 	fi
 
 	if [[ ! -w $INSTANCE_DIR ]]; then
-		echo "ERROR: You do not have write access to < $INSTANCE_DIR > !"
+		echo "ERROR: You do not have full access to < $INSTANCE_DIR > !"
 		echo "       Only < $ADMIN > can modify and launch the base installation! Try creating"
-		echo "       an own instance using \`$THIS_COMMAND @name create-instance' instead."
+		echo "       an own instance using \`$THIS_COMM @name create-instance' instead."
 		echo
-		return false
+		return 1 # failure
 	fi
 
 	if [[ ! -x $INSTANCE_DIR/$SERVER_EXEC ]]; then
 		echo "ERROR: Server Executable not found at < $INSTANCE_DIR/$SERVER_EXEC > !"
-		echo "       Try repairing the installation using \`$THIS_COMMAND update',"
-		echo "       \`$THIS_COMMAND repair' or rebuild this instance."
+		echo "       Try repairing the installation using \`$THIS_COMM update',"
+		echo "       \`$THIS_COMM repair' or rebuild this instance."
 		echo
-		return false
+		return 1 # failure
 	fi
+
+	# TODO: actual start procedure here
 
 	echo
 	echo "$SERVER_TEXT started successfully!"
-	echo "To enter the game's console, type \`$THIS_COMMAND @$INSTANCE console'."
+	echo "To enter the game's console, type \`$THIS_COMM @$INSTANCE console'."
 	echo
-	return true
+	return 0 # success
 }
 
 stop () {
@@ -173,42 +209,44 @@ stop () {
 
 # Status (Up/Down and extra info) of the server in tmux session $SESSION_NAME
 status () {
-	TMUX_SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
-
 	# Check if tmux socket exists and is accessible
-	if [[ ! -e "$TMUX_SOCKET" ]]; then
-		return false
+	if [[ ! -e "$SOCKET" ]]; then
+		return 1 # false - not running
 	fi
-	if [[ ! -w "$TMUX_SOCKET" ]]; then
+	if [[ ! -w "$SOCKET" ]]; then
 		echo "ERROR: Cannot access socket of session < $SESSION_NAME> !"
 		echo
 		exit 1
 	fi
 
-	if ( tmux -S "$TMUX_SOCKET" has-session >/dev/null ); then
+	if ( tmux -S "$SOCKET" has-session >/dev/null ); then
 		# No session runs within tmux
 		delete-tmux
-		return false
+		return 1 # false - not running
 	fi
 
 	# Get server pid and owner
-	eval "local $(tmux -S "$TMUX_SOCKET" showenv SERVER_PID)"
-	local SOCKET_OWNER="$(ls -ld "$TMUX_SOCKET" | awk 'NR==1 {print $3}')"
+	eval "local $(tmux -S "$SOCKET" showenv SERVER_PID)"
+	local SOCKET_OWNER="$(ls -ld "$SOCKET" | awk 'NR==1 {print $3}')"
 	if [[ ! $SERVER_PID ]]; then delete-tmux; fi
 
 	# Check, if pid actually is the server and belongs to the user
 	local PS_OUT="$(ps -o uname=,comm= -p "$SERVER_PID"  2>/dev/null)"
 	if [[ $PS_OUT != "$SOCKET_OWNER $SERVER_EXEC" ]]; then
 		delete-tmux
-		return false
+		return 1 # false - not running
 	fi
 	# Game Server found
-	return true
+	return 0
 }
 
 # Switch to the game console in tmux session
 console () {
-	status
+	if ! status; then
+		echo "ERROR: $SERVER_TEXT is not running"
+		echo
+		return 1
+	fi
 }
 
 
@@ -227,14 +265,14 @@ create-instance () {
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 update () {
 	local ACTION="update"
-	if [[ $1 == "repair" ]]; then local ACTION="repair"; fi
+	if [[ $1 == "validate" ]]; then local ACTION="validate"; fi
 	if [[ $USER != $ADMIN ]]; then
 		echo "Only the admin < $ADMIN > can manage and $ACTION the game installation."
 		echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
 		echo
 		su - "$ADMIN" -c "'$THIS_SCRIPT' $ACTION"
 		if (( $? )); then
-			echo "ERROR: Executing $ACTION as < $ADMIN > failed!"
+			echo "ERROR: Installation/update as < $ADMIN > failed!"
 			echo
 			return 1
 		fi
@@ -243,7 +281,6 @@ update () {
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
 	echo > "$LOGFILE"
-	echo "Starting $ACTION."
 	echo "Log File: < $LOGFILE >"
 	echo
 
@@ -251,10 +288,10 @@ update () {
 	try=0
 	until [[ $SUCCESS ]] || (( ++try > tries )); do
 		tee -a "$LOGFILE" <<-EOF
-			################################################
-			# $(printf "[%2d/%2d]%38s" $try $tries "$(date)") #
-			# Trying to $ACTION the game using SteamCMD ... #
-			################################################
+			###################################################
+			# $(printf "[%2d/%2d] %40s" $try $tries "$(date)") #
+			# $(printf "%-47s" "Trying to $ACTION the game using SteamCMD ...") #
+			###################################################
 
 		EOF
 		$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/$ACTION" | tee -a "$LOGFILE"
@@ -484,7 +521,7 @@ admin-install () {
 		if [[ ! $STEAMCMD_DIR ]]; then 
 			STEAMCMD_DIR=steamcmd; 
 		fi
-		if [[ ! $(echo "$STEAMCMD_DIR" | grep ^/) ]]; then
+		if [[ ! $STEAMCMD_DIR =~ ^/ ]]; then
 			STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
 		fi
 		# Download and install SteamCMD
@@ -527,7 +564,7 @@ admin-install () {
 		if [[ ! $INSTALL_DIR ]]; then 
 			INSTALL_DIR="$APPNAME" 
 		fi
-		if [[ ! $(echo "$INSTALL_DIR" | grep ^/) ]]; then
+		if [[ ! $INSTALL_DIR =~ ^/ ]]; then
 			INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
 		fi
 		mkdir -p "$INSTALL_DIR"
@@ -542,9 +579,9 @@ admin-install () {
 		quit
 	EOF
 
-	# Create Repair Script
-	local REPSCRIPT="$STEAMCMD_DIR/repair"
-	cat > "$REPSCRIPT" <<-EOF
+	# Create Validate Script
+	local VALSCRIPT="$STEAMCMD_DIR/validate"
+	cat > "$VALSCRIPT" <<-EOF
 		login anonymous
 		force_install_dir "$INSTALL_DIR" 
 		app_update $APPID validate
@@ -576,7 +613,7 @@ admin-install () {
 	echo "Basic Setup Complete!"
 	echo
 	echo "Do you want to install/update the game right now? If you choose No, you can"
-	echo "install the game later using \`$THIS_COMMAND update' or copy the files manually."
+	echo "install the game later using \`$THIS_COMM install' or copy the files manually."
 	echo
 	prompt "Install Now?" noexit
 	if (( $? )); then
@@ -587,16 +624,9 @@ admin-install () {
 	return 0
 }
 
-usage () {
-  echo "Usage: $THIS_COMMAND [@instance] {start|stop|status|restart|console|update|repair|create}"
-  echo "On console, CTRL+D will detach (return) instead of exiting the server."
-  echo
-}
-
 ############################### PROGRAM STARTS HERE ##############################
 
 # Check required packages
-PATH=/bin:/usr/bin:/sbin:/usr/sbin
 if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!";  exit 1; fi
 if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; exit 1; fi
 if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; exit 1; fi
@@ -605,7 +635,7 @@ if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but requ
 # Make some space
 echo
 
-if ( grep "^-*help$" > /dev/null <<< "$1" ); then usage; exit 0; fi
+if [[ $1 =~ "^(--)?help$"   ]]; then usage; exit 0; fi
 if [[ $1 == "admin-install" ]]; then admin-install; shift; if [[ ! $1 ]]; then exit 0; fi; fi
 
 # Load config, else start initial setup
@@ -615,35 +645,33 @@ set-instance "$DEFAULT_INSTANCE"
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
 while [[ $1 ]]; do
 	unset printusage
-	if ( grep "^-*help$" > /dev/null <<< "$1" ); then usage; exit 0; fi
-
-	# Reload possible config changes
-	readcfg
-
 	case "$1" in
 		@*)
 			set-instance ${1:1}
-			shift
 		;;
 
-		start)
-			shift
+		help | --help | usage )
+			usage
+		;;
+
+		info | about | license | copyright )
+			info
+		;;
+
+		launch | start)
 			start || exit 1
 		;;
 
-		stop)
-			shift
+		halt | stop)
 			stop
 		;;
 
 		restart)
-			shift
 			stop
 			start || exit 1
 		;;
 
-		status)
-			shift
+		st | stat | status)
 			if status; 
 				then echo "$SERVER_TEXT is RUNNING!"; echo
 				else echo "$SERVER_TEXT is STOPPED!"; echo
@@ -651,18 +679,19 @@ while [[ $1 ]]; do
 		;;
 
 		console)
-			shift
 			console
 		;;
 
-		update)
-			shift
+		up | update | install)
 			update
 		;;
 
-		repair)
-			shift
-			update repair
+		create | create-instance)
+			create-instance
+		;;
+
+		validate | repair)
+			update validate
 		;;
 
 		*)
@@ -672,9 +701,12 @@ while [[ $1 ]]; do
 			exit 1
 		;;
 	esac
+	shift
+
+	# Reload possible config changes
+	readcfg
 done
 
 if [[ $printusage ]]; then unset printusage; usage; exit 1; fi
 
 exit 0
-
