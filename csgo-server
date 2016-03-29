@@ -392,7 +392,6 @@ create-instance () {
 	echo "-------------------------------------------------------------------------------"
 	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
 	echo "-------------------------------------------------------------------------------"
-	echo
 
 	if [[ $INSTANCE_DIR == $INSTALL_DIR ]]; then
 		echo "INFO:  You have selected the base installation."
@@ -408,7 +407,7 @@ create-instance () {
 			echo
 			return 1
 		fi
-		
+
 		if ! [[ -r $INSTANCE_DIR && -w $INSTANCE_DIR && -x $INSTANCE_DIR ]]; then
 			echo "ERROR: You do not have the necessary privileges to create a server instance"
 			echo "       in < $INSTANCE_DIR > !"
@@ -416,16 +415,43 @@ create-instance () {
 			return 1
 		fi
 		
-		if [[ -r $INSTANCE_DIR && ! -d $INSTANCE_DIR/.msm ]]; then
-			echo "ERROR: The directory < $INSTANCE_DIR > already exists with"
-			echo "       other than game server data. Please backup all files in that"
-			echo "       directory and try again"
+		if [[ $(ls "$INSTANCE_DIR") && $(cat $INSTANCE_DIR/.msm/appid) != $APPID ]]; then
+			echo "ERROR: The directory < $INSTANCE_DIR > already contains data"
+			echo "       different from game server data. Please move all files in that"
+			echo "       directory and try again!"
 			echo
 			return 1
 		fi
+
+		if [[ $(ls "$INSTANCE_DIR") ]]; then
+			echo
+			echo "A game instance already exists at < $INSTANCE_DIR >."
+			echo "If you continue, ALL THE DATA (configuration, mods, etc.) of this"
+			echo "instance WILL BE DELETED. Backup all important data before proceeding!"
+			echo
+			prompt
+			echo
+		fi
 	}
 
+	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 
+	mkdir -p "$INSTANCE_DIR/.msm"
+
+	if [[ ! -r $INSTALL_DIR/.msm/instance.sh ]]; then
+		echo "ERROR: Instance creation script was not found!"
+		echo
+		return 1
+	fi
+
+	cp "$INSTALL_DIR/.msm/instance.sh" "$INSTANCE_DIR/.msm/instance.sh"
+	. "$INSTANCE_DIR/.msm/instance.sh"
+
+	if (( $1 )); then
+		echo "ERROR: An error occured while executing the instance creation script!"
+		echo
+		return 1
+	fi
 }
 
 
