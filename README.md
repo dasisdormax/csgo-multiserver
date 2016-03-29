@@ -40,6 +40,8 @@ Of course, a Steam account is required to create a CS:GO dedicated server. Also 
 
 Required commands on the server:
 
+Install the [dependencies for SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Linux)! (On Ubuntu/Debian 64 Bit: `sudo apt-get install lib32gcc1`)
+
 * _awk_, see https://en.wikipedia.org/wiki/Awk (should be default on linux servers)
 * _tmux_, see https://tmux.github.io/
 * _wget_, see https://en.wikipedia.org/wiki/Wget
@@ -47,7 +49,7 @@ Required commands on the server:
 
 Recommended additions:
 
-* _unbuffer_, for ubuntu, in the _expect_ package, which makes update output and logging smoother
+* _unbuffer_, to make update output and logging smoother (try `sudo apt-get install expect`)
 
 
 

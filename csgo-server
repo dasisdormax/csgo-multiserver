@@ -37,6 +37,11 @@ EOF
 
 ################################## CONFIGURATION #################################
 
+# Select user switch command (su or sudo)
+# Note: `sudo -u USER command' would be greater, but takes more work
+SU="sudo su -"
+# SU="su -"
+
 # APPID, APPNAME: Steam App ID an name of the game to be managed
 APPID=740
 APPNAME="csgo"
@@ -146,6 +151,9 @@ delete-tmux () {
 
 delete-all-tmuxes () {
 	local BASEPATH="$INSTALL_DIR/.msm/clients"
+	# Nothing to do, if the path does not exist
+	if [[ ! -w $BASEPATH ]]; then return 0; fi
+
 	for sock in $(ls "$BASEPATH"); do
 		local SOCKET="$BASEPATH/$sock"
 		if [[ -w $SOCKET ]]; then
@@ -203,6 +211,8 @@ start () {
 stop () {
 	echo "Stopping $SERVER_TEXT ..."
 	status || { echo; return 0; }
+
+	# TODO: actual stop procedure here
 
 	echo
 }
@@ -269,8 +279,7 @@ update () {
 	if [[ $USER != $ADMIN ]]; then
 		echo "Only the admin < $ADMIN > can manage and $ACTION the game installation."
 		echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
-		echo
-		su - "$ADMIN" -c "'$THIS_SCRIPT' $ACTION"
+		$SU "$ADMIN" -c "'$THIS_SCRIPT' $ACTION"
 		if (( $? )); then
 			echo "ERROR: Installation/update as < $ADMIN > failed!"
 			echo
@@ -433,15 +442,16 @@ setup () {
 		if ! client-install; then
 			echo "Additional installation steps have to be taken on the admin account < $ADMIN >"
 			echo "Please log in to the account of < $ADMIN > now!"
-			echo
-			su - $ADMIN -c "\"$THIS_SCRIPT\" admin-install"
+			$SU $ADMIN -c "\"$THIS_SCRIPT\" admin-install"
 			if (( $? )); then
 				echo "ERROR: Admin Installation for < $ADMIN > failed!"
+				echo
 				exit 1
 			fi
 			# Try client installation again!
 			if ! client-install; then
 				echo "ERROR: Client Installation failed!"
+				echo
 				exit 1
 			fi
 		fi
@@ -472,8 +482,7 @@ admin-install () {
 	echo "-------------------------------------------------------------------------------"
 	echo
 	echo "Checking for an existing configuration ..."
-	readcfg
-	if (( $? )); then
+	if readcfg; then
 		if [[ $ADMIN == $USER ]]; then
 			echo
 			echo "A valid admin configuration already exists for this user < $ADMIN >."
@@ -538,11 +547,13 @@ admin-install () {
 				SUCCESS=1
 			fi
 		done
+		unset SUCCESS
 		echo "Extracting ..."
 		tar xzvf steamcmd_linux.tar.gz
 		rm steamcmd_linux.tar.gz &> /dev/null
 		if [[ ! -x $STEAMCMD_DIR/steamcmd.sh ]]; then
 			echo "ERROR: SteamCMD installation failed."
+			echo
 			exit 1
 		fi
 		echo "Updating SteamCMD ..."
