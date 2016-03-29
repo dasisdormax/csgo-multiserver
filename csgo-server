@@ -90,20 +90,6 @@ usage () {
 	EOF
 }
 
-# Get absolute config file location, based on MSM_CFG
-# $1 is the base directory, if omitted, the current home directory is taken
-cfgfile () {
-	if [[ $MSM_CFG =~ ^/ ]]; then
-		local CFG="$MSM_CFG"
-	else
-		if [[ $1 ]]; then
-			echo "$1/$MSM_CFG"
-		else
-			echo "$HOME/$MSM_CFG"
-		fi
-	fi
-}
-
 # A yes/no prompt. With the first parameter $1, an alternative prompt message can be given
 # By default, a no will exit the program with an exit code of 1. By putting anything as $2,
 # the function will instead return with a value of 1.
@@ -116,6 +102,13 @@ prompt () {
 	if [[ $INPUT && ! $INPUT =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
 		if [[ $2 ]]; then return 1; else exit 1; fi
 	fi
+}
+
+# kills and deletes the tmux-session at location $SOCKET
+delete-tmux () {
+	tmux -S "$SOCKET" kill-server
+	rm $SOCKET
+	return 0
 }
 
 # Sets the instance to the value of $1
@@ -135,32 +128,90 @@ set-instance () {
 	printusage=1
 }
 
+########################## GENERAL SCRIPT CONFIGURATION ##########################
 
+# Get absolute config file location, based on MSM_CFG
+# $1 is the base directory, if omitted, the current home directory is taken
+cfgfile () {
+	if [[ $MSM_CFG =~ ^/ ]]; then
+		local CFG="$MSM_CFG"
+	else
+		if [[ $1 ]]; then
+			echo "$1/$MSM_CFG"
+		else
+			echo "$HOME/$MSM_CFG"
+		fi
+	fi
+}
 
-############################## VARIABLE DEFINITIONS ##############################
 CFG=`cfgfile`
 
-
-
-############################# TMUX CONTROL FUNCTIONS #############################
-delete-tmux () {
-	tmux -S "$SOCKET" kill-server
-	rm $SOCKET
+# Check environment variables for correctness
+# If an argument $1 is given, these variables are checked for that user instead of the current one
+checkvars () {
+	if [[ $1 ]]; then local USER="$1"; fi
+	if [[ ! $ADMIN ]]; then
+		echo "ERROR: ADMIN is not defined"
+		return 1
+	fi
+	if [[ $USER == $ADMIN && ( ! $STEAMCMD_DIR || ! -x $STEAMCMD_DIR/steamcmd.sh ) ]]; then
+		echo "ERROR: STEAMCMD_DIR is not defined or steamcmd.sh was not found in it"
+		return 1
+	fi
+	if [[ ! $INSTALL_DIR ]]; then
+		echo "ERROR: INSTALL_DIR is not defined"
+		return 1
+	fi
+	if [[ ! -r $INSTALL_DIR ]]; then
+		echo "ERROR: < $INSTALL_DIR > does not exist or is not readable"
+		return 1
+	fi
+	if [[ $(cat "$INSTALL_DIR/.msm/appid" 2> /dev/null) != $APPID ]]; then
+		echo "ERROR: The appid of the installation at < $INSTALL_DIR > does not match"
+		return 1
+	fi
 	return 0
 }
 
-delete-all-tmuxes () {
-	local BASEPATH="$INSTALL_DIR/.msm/clients"
-	# Nothing to do, if the path does not exist
-	if [[ ! -w $BASEPATH ]]; then return 0; fi
+# reads the user's configuration file or the file given with $1
+readcfg () {
+	if [[ $1 ]]; then local CFG="$1"; fi
+	if [[ -r $CFG ]]; then
+		source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
+		checkvars || {
+			echo "ERROR: One or more errors in the configuration file < $CFG >"
+			return 1
+		}
+		return 0
+	fi
+	return 1
+}
 
-	for sock in $(ls "$BASEPATH"); do
-		local SOCKET="$BASEPATH/$sock"
-		if [[ -w $SOCKET ]]; then
-			delete-tmux
-		fi
-	done
-	unset sock
+# prints the variable values for the config file
+printcfg () {
+	cat <<-EOF
+		#! /bin/bash
+		# This is a configuration file for CS:GO Multi Server Manager
+		ADMIN="$ADMIN"
+		INSTALL_DIR="$INSTALL_DIR"
+		DEFAULT_INSTANCE="$DEFAULT_INSTANCE"
+		EOF
+	# Vars that are only interesting for the admin
+	if [[ $USER == $ADMIN ]]; then cat <<-EOF
+		STEAMCMD_DIR="$STEAMCMD_DIR"
+		EOF
+	fi
+}
+
+# Write configuration file for the current user
+writecfg () {
+	checkvars || exit 1
+	CFG=`cfgfile`
+	echo "Creating CS:GO MSM Config File in < $CFG >"
+	rm $CFG &> /dev/null
+
+	printcfg > $CFG
+	echo
 }
 
 
@@ -226,7 +277,7 @@ status () {
 	if [[ ! -w "$SOCKET" ]]; then
 		echo "ERROR: Cannot access socket of session < $SESSION_NAME> !"
 		echo
-		exit 1
+		return 23
 	fi
 
 	if ( tmux -S "$SOCKET" has-session >/dev/null ); then
@@ -261,17 +312,6 @@ console () {
 
 
 
-###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
-create-instance () {
-	echo "-------------------------------------------------------------------------------"
-	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
-	echo "-------------------------------------------------------------------------------"
-	echo
-	echo ""
-}
-
-
-
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 update () {
 	local ACTION="update"
@@ -287,6 +327,8 @@ update () {
 		fi
 		return 0
 	fi
+
+	touch "$INSTALL_DIR/.msm/updating"
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
 	echo > "$LOGFILE"
@@ -312,6 +354,10 @@ update () {
 		fi
 	done
 
+	# Update timestamp on appid file, so clients know that files may have changed
+	rm "$INSTALL_DIR/.msm/updating"
+	touch "$INSTALL_DIR/.msm/appid"
+
 	unset try tries
 	if [[ $SUCCESS ]]; then
 		echo "Update completed successfully!"
@@ -325,72 +371,66 @@ update () {
 	fi
 }
 
-# Check environment variables for correctness
-# If an argument $1 is given, these variables are checked for that user instead of the current one
-checkvars () {
-	if [[ $1 ]]; then local USER="$1"; fi
-	if [[ ! $ADMIN ]]; then
-		echo "ERROR: ADMIN is not defined"
-		return 1
-	fi
-	if [[ $USER == $ADMIN && ( ! $STEAMCMD_DIR || ! -x $STEAMCMD_DIR/steamcmd.sh ) ]]; then
-		echo "ERROR: STEAMCMD_DIR is not defined or steamcmd.sh was not found in it"
-		return 1
-	fi
-	if [[ ! $INSTALL_DIR ]]; then
-		echo "ERROR: INSTALL_DIR is not defined"
-		return 1
-	fi
-	if [[ ! -r $INSTALL_DIR ]]; then
-		echo "ERROR: < $INSTALL_DIR > does not exist or is not readable"
-		return 1
-	fi
-	if [[ $(cat "$INSTALL_DIR/.msm/appid" 2> /dev/null) != $APPID ]]; then
-		echo "ERROR: The appid of the installation at < $INSTALL_DIR > does not match"
-		return 1
-	fi
-	return 0
+delete-all-tmuxes () {
+	local BASEPATH="$INSTALL_DIR/.msm/clients"
+	# Nothing to do, if the path does not exist
+	if [[ ! -w $BASEPATH ]]; then return 0; fi
+
+	for sock in $(ls "$BASEPATH"); do
+		local SOCKET="$BASEPATH/$sock"
+		if [[ -w $SOCKET ]]; then
+			delete-tmux
+		fi
+	done
+	unset sock
 }
 
-readcfg () {
-	if [[ $1 ]]; then local CFG="$1"; fi
-	if [[ -r $CFG ]]; then
-		source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
-		checkvars || {
-			echo "ERROR: One or more errors in the configuration file < $CFG >"
-			return 1
-		}
+
+
+###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
+create-instance () {
+	echo "-------------------------------------------------------------------------------"
+	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
+	echo "-------------------------------------------------------------------------------"
+	echo
+
+	if [[ $INSTANCE_DIR == $INSTALL_DIR ]]; then
+		echo "INFO:  You have selected the base installation."
+		echo "       There is no need to create an instance here."
+		echo
+		# This is already a working instance
 		return 0
 	fi
-	return 1
+
+	[[ -e $INSTANCE_DIR ]] && {
+		if ! [[ -d $INSTANCE_DIR ]]; then
+			echo "ERROR: < $INSTANCE_DIR > is not a directory! Move the file and try again."
+			echo
+			return 1
+		fi
+		
+		if ! [[ -r $INSTANCE_DIR && -w $INSTANCE_DIR && -x $INSTANCE_DIR ]]; then
+			echo "ERROR: You do not have the necessary privileges to create a server instance"
+			echo "       in < $INSTANCE_DIR > !"
+			echo
+			return 1
+		fi
+		
+		if [[ -r $INSTANCE_DIR && ! -d $INSTANCE_DIR/.msm ]]; then
+			echo "ERROR: The directory < $INSTANCE_DIR > already exists with"
+			echo "       other than game server data. Please backup all files in that"
+			echo "       directory and try again"
+			echo
+			return 1
+		fi
+	}
+
+
 }
 
-printcfg () {
-	cat <<-EOF
-		#! /bin/bash
-		# This is a configuration file for CS:GO Multi Server Manager
-		ADMIN="$ADMIN"
-		INSTALL_DIR="$INSTALL_DIR"
-		DEFAULT_INSTANCE="$DEFAULT_INSTANCE"
-		EOF
-	# Vars that are only interesting for the admin
-	if [[ $USER == $ADMIN ]]; then cat <<-EOF
-		STEAMCMD_DIR="$STEAMCMD_DIR"
-		EOF
-	fi
-}
 
-# Create configuration file for the current user
-createcfg () {
-	checkvars || exit 1
-	CFG=`cfgfile`
-	echo "Creating CS:GO MSM Config File in < $CFG >"
-	rm $CFG &> /dev/null
 
-	printcfg > $CFG
-	echo
-}
-
+##################################### SETUP #####################################
 setup () {
 	# First-time setup
 	echo "-------------------------------------------------------------------------------"
@@ -472,7 +512,7 @@ client-install () {
 	readcfg "$ADMIN_CFG"
 	if (( $? )); then echo; return 1; fi
 	echo
-	createcfg
+	writecfg
 	return 0
 }
 
@@ -607,9 +647,9 @@ admin-install () {
 	mkdir -p "$INSTALL_DIR/.msm"
 	# Make game and settings readable for all users
 	chmod -R a+r "$INSTALL_DIR"
-	# ... but make sure the authtokens stay private
-	touch "$INSTALL_DIR/.msm/authtoken"
-	chmod o-rwx "$INSTALL_DIR/.msm/authtoken"
+	# ... but make sure the server data (port, authtoken, etc.) stay private
+	touch "$INSTALL_DIR/.msm/serverdata"
+	chmod o-rwx "$INSTALL_DIR/.msm/serverdata"
 
 	# Create other info and clients directory
 	echo "$APPID" > "$INSTALL_DIR/.msm/appid"
@@ -618,7 +658,7 @@ admin-install () {
 	chmod a+rwx,g+s "$INSTALL_DIR/.msm/clients"
 
 	# Create Config and make it readable
-	createcfg
+	writecfg
 	chmod a+r "$CFG"
 
 	echo "Basic Setup Complete!"
