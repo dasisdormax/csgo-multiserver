@@ -1,9 +1,31 @@
 #! /bin/bash
 
+
+
+
+####################### INITIAL CHECKS AND CALCULATIONS ########################
+
+# Make some space
+echo
+# Check required packages
+if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!" ; echo; exit 1; fi
+if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; echo; exit 1; fi
+if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; echo; exit 1; fi
+if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!" ; echo; exit 1; fi
+
 basename="$(basename "${BASH_SOURCE[0]}")"
 dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-THIS_SCRIPT="$dirname/$basename"
-if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then THIS_COMM=$basename; else THIS_COMM="$0"; fi
+# Fail-safe, in the case that readlink does not exist on the system.
+# THIS_DIR will not be correct though if this script is being called through a symlink
+THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null || echo "$dirname/$basename")"
+THIS_DIR="$(dirname "$THIS_SCRIPT")"
+if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then THIS_COMM="$basename"; else THIS_COMM="$0"; fi
+unset basename dirname
+
+
+
+
+####################### LICENSE AND COPYRIGHT INFORMATION ########################
 
 info () { cat <<EOF
 ================================================================================
@@ -35,7 +57,10 @@ specific language governing permissions and limitations under the License.
 EOF
 }
 
-################################## CONFIGURATION #################################
+
+
+
+########################### BASIC SCRIPT CONFIGURATION ###########################
 
 # Select user switch command (su or sudo)
 # Note: `sudo -u USER command' would be greater, but takes more work
@@ -55,7 +80,9 @@ MSM_CFG="$APPNAME-msm.conf"
 
 
 
+
 ################################ HELPER FUNCTIONS ################################
+
 usage () {
 	cat <<-EOF
 		Usage: $THIS_COMM < commands >
@@ -127,6 +154,9 @@ set-instance () {
 	# Prints usage if no more commands are given
 	printusage=1
 }
+
+
+
 
 ########################## GENERAL SCRIPT CONFIGURATION ##########################
 
@@ -216,7 +246,9 @@ writecfg () {
 
 
 
+
 ############################ SERVER CONTROL FUNCTIONS ############################
+
 start () {
 	echo "Starting $SERVER_TEXT ..."
 	# Nothing to do if server is already running
@@ -312,7 +344,9 @@ console () {
 
 
 
+
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
+
 update () {
 	local ACTION="update"
 	if [[ $1 == "validate" ]]; then local ACTION="validate"; fi
@@ -387,7 +421,9 @@ delete-all-tmuxes () {
 
 
 
+
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
+
 create-instance () {
 	echo "-------------------------------------------------------------------------------"
 	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
@@ -456,7 +492,9 @@ create-instance () {
 
 
 
+
 ##################################### SETUP #####################################
+
 setup () {
 	# First-time setup
 	echo "-------------------------------------------------------------------------------"
@@ -701,25 +739,23 @@ admin-install () {
 	return 0
 }
 
+
+
+
+##################################################################################
 ############################### PROGRAM STARTS HERE ##############################
-
-# Check required packages
-if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!";  exit 1; fi
-if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; exit 1; fi
-if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; exit 1; fi
-if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!";  exit 1; fi
-
-# Make some space
-echo
+##################################################################################
 
 if [[ $1 =~ "^(--)?help$"   ]]; then usage; exit 0; fi
 if [[ $1 == "admin-install" ]]; then admin-install; shift; if [[ ! $1 ]]; then exit 0; fi; fi
 
-# Load config, else start initial setup
+# Load config, if it fails, start initial setup
 readcfg || { setup; exit 0; }
 
 set-instance "$DEFAULT_INSTANCE"
+
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
+
 while [[ $1 ]]; do
 	unset printusage
 	case "$1" in
