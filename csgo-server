@@ -1,30 +1,5 @@
 #! /bin/bash
 
-
-
-
-####################### INITIAL CHECKS AND CALCULATIONS ########################
-
-# Make some space
-echo
-# Check required packages
-if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!" ; echo; exit 1; fi
-if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; echo; exit 1; fi
-if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; echo; exit 1; fi
-if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!" ; echo; exit 1; fi
-
-basename="$(basename "${BASH_SOURCE[0]}")"
-dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Fail-safe, in the case that readlink does not exist on the system.
-# THIS_DIR will not be correct though if this script is being called through a symlink
-THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null || echo "$dirname/$basename")"
-THIS_DIR="$(dirname "$THIS_SCRIPT")"
-if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then THIS_COMM="$basename"; else THIS_COMM="$0"; fi
-unset basename dirname
-
-
-
-
 ####################### LICENSE AND COPYRIGHT INFORMATION ########################
 
 info () { cat <<EOF
@@ -60,28 +35,7 @@ EOF
 
 
 
-########################### BASIC SCRIPT CONFIGURATION ###########################
-
-# Select user switch command (su or sudo)
-# Note: `sudo -u USER command' would be greater, but takes more work
-SU="sudo su -"
-# SU="su -"
-
-# APPID, APPNAME: Steam App ID an name of the game to be managed
-APPID=740
-APPNAME="csgo"
-
-# SERVER_EXEC: The executable file of the server, within INSTANCE_DIR
-SERVER_EXEC="srcds_run"
-
-# MSM_CFG: General Configuration file location
-# if a relative path is given, it is interpreted as relative to the user's home directory
-MSM_CFG="$APPNAME-msm.conf"
-
-
-
-
-################################ HELPER FUNCTIONS ################################
+############################## USAGE OF THIS SCRIPT ##############################
 
 usage () {
 	cat <<-EOF
@@ -117,6 +71,32 @@ usage () {
 	EOF
 }
 
+
+
+
+########################### BASIC SCRIPT CONFIGURATION ###########################
+
+# Select user switch command (su or sudo)
+# Note: `sudo -u USER command' would be greater, but takes more work
+SU="sudo su -"
+# SU="su -"
+
+# APPID, APPNAME: Steam App ID an name of the game to be managed
+APPID=740
+APPNAME="csgo"
+
+# SERVER_EXEC: The executable file of the server, within INSTANCE_DIR
+SERVER_EXEC="srcds_run"
+
+# MSM_CFG: General Configuration file location
+# if a relative path is given, it is interpreted as relative to the user's home directory
+MSM_CFG="$APPNAME-msm.conf"
+
+
+
+
+################################ HELPER FUNCTIONS ################################
+
 # A yes/no prompt. With the first parameter $1, an alternative prompt message can be given.
 # returns true (0) for yes, and false (1) for no
 prompt () {
@@ -148,8 +128,6 @@ set-instance () {
 	fi
 	SESSION_NAME="$USER@$INSTANCE"
 	SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
-	# Prints usage if no more commands are given
-	printusage=1
 }
 
 
@@ -232,10 +210,10 @@ printcfg () {
 
 # Write configuration file for the current user
 writecfg () {
-	checkvars || exit 1
+	checkvars || return 1
 	CFG=`cfgfile`
 	echo "Creating CS:GO MSM Config File in < $CFG >"
-	rm $CFG &> /dev/null
+	rm $CFG > /dev/null 2>&1
 
 	printcfg > $CFG
 	echo
@@ -516,7 +494,7 @@ setup () {
 	echo ">>  For multi-user setups, this script must be readable for all users"
 	echo "               < $THIS_SCRIPT >"
 	echo
-	if ! prompt; then echo; exit 1; fi
+	if ! prompt; then echo; return 1; fi
 	# Query steam installation admin user
 	echo
 	echo "Please choose the user that is responsible for the game installation and"
@@ -553,13 +531,13 @@ setup () {
 			if (( $? )); then
 				echo "ERROR: Admin Installation for < $ADMIN > failed!"
 				echo
-				exit 1
+				return 1
 			fi
 			# Try client installation again!
 			if ! client-install; then
 				echo "ERROR: Client Installation failed!"
 				echo
-				exit 1
+				return 1
 			fi
 		fi
 	else
@@ -597,20 +575,20 @@ admin-install () {
 			echo "               < $CFG >"
 			echo "and try again."
 			echo
-			exit 1
+			return 1
 		else
 			echo
 			echo "This user is currently configured as client of user < $ADMIN >."
 			echo "If you continue, this user will create an own installation of the game instead."
 			echo
-			if ! prompt; then echo; exit 1; fi
+			if ! prompt; then echo; return 1; fi
 		fi
 	fi
 	if [[ ! "$APPNAME" || ! "$APPID" ]]; then
 		echo "ERROR: APPNAME and APPID are not set. Check this script and your configuration"
 		echo "       file and try again"
 		echo
-		exit 1
+		return 1
 	fi
 	echo
 	ADMIN="$USER"
@@ -619,7 +597,7 @@ admin-install () {
 	echo "This will create a configuration file in the location:"
 	echo "               < $CFG >"
 	echo
-	if ! prompt; then echo; exit 1; fi
+	if ! prompt; then echo; return 1; fi
 	echo
 	# Check for an existing SteamCMD
 	if [[ -x $ADMIN_HOME/steamcmd/steamcmd.sh ]]; then
@@ -649,7 +627,7 @@ admin-install () {
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
 			if (( $? )); then
 				echo "ERROR: SteamCMD Download failed."
-				if ! prompt "Retry?"; then echo; exit 1; fi
+				if ! prompt "Retry?"; then echo; return 1; fi
 			else
 				SUCCESS=1
 			fi
@@ -662,7 +640,7 @@ admin-install () {
 		if [[ ! -x $STEAMCMD_DIR/steamcmd.sh ]]; then
 			echo "ERROR: SteamCMD installation failed."
 			echo
-			exit 1
+			return 1
 		fi
 		echo
 		echo "Updating SteamCMD ..."
@@ -751,80 +729,126 @@ admin-install () {
 ############################### PROGRAM STARTS HERE ##############################
 ##################################################################################
 
-if [[ $1 =~ "^(--)?help$"   ]]; then usage; exit 0; fi
-if [[ $1 == "admin-install" ]]; then admin-install; shift; if [[ ! $1 ]]; then exit 0; fi; fi
+######################### INITIAL CHECKS AND CALCULATIONS ########################
 
-# Load config, if it fails, start initial setup
-readcfg || { setup; exit 0; }
+echo # Make some space
 
-set-instance "$DEFAULT_INSTANCE"
+# Detect if this has been called via source command
+if [[ $0 != ${BASH_SOURCE[0]} ]]; then
+	echo "INFO:  This script has been invoked using the \`source' builtin."
+	echo
+	EXIT=return
+else
+	EXIT=exit
+fi
+
+# Check required packages
+if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!" ; echo; $EXIT 1; fi
+if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; echo; $EXIT 1; fi
+if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; echo; $EXIT 1; fi
+if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!" ; echo; $EXIT 1; fi
+
+# Get script filename and directory
+basename="$(basename "${BASH_SOURCE[0]}")"
+dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then THIS_COMM="$basename"; else THIS_COMM="${BASH_SOURCE[0]}"; fi
+# Fail-safe, in the case that readlink does not exist on the system.
+# THIS_DIR will not be correct though if this script is being called through a symlink
+THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null || echo "$dirname/$basename")"
+THIS_DIR="$(dirname "$THIS_SCRIPT")"
+unset basename dirname
+
+############################# LOAD CONFIGURATION FILE ############################
+
+NO_COMMAND=1
+readcfg && set-instance "$DEFAULT_INSTANCE" || NEED_SETUP=1
 
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
 
 while [[ $1 ]]; do
-	unset printusage
+	unset NEED_SETUP
+	unset NO_COMMAND
+
+	############ BEGIN OUTER CASE ############
 	case "$1" in
-		@*)
+
+	( info | about | license | copyright )
+		info
+		;;
+
+	( help | --help | usage )
+		usage
+		;;
+
+	( admin-install )
+		admin-install || return 0
+		;;
+
+	( * )
+		# Read configuration changes and start setup if needed
+		readcfg || setup || $EXIT 1
+
+		# Check other cases, but respect preconditions
+
+		############ BEGIN INNER CASE ############
+		case "$1" in
+		( @* )
 			set-instance ${1:1}
-		;;
+			;;
 
-		help | --help | usage )
-			usage
-		;;
+		( launch | start )
+			start || $EXIT 1
+			;;
 
-		info | about | license | copyright )
-			info
-		;;
+		( halt | stop )
+			stop || $EXIT 1
+			;;
 
-		launch | start)
-			start || exit 1
-		;;
+		( restart )
+			stop &&	start || $EXIT 1
+			;;
 
-		halt | stop)
-			stop
-		;;
-
-		restart)
-			stop
-			start || exit 1
-		;;
-
-		st | stat | status)
-			if status; 
-				then echo "$SERVER_TEXT is RUNNING!"; echo
-				else echo "$SERVER_TEXT is STOPPED!"; echo
+		( st | stat | status )
+			if status;
+				then echo "$SERVER_TEXT is RUNNING!"
+				else echo "$SERVER_TEXT is STOPPED!"
 			fi
-		;;
+			echo
+			;;
 
-		console)
+		( console )
 			console
-		;;
+			;;
 
-		up | update | install)
-			update
-		;;
+		( up | update | install )
+			update || $EXIT 1
+			;;
 
-		create | create-instance)
-			create-instance
-		;;
+		( create | create-instance )
+			create-instance || $EXIT 1
+			;;
 
-		validate | repair)
-			update validate
-		;;
+		( validate | repair )
+			update validate || $EXIT 1
+			;;
 
-		*)
+		( * )
 			echo "ERROR: Unrecognized Option: $1"
 			echo
 			usage
-			exit 1
+			$EXIT 1
+			;;
+		esac
+		############ END INNER CASE ############
 		;;
 	esac
+	############ END OUTER CASE ############
 	shift
 
-	# Reload possible config changes
-	readcfg
 done
 
-if [[ $printusage ]]; then unset printusage; usage; exit 1; fi
+if [[ $NEED_SETUP ]]; then unset NEED_SETUP; setup; $EXIT $?; fi
 
-exit 0
+if [[ $NO_COMMAND ]]; then unset NO_COMMAND; usage; $EXIT 1; fi
+
+$EXIT 0
