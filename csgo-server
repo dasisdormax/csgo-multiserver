@@ -99,7 +99,7 @@ usage () {
 		INSTANCE-SPECIFIC COMMANDS:
 		    create   > Create a new server instance
 		    start | stop | restart
-		             > Start/Stop/Restart given server instance (using)
+		             > Start/Stop/Restart given server instance (using tmux)
 		    status   > Check whether the server is currently running
 		    console  > Attach (connect) to the server's console. While inside, press
 		             > CTRL-D to detach (return to outside) without killing the server
@@ -117,18 +117,15 @@ usage () {
 	EOF
 }
 
-# A yes/no prompt. With the first parameter $1, an alternative prompt message can be given
-# By default, a no will exit the program with an exit code of 1. By putting anything as $2,
-# the function will instead return with a value of 1.
+# A yes/no prompt. With the first parameter $1, an alternative prompt message can be given.
+# returns true (0) for yes, and false (1) for no
 prompt () {
 	PROMPT="Proceed?"
 	if [[ $1 ]]; then PROMPT="$1"; fi
 
 	read -r -p "$PROMPT (Y/n) " INPUT
-
-	if [[ $INPUT && ! $INPUT =~ ^([Yy]|[Yy][Ee][Ss])$ ]]; then
-		if [[ $2 ]]; then return 1; else exit 1; fi
-	fi
+	# Implicit return value below
+	[[ ! $INPUT || $INPUT =~ ^([Yy]|[Yy][Ee][Ss])$ ]]
 }
 
 # kills and deletes the tmux-session at location $SOCKET
@@ -424,19 +421,8 @@ delete-all-tmuxes () {
 
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
 
-create-instance () {
-	echo "-------------------------------------------------------------------------------"
-	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
-	echo "-------------------------------------------------------------------------------"
-
-	if [[ $INSTANCE_DIR == $INSTALL_DIR ]]; then
-		echo "INFO:  You have selected the base installation."
-		echo "       There is no need to create an instance here."
-		echo
-		# This is already a working instance
-		return 0
-	fi
-
+# Checks, if 
+check-instance-dir () {
 	[[ -e $INSTANCE_DIR ]] && {
 		if ! [[ -d $INSTANCE_DIR ]]; then
 			echo "ERROR: < $INSTANCE_DIR > is not a directory! Move the file and try again."
@@ -461,14 +447,31 @@ create-instance () {
 
 		if [[ $(ls "$INSTANCE_DIR") ]]; then
 			echo
-			echo "A game instance already exists at < $INSTANCE_DIR >."
-			echo "If you continue, ALL THE DATA (configuration, mods, etc.) of this"
-			echo "instance WILL BE DELETED. Backup all important data before proceeding!"
+			echo "WARN:  A game instance already exists at < $INSTANCE_DIR >."
+			echo "       If you continue, ALL THE DATA (configuration, mods, etc.) of this"
+			echo "       instance WILL BE DELETED. Backup all important data before proceeding!"
 			echo
-			prompt
+			if ! prompt; then echo; return 1; fi
 			echo
 		fi
 	}
+	return 0
+}
+
+create-instance () {
+	echo "-------------------------------------------------------------------------------"
+	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
+	echo "-------------------------------------------------------------------------------"
+
+	if [[ $INSTANCE_DIR == $INSTALL_DIR ]]; then
+		echo "INFO:  You have selected the base installation."
+		echo "       There is no need to create an instance here."
+		echo
+		# This is already a working instance
+		return 0
+	fi
+
+	check-instance-dir || return 1
 
 	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 
@@ -513,7 +516,7 @@ setup () {
 	echo ">>  For multi-user setups, this script must be readable for all users"
 	echo "               < $THIS_SCRIPT >"
 	echo
-	prompt
+	if ! prompt; then echo; exit 1; fi
 	# Query steam installation admin user
 	echo
 	echo "Please choose the user that is responsible for the game installation and"
@@ -594,13 +597,13 @@ admin-install () {
 			echo "               < $CFG >"
 			echo "and try again."
 			echo
-			exit
+			exit 1
 		else
 			echo
 			echo "This user is currently configured as client of user < $ADMIN >."
 			echo "If you continue, this user will create an own installation of the game instead."
 			echo
-			prompt
+			if ! prompt; then echo; exit 1; fi
 		fi
 	fi
 	if [[ ! "$APPNAME" || ! "$APPID" ]]; then
@@ -616,7 +619,7 @@ admin-install () {
 	echo "This will create a configuration file in the location:"
 	echo "               < $CFG >"
 	echo
-	prompt
+	if ! prompt; then echo; exit 1; fi
 	echo
 	# Check for an existing SteamCMD
 	if [[ -x $ADMIN_HOME/steamcmd/steamcmd.sh ]]; then
@@ -645,13 +648,14 @@ admin-install () {
 		until [[ $SUCCESS ]]; do
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
 			if (( $? )); then
-				echo "SteamCMD Download failed."
-				prompt "Retry?"
+				echo "ERROR: SteamCMD Download failed."
+				if ! prompt "Retry?"; then echo; exit 1; fi
 			else
 				SUCCESS=1
 			fi
 		done
 		unset SUCCESS
+		echo
 		echo "Extracting ..."
 		tar xzvf steamcmd_linux.tar.gz
 		rm steamcmd_linux.tar.gz &> /dev/null
@@ -660,6 +664,7 @@ admin-install () {
 			echo
 			exit 1
 		fi
+		echo
 		echo "Updating SteamCMD ..."
 		echo "quit" | "$STEAMCMD_DIR/steamcmd.sh"
 		echo
@@ -730,12 +735,12 @@ admin-install () {
 	echo "Do you want to install/update the game right now? If you choose No, you can"
 	echo "install the game later using \`$THIS_COMM install' or copy the files manually."
 	echo
-	prompt "Install Now?" noexit
-	if (( $? )); then
+	if prompt "Install Now?"; then
 		echo
+		update
 		return 0
 	fi
-	update
+	echo
 	return 0
 }
 
