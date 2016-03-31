@@ -399,7 +399,8 @@ delete-all-tmuxes () {
 
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
 
-# Checks, if 
+# Checks existing data in INSTANCE_DIR, and prints appropriate warnings
+# if data would have to be deleted
 check-instance-dir () {
 	[[ -e $INSTANCE_DIR ]] && {
 		if ! [[ -d $INSTANCE_DIR ]]; then
@@ -415,6 +416,7 @@ check-instance-dir () {
 			return 1
 		fi
 		
+		# INSTANCE_DIR contains data, but not of a game server (instance) of game APPID
 		if [[ $(ls "$INSTANCE_DIR") && $(cat $INSTANCE_DIR/.msm/appid) != $APPID ]]; then
 			echo "ERROR: The directory < $INSTANCE_DIR > already contains data"
 			echo "       different from game server data. Please move all files in that"
@@ -423,7 +425,8 @@ check-instance-dir () {
 			return 1
 		fi
 
-		if [[ $(ls "$INSTANCE_DIR") ]]; then
+		# INSTANCE_DIR contains a game instance and is not a base installation
+		if [[ $(ls "$INSTANCE_DIR") && ! -d $INSTANCE_DIR/.msm/clients ]]; then
 			echo
 			echo "WARN:  A game instance already exists at < $INSTANCE_DIR >."
 			echo "       If you continue, ALL THE DATA (configuration, mods, etc.) of this"
@@ -599,6 +602,7 @@ admin-install () {
 	echo
 	if ! prompt; then echo; return 1; fi
 	echo
+
 	# Check for an existing SteamCMD
 	if [[ -x $ADMIN_HOME/steamcmd/steamcmd.sh ]]; then
 		STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
@@ -612,8 +616,8 @@ admin-install () {
 		echo
 		read -r -p "SteamCMD install directory (default: steamcmd) " STEAMCMD_DIR
 		echo
-		if [[ ! $STEAMCMD_DIR ]]; then 
-			STEAMCMD_DIR=steamcmd; 
+		if [[ ! $STEAMCMD_DIR ]]; then
+			STEAMCMD_DIR=steamcmd;
 		fi
 		if [[ ! $STEAMCMD_DIR =~ ^/ ]]; then
 			STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
@@ -634,6 +638,7 @@ admin-install () {
 		done
 		unset SUCCESS
 		echo
+
 		echo "Extracting ..."
 		tar xzvf steamcmd_linux.tar.gz
 		rm steamcmd_linux.tar.gz &> /dev/null
@@ -650,21 +655,32 @@ admin-install () {
 		echo
 		cd "$WDIR"
 	fi
+
 	# Now, check for game install directory
 	if [[ $(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null) == "$APPID" ]]; then
 		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
 		echo "A previous game installation was found in < $INSTALL_DIR >"
 		echo
 	else
-		echo "Next, please select the directory for the game server to be installed in"
-		read -r -p "Game Server Installation Directory (default: $APPNAME) " INSTALL_DIR
+		echo "Next, please select the directory for the game server to be installed in."
+		until [[ $SUCCESS ]]; do
+			echo
+			read -r -p "Game Server Installation Directory (default: $APPNAME) " INSTALL_DIR
+			if [[ ! $INSTALL_DIR ]]; then 
+				INSTALL_DIR="$APPNAME" 
+			fi
+			if [[ ! $INSTALL_DIR =~ ^/ ]]; then
+				INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
+			fi
+			INSTANCE_DIR="$INSTALL_DIR"
+			if check-instance-dir
+				then SUCCESS=1;
+				else echo "ERROR: < $INSTALL_DIR > cannot be used as a base"
+					 echo "       installation directory! Please specify a different directory."
+			fi
+		done
+		unset SUCCESS
 		echo
-		if [[ ! $INSTALL_DIR ]]; then 
-			INSTALL_DIR="$APPNAME" 
-		fi
-		if [[ ! $INSTALL_DIR =~ ^/ ]]; then
-			INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
-		fi
 		mkdir -p "$INSTALL_DIR"
 	fi
 
@@ -737,16 +753,14 @@ echo # Make some space
 if [[ $0 != ${BASH_SOURCE[0]} ]]; then
 	echo "INFO:  This script has been invoked using the \`source' builtin."
 	echo
-	EXIT=return
-else
-	EXIT=exit
+	alias exit="unalias exit; return"
 fi
 
 # Check required packages
-if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!" ; echo; $EXIT 1; fi
-if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; echo; $EXIT 1; fi
-if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; echo; $EXIT 1; fi
-if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!" ; echo; $EXIT 1; fi
+if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!" ; echo; exit 1; fi
+if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; echo; exit 1; fi
+if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; echo; exit 1; fi
+if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!" ; echo; exit 1; fi
 
 # Get script filename and directory
 basename="$(basename "${BASH_SOURCE[0]}")"
@@ -781,12 +795,12 @@ while [[ $1 ]]; do
 		;;
 
 	( admin-install )
-		admin-install || return 0
+		admin-install || exit 0
 		;;
 
 	( * )
 		# Read configuration changes and start setup if needed
-		readcfg || setup || $EXIT 1
+		readcfg || setup || exit 1
 
 		# Check other cases, but respect preconditions
 
@@ -797,15 +811,15 @@ while [[ $1 ]]; do
 			;;
 
 		( launch | start )
-			start || $EXIT 1
+			start || exit 1
 			;;
 
 		( halt | stop )
-			stop || $EXIT 1
+			stop || exit 1
 			;;
 
 		( restart )
-			stop &&	start || $EXIT 1
+			stop &&	start || exit 1
 			;;
 
 		( st | stat | status )
@@ -821,22 +835,22 @@ while [[ $1 ]]; do
 			;;
 
 		( up | update | install )
-			update || $EXIT 1
+			update || exit 1
 			;;
 
 		( create | create-instance )
-			create-instance || $EXIT 1
+			create-instance || exit 1
 			;;
 
 		( validate | repair )
-			update validate || $EXIT 1
+			update validate || exit 1
 			;;
 
 		( * )
 			echo "ERROR: Unrecognized Option: $1"
 			echo
 			usage
-			$EXIT 1
+			exit 1
 			;;
 		esac
 		############ END INNER CASE ############
@@ -847,8 +861,8 @@ while [[ $1 ]]; do
 
 done
 
-if [[ $NEED_SETUP ]]; then unset NEED_SETUP; setup; $EXIT $?; fi
+if [[ $NEED_SETUP ]]; then unset NEED_SETUP; setup; exit $?; fi
 
-if [[ $NO_COMMAND ]]; then unset NO_COMMAND; usage; $EXIT 1; fi
+if [[ $NO_COMMAND ]]; then unset NO_COMMAND; usage; exit 1; fi
 
-$EXIT 0
+exit 0
