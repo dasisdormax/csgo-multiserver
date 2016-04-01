@@ -417,7 +417,7 @@ check-instance-dir () {
 		fi
 		
 		# INSTANCE_DIR contains data, but not of a game server (instance) of game APPID
-		if [[ $(ls "$INSTANCE_DIR") && $(cat $INSTANCE_DIR/.msm/appid) != $APPID ]]; then
+		if [[ $(ls -A "$INSTANCE_DIR") && $(cat $INSTANCE_DIR/.msm/appid 2> /dev/null) != $APPID ]]; then
 			echo "ERROR: The directory < $INSTANCE_DIR > already contains data"
 			echo "       different from game server data. Please move all files in that"
 			echo "       directory and try again!"
@@ -426,7 +426,7 @@ check-instance-dir () {
 		fi
 
 		# INSTANCE_DIR contains a game instance and is not a base installation
-		if [[ $(ls "$INSTANCE_DIR") && ! -d $INSTANCE_DIR/.msm/clients ]]; then
+		if [[ $(ls -A "$INSTANCE_DIR") && ! -d $INSTANCE_DIR/.msm/clients ]]; then
 			echo
 			echo "WARN:  A game instance already exists at < $INSTANCE_DIR >."
 			echo "       If you continue, ALL THE DATA (configuration, mods, etc.) of this"
@@ -444,32 +444,35 @@ create-instance () {
 	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
 	echo "-------------------------------------------------------------------------------"
 
-	if [[ $INSTANCE_DIR == $INSTALL_DIR ]]; then
-		echo "INFO:  You have selected the base installation."
-		echo "       There is no need to create an instance here."
+	check-instance-dir || return 1
+
+	if [[ -d $INSTANCE_DIR/.msm/clients ]]; then
+		echo "INFO:  You have selected a base installation, There is no need to create an"
+		echo "       instance here. If you want to create a new instance, set the instance"
+		echo "       name using \`$THIS_COMM @name create'."
 		echo
 		# This is already a working instance
 		return 0
 	fi
 
-	check-instance-dir || return 1
-
-	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
-
-	mkdir -p "$INSTANCE_DIR/.msm"
-
-	if [[ ! -r $INSTALL_DIR/.msm/instance.sh ]]; then
+	if [[ ! -r $THIS_DIR/scripts-$APPID/instance.sh ]]; then
 		echo "ERROR: Instance creation script was not found!"
 		echo
 		return 1
 	fi
 
-	cp "$INSTALL_DIR/.msm/instance.sh" "$INSTANCE_DIR/.msm/instance.sh"
+	############ INSTANCE CREATION STARTS NOW ############
+	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
+
+	mkdir -p "$INSTANCE_DIR/.msm"
+
+	cp "$THIS_DIR/scripts-$APPID/instance.sh" "$INSTANCE_DIR/.msm/instance.sh"
 	. "$INSTANCE_DIR/.msm/instance.sh"
 
-	if (( $1 )); then
+	if (( $? )); then
 		echo "ERROR: An error occured while executing the instance creation script!"
 		echo
+		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 		return 1
 	fi
 }
@@ -603,6 +606,7 @@ admin-install () {
 	if ! prompt; then echo; return 1; fi
 	echo
 
+	############ STEAMCMD ############
 	# Check for an existing SteamCMD
 	if [[ -x $ADMIN_HOME/steamcmd/steamcmd.sh ]]; then
 		STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
@@ -656,7 +660,8 @@ admin-install () {
 		cd "$WDIR"
 	fi
 
-	# Now, check for game install directory
+	############ GAME INSTALL DIRECTORY ############
+	# check for an existing game installation
 	if [[ $(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null) == "$APPID" ]]; then
 		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
 		echo "A previous game installation was found in < $INSTALL_DIR >"
@@ -702,23 +707,24 @@ admin-install () {
 		quit
 	EOF
 
+	############ PREPARE MSM DIRECTORY ############
 	# Cleaning existing clients up
 	delete-all-tmuxes
 	rm -rf "$INSTALL_DIR/.msm/clients" &>/dev/null
 
 	# Create settings directory within INSTALL_DIR
 	mkdir -p "$INSTALL_DIR/.msm"
+
+	echo "$APPID" > "$INSTALL_DIR/.msm/appid"
+	echo "$APPNAME" > "$INSTALL_DIR/.msm/appname"
+	mkdir -p "$INSTALL_DIR/.msm/clients"
+	chmod a+rwx,g+s "$INSTALL_DIR/.msm/clients"
+
 	# Make game and settings readable for all users
 	chmod -R a+r "$INSTALL_DIR"
 	# ... but make sure the server data (port, authtoken, etc.) stay private
 	touch "$INSTALL_DIR/.msm/serverdata"
 	chmod o-rwx "$INSTALL_DIR/.msm/serverdata"
-
-	# Create other info and clients directory
-	echo "$APPID" > "$INSTALL_DIR/.msm/appid"
-	echo "$APPNAME" > "$INSTALL_DIR/.msm/appname"
-	mkdir -p "$INSTALL_DIR/.msm/clients"
-	chmod a+rwx,g+s "$INSTALL_DIR/.msm/clients"
 
 	# Create Config and make it readable
 	writecfg
@@ -847,9 +853,9 @@ while [[ $1 ]]; do
 			;;
 
 		( * )
-			echo "ERROR: Unrecognized Option: $1"
+			echo "ERROR: Unrecognized Option: < $1 >."
+			echo "       Try \`$THIS_COMM usage' for a list of available commands."
 			echo
-			usage
 			exit 1
 			;;
 		esac
@@ -861,7 +867,7 @@ while [[ $1 ]]; do
 
 done
 
-if [[ $NEED_SETUP ]]; then unset NEED_SETUP; setup; exit $?; fi
+if [[ $NEED_SETUP ]]; then unset NEED_SETUP NO_COMMAND; setup; exit $?; fi
 
 if [[ $NO_COMMAND ]]; then unset NO_COMMAND; usage; exit 1; fi
 
