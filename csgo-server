@@ -441,7 +441,21 @@ check-instance-dir () {
 
 # recursively symlinks all files from the base installation that do not exist yet in the instance
 symlink-all-files () {
-
+	# Return if .donotlink file exists in target.
+	# This file should be created by instance creation scripts
+	if [[ -e $INSTANCE_DIR/$1.donotlink ]]; then return 0; fi
+	# Loop through files in directory
+	for file in $(ls -A "$INSTALL_DIR/$1"); do
+		# MSM directory or already symlinked files do not need any more work
+		if [[ -L $INSTANCE_DIR/$1$file || $file == .msm ]]; then continue; fi
+		# recurse through subdirectories
+		if [[ -d $INSTANCE_DIR/$1$file ]]; then symlink-all-files "${1}${file}/"; continue; fi
+		# Create symlink for nenexistent file
+		if [[ ! -e $INSTANCE_DIR/$1$file ]]; then 
+			ln -s "$INSTALL_DIR/$1$file" "$INSTANCE_DIR/$1$file"
+			continue
+		fi
+	done
 }
 
 create-instance () {
