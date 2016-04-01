@@ -439,6 +439,11 @@ check-instance-dir () {
 	return 0
 }
 
+# recursively symlinks all files from the base installation that do not exist yet in the instance
+symlink-all-files () {
+
+}
+
 create-instance () {
 	echo "-------------------------------------------------------------------------------"
 	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
@@ -466,6 +471,11 @@ create-instance () {
 
 	mkdir -p "$INSTANCE_DIR/.msm"
 
+	# Execute Instance creation script. This will copy all files that the
+	# instance owner should be able to modify himself.
+	echo
+	echo "Copying instance-specific files ..."
+
 	cp "$THIS_DIR/scripts-$APPID/instance.sh" "$INSTANCE_DIR/.msm/instance.sh"
 	. "$INSTANCE_DIR/.msm/instance.sh"
 
@@ -475,6 +485,32 @@ create-instance () {
 		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 		return 1
 	fi
+
+	echo
+	echo "Linking remaining files to the base installation ..."
+
+	echo "$INSTALL_DIR" > "$INSTANCE_DIR/.msm/install-dir"
+	symlink-all-files
+
+	if (( $? )); then
+		echo "ERROR: Linking this instance to the base installation failed."
+		echo
+		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
+		return 1
+	fi
+
+	echo
+	echo "Performing final steps ..."
+
+	cp "$INSTALL_DIR/.msm/appid" "$INSTANCE_DIR/.msm/appid"
+	cp "$INSTALL_DIR/.msm/appname" "$INSTANCE_DIR/.msm/appname"
+	cp -R "$INSTALL_DIR/.msm/modes" "$INSTANCE_DIR/.msm/modes"
+	touch "$INSTANCE_DIR/.msm/server.conf"
+	chmod o-rwx "$INSTANCE_DIR/.msm/server.conf"
+
+	echo
+	echo "Instance crested successfully in < $INSTANCE_DIR > !"
+	echo
 }
 
 
@@ -723,8 +759,8 @@ admin-install () {
 	# Make game and settings readable for all users
 	chmod -R a+r "$INSTALL_DIR"
 	# ... but make sure the server data (port, authtoken, etc.) stay private
-	touch "$INSTALL_DIR/.msm/serverdata"
-	chmod o-rwx "$INSTALL_DIR/.msm/serverdata"
+	touch "$INSTALL_DIR/.msm/server.conf"
+	chmod o-rwx "$INSTALL_DIR/.msm/server.conf"
 
 	# Create Config and make it readable
 	writecfg
