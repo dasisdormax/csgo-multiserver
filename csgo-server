@@ -115,6 +115,13 @@ delete-tmux () {
 	return 0
 }
 
+fix-permissions () {
+	if [[ ! $INSTANCE_DIR ]]; then local INSTANCE_DIR="$INSTALL_DIR"; fi
+	source "$SUBSCRIPT_DIR/permissions.sh" 2> /dev/null
+	# Errors are ignored as not all accessed files are necessarily ours,
+	# some files may not exist at all.
+}
+
 # Sets the instance to the value of $1
 set-instance () {
 	INSTANCE="$1"
@@ -149,7 +156,7 @@ cfgfile () {
 	fi
 }
 
-CFG=`cfgfile`
+CFG=$(cfgfile)
 
 # Check environment variables for correctness
 # If an argument $1 is given, these variables are checked for that user instead of the current one
@@ -346,6 +353,7 @@ update () {
 
 	tries=5
 	try=0
+	unset SUCCESS
 	until [[ $SUCCESS ]] || (( ++try > tries )); do
 		tee -a "$LOGFILE" <<-EOF
 			###################################################
@@ -362,6 +370,8 @@ update () {
 			local SUCCESS=1
 		fi
 	done
+
+	fix-permissions
 
 	# Update timestamp on appid file, so clients know that files may have changed
 	rm "$INSTALL_DIR/.msm/updating"
@@ -474,12 +484,6 @@ create-instance () {
 		return 0
 	fi
 
-	if [[ ! -r $THIS_DIR/scripts-$APPID/instance.sh ]]; then
-		echo "ERROR: Instance creation script was not found!"
-		echo
-		return 1
-	fi
-
 	############ INSTANCE CREATION STARTS NOW ############
 	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 
@@ -490,8 +494,7 @@ create-instance () {
 	echo
 	echo "Copying instance-specific files ..."
 
-	cp "$THIS_DIR/scripts-$APPID/instance.sh" "$INSTANCE_DIR/.msm/instance.sh"
-	. "$INSTANCE_DIR/.msm/instance.sh"
+	source "$SUBSCRIPT_DIR/instance.sh"
 
 	if (( $? )); then
 		echo "ERROR: An error occured while executing the instance creation script!"
@@ -519,8 +522,9 @@ create-instance () {
 	cp "$INSTALL_DIR/.msm/appid" "$INSTANCE_DIR/.msm/appid"
 	cp "$INSTALL_DIR/.msm/appname" "$INSTANCE_DIR/.msm/appname"
 	cp -R "$INSTALL_DIR/.msm/modes" "$INSTANCE_DIR/.msm/modes"
-	touch "$INSTANCE_DIR/.msm/server.conf"
-	chmod o-rwx "$INSTANCE_DIR/.msm/server.conf"
+	cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/.msm/server.conf"
+	
+	fix-permissions
 
 	echo
 	echo "Instance crested successfully in < $INSTANCE_DIR > !"
@@ -681,16 +685,16 @@ admin-install () {
 		mkdir -p "$STEAMCMD_DIR"
 		cd "$STEAMCMD_DIR"
 		echo "Downloading SteamCMD ..."
+		unset SUCCESS
 		until [[ $SUCCESS ]]; do
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
 			if (( $? )); then
 				echo "ERROR: SteamCMD Download failed."
 				if ! prompt "Retry?"; then echo; return 1; fi
 			else
-				SUCCESS=1
+				local SUCCESS=1
 			fi
 		done
-		unset SUCCESS
 		echo
 
 		echo "Extracting ..."
@@ -715,9 +719,9 @@ admin-install () {
 	if [[ $(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null) == "$APPID" ]]; then
 		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
 		echo "A previous game installation was found in < $INSTALL_DIR >"
-		echo
 	else
 		echo "Next, please select the directory for the game server to be installed in."
+		unset SUCCESS
 		until [[ $SUCCESS ]]; do
 			echo
 			read -r -p "Game Server Installation Directory (default: $APPNAME) " INSTALL_DIR
@@ -727,17 +731,17 @@ admin-install () {
 			if [[ ! $INSTALL_DIR =~ ^/ ]]; then
 				INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
 			fi
-			INSTANCE_DIR="$INSTALL_DIR"
-			if check-instance-dir
-				then SUCCESS=1;
+			if INSTANCE_DIR="$INSTALL_DIR" check-instance-dir
+				then local SUCCESS=1;
 				else echo "ERROR: < $INSTALL_DIR > cannot be used as a base"
 					 echo "       installation directory! Please specify a different directory."
 			fi
 		done
-		unset SUCCESS
-		echo
 		mkdir -p "$INSTALL_DIR"
 	fi
+
+	echo
+	echo "Preparing installation directories ..."
 
 	# Create Update Script
 	local UPSCRIPT="$STEAMCMD_DIR/update"
@@ -768,15 +772,11 @@ admin-install () {
 	echo "$APPID" > "$INSTALL_DIR/.msm/appid"
 	echo "$APPNAME" > "$INSTALL_DIR/.msm/appname"
 	mkdir -p "$INSTALL_DIR/.msm/clients"
-	chmod a+rwx,g+s "$INSTALL_DIR/.msm/clients"
 
-	# Make game and settings readable for all users
-	chmod -R a+r "$INSTALL_DIR"
-	# ... but make sure the server data (port, authtoken, etc.) stay private
-	touch "$INSTALL_DIR/.msm/server.conf"
-	chmod o-rwx "$INSTALL_DIR/.msm/server.conf"
+	fix-permissions
 
 	# Create Config and make it readable
+	echo
 	writecfg
 	chmod a+r "$CFG"
 
@@ -828,12 +828,48 @@ THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null || echo "$dirname/$
 THIS_DIR="$(dirname "$THIS_SCRIPT")"
 unset basename dirname
 
+############################## LOOK FOR SUBSCRIPTS ###############################
+
+SUBSCRIPT_DIR="$THIS_DIR/scripts-$APPID"
+if [[ ! -d $SUBSCRIPT_DIR ]]; then
+	echo "ERROR: The subscript directory was not found at"
+	echo "       < $SUBSCRIPT_DIR > !"
+	echo
+	exit 1
+fi
+
+if [[ ! -r $SUBSCRIPT_DIR/instance.sh ]]; then
+	echo "ERROR: Instance creation script was not found at"
+	echo "       < $SUBSCRIPT_DIR/instance.sh > !"
+	echo
+	exit 1
+fi
+
+if [[ ! -r $SUBSCRIPT_DIR/permissions.sh ]]; then
+	echo "ERROR: Permission management script was not found at"
+	echo "       < $SUBSCRIPT_DIR/permissions.sh > !"
+	echo
+	exit 1
+fi
+
+if [[ ! -r $SUBSCRIPT_DIR/server.conf ]]; then
+	echo "ERROR: Default server configuration file was not found at"
+	echo "       < $SUBSCRIPT_DIR/server.conf > !"
+	echo
+	exit 1
+fi
+
 ############################# LOAD CONFIGURATION FILE ############################
 
 NO_COMMAND=1
 readcfg && set-instance "$DEFAULT_INSTANCE" || NEED_SETUP=1
 
+
+
+
+##################################################################################
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
+##################################################################################
 
 while [[ $1 ]]; do
 	unset NEED_SETUP
