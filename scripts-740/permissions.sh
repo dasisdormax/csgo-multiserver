@@ -11,7 +11,7 @@ if [[ ! -d $INSTANCE_DIR ]]; then return; exit; fi
 # Remove execute bit on everything but directories
 chmod -R o-rw,a-x,ug+rwX "$INSTANCE_DIR"
 
-if [[ -d $INSTANCE_DIR/.msm/clients ]]; then
+if [[ -d $INSTANCE_DIR/msm.d/clients ]]; then
 	# This is a base installation
 	
 	# Re-add exec bit on files that need to be executable
@@ -22,7 +22,7 @@ if [[ -d $INSTANCE_DIR/.msm/clients ]]; then
 	# Allow other users to read files and directories
 	chmod -R o+rX "$INSTANCE_DIR"
 
-	chmod a+rwx,g+s "$INSTANCE_DIR/.msm/clients"
+	chmod a+rwx,g+s "$INSTANCE_DIR/msm.d/clients"
 fi
 
-chmod o-r "$INSTANCE_DIR/.msm/server.conf"
+chmod o-r "$INSTANCE_DIR/msm.d/server.conf"

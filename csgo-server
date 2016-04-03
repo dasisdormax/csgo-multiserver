@@ -11,7 +11,7 @@ info () { cat <<EOF
    Launch and set up your Counter-Strike: Global Offensive Dedicated Servers.
    Report bugs, get more information and receive updates to this script at:
 
-                https://github.com/dasisdormax/csgo-multiserver
+                $(printf "\x1b[36;1m%s\x1b[m"               "https://github.com/dasisdormax/csgo-multiserver")
 
 --------------------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ info () { cat <<EOF
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use
 this  file except in compliance  with the License. You may obtain a  copy of the
 License at:
-                   http://www.apache.org/licenses/LICENSE-2.0
+                   $(printf "\x1b[36;1m%s\x1b[m"            "http://www.apache.org/licenses/LICENSE-2.0")
 
 Unless required by applicable law or agreed to in writing,  software distributed
 under  the License  is distributed on  an "AS IS"  BASIS,  WITHOUT WARRANTIES OR
@@ -39,18 +39,18 @@ EOF
 
 usage () {
 	cat <<-EOF
-		Usage: $THIS_COMM < commands >
+		Usage: $(bold "$THIS_COMM") < commands >
 
-		GENERAL COMMANDS:
+		$(printf "\x1b[1;36m%s\x1b[m"              "GENERAL COMMANDS:")
 		    usage    > Display this help message
 		    info     > About this script / copyright and license information
 
-		INSTANCE SELECTION:
+		$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE SELECTION:")
 		    @...     > Select the server instance to apply the following commands on.
 		             > If no name is given, work on the base installation instead.
 		    The default instance \$DEFAULT_INSTANCE can be specified in the config file
 
-		INSTANCE-SPECIFIC COMMANDS:
+		$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE-SPECIFIC COMMANDS:")
 		    create   > Create a new server instance
 		    start | stop | restart
 		             > Start/Stop/Restart given server instance (using tmux)
@@ -58,7 +58,7 @@ usage () {
 		    console  > Attach (connect) to the server's console. While inside, press
 		             > CTRL-D to detach (return to outside) without killing the server
 
-		ADMINISTRATION COMMANDS (regarding the base installation):
+		$(printf "\x1b[1;36m%s\x1b[22m %s\x1b[m"   "ADMINISTRATION COMMANDS:" "(regarding the base installation)")
 		    admin-install
 		             > Configure this user as his own admin, install SteamCMD,
 		             > and optionally download the game
@@ -116,10 +116,9 @@ delete-tmux () {
 }
 
 fix-permissions () {
-	if [[ ! $INSTANCE_DIR ]]; then local INSTANCE_DIR="$INSTALL_DIR"; fi
 	source "$SUBSCRIPT_DIR/permissions.sh" 2> /dev/null
-	# Errors are ignored as not all accessed files are necessarily ours,
-	# some files may not exist at all.
+	# Errors are ignored and expected, as not all accessed files are
+	# necessarily ours, some files may not exist at all.
 }
 
 # Sets the instance to the value of $1
@@ -134,8 +133,17 @@ set-instance () {
 		SERVER_TEXT="Base Installation"
 	fi
 	SESSION_NAME="$USER@$INSTANCE"
-	SOCKET="$INSTALL_DIR/.msm/clients/$SESSION_NAME"
+	SOCKET="$INSTALL_DIR/msm.d/clients/$SESSION_NAME"
 }
+
+caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
+
+catwarn () { printf "\x1b[33m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
+
+catinfo () { printf "\x1b[36m"     ; cat     ; printf "\x1b[m"     ; }
+
+# Make text $1 bold
+bold () { printf "\x1b[1m%s\x1b[22m" "$1"; }
 
 
 
@@ -163,23 +171,26 @@ CFG=$(cfgfile)
 checkvars () {
 	if [[ $1 ]]; then local USER="$1"; fi
 	if [[ ! $ADMIN ]]; then
-		echo "ERROR: ADMIN is not defined"
+		caterr <<< "$(bold "ERROR:") ADMIN is not defined!"
 		return 1
 	fi
 	if [[ $USER == $ADMIN && ( ! $STEAMCMD_DIR || ! -x $STEAMCMD_DIR/steamcmd.sh ) ]]; then
-		echo "ERROR: STEAMCMD_DIR is not defined or steamcmd.sh was not found in it"
+		caterr <<< "$(bold "ERROR:") STEAMCMD_DIR is not defined or steamcmd.sh was not found in it!"
 		return 1
 	fi
 	if [[ ! $INSTALL_DIR ]]; then
-		echo "ERROR: INSTALL_DIR is not defined"
+		caterr <<< "$(bold "ERROR:") INSTALL_DIR is not defined!"
 		return 1
 	fi
 	if [[ ! -r $INSTALL_DIR ]]; then
-		echo "ERROR: < $INSTALL_DIR > does not exist or is not readable"
+		caterr <<< "$(bold "ERROR:") $(bold "$INSTALL_DIR") does not exist or is not readable!"
 		return 1
 	fi
-	if [[ $(cat "$INSTALL_DIR/.msm/appid" 2> /dev/null) != $APPID ]]; then
-		echo "ERROR: The appid of the installation at < $INSTALL_DIR > does not match"
+	if [[ $(cat "$INSTALL_DIR/msm.d/appid" 2> /dev/null) != $APPID || ! -d "$INSTALL_DIR/msm.d/clients" ]]; then
+		caterr <<-EOF
+			$(bold "ERROR:") The directory $(bold "$INSTALL_DIR")
+			       is not a valid base installation for $APPNAME!
+		EOF
 		return 1
 	fi
 	return 0
@@ -191,11 +202,12 @@ readcfg () {
 	if [[ -r $CFG ]]; then
 		source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
 		checkvars || {
-			echo "ERROR: One or more errors in the configuration file < $CFG >"
+			caterr <<< "$(bold "ERROR:") One or more errors in the configuration file $(bold "$CFG")!"
 			return 1
 		}
 		return 0
 	fi
+	caterr <<< "$(bold "ERROR:") Configuration file $(bold "$CFG") does not exist!"
 	return 1
 }
 
@@ -217,11 +229,11 @@ printcfg () {
 
 # Write configuration file for the current user
 writecfg () {
-	checkvars || return 1
-	CFG=`cfgfile`
-	echo "Creating CS:GO MSM Config File in < $CFG >"
-	rm $CFG > /dev/null 2>&1
+	CFG=$(cfgfile)
+	echo "Creating CS:GO MSM Config File in $(bold "$CFG") ..."
+	checkvars || { echo; return 1; }
 
+	rm $CFG > /dev/null 2>&1
 	printcfg > $CFG
 	echo
 }
@@ -235,32 +247,40 @@ start () {
 	echo "Starting $SERVER_TEXT ..."
 	# Nothing to do if server is already running
 	if status; then
-		echo "INFO:  $SERVER_TEXT is already running!"
-		echo "       Enter the console using \`$THIS_COMM @$INSTANCE console'"
-		echo
+		catinfo <<-EOF
+			$(bold "INFO:")  $SERVER_TEXT is already running!
+			       Enter the console using \`$THIS_COMM @$INSTANCE console'
+
+		EOF
 		return 0 # already running
 	fi
 
 	if [[ ! -d $INSTANCE_DIR ]]; then
-		echo "ERROR: Instance directory < $INSTANCE_DIR > does not exist!"
-		echo "       Create an instance using \`$THIS_COMM @$INSTANCE create-instance'"
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") Instance directory $(bold "$INSTANCE_DIR") does not exist!
+			       Create an instance using \`$THIS_COMM @$INSTANCE create-instance'
+
+		EOF
 		return 1 # failure
 	fi
 
 	if [[ ! -w $INSTANCE_DIR ]]; then
-		echo "ERROR: You do not have full access to < $INSTANCE_DIR > !"
-		echo "       Only < $ADMIN > can modify and launch the base installation! Try creating"
-		echo "       an own instance using \`$THIS_COMM @name create-instance' instead."
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") You do not have full access to $(bold "$INSTANCE_DIR")!
+			       Only $(bold "$ADMIN") can modify and launch the base installation! Try creating
+			       an own instance using \`$THIS_COMM @name create-instance' instead.
+
+		EOF
 		return 1 # failure
 	fi
 
 	if [[ ! -x $INSTANCE_DIR/$SERVER_EXEC ]]; then
-		echo "ERROR: Server Executable not found at < $INSTANCE_DIR/$SERVER_EXEC > !"
-		echo "       Try repairing the installation using \`$THIS_COMM update',"
-		echo "       \`$THIS_COMM repair' or rebuild this instance."
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") Server Executable not found at $(bold "$INSTANCE_DIR/$SERVER_EXEC")!
+			       Try repairing the installation using \`$THIS_COMM update',
+			       \`$THIS_COMM repair' or re-create this instance.
+
+		EOF
 		return 1 # failure
 	fi
 
@@ -289,8 +309,10 @@ status () {
 		return 1 # false - not running
 	fi
 	if [[ ! -w "$SOCKET" ]]; then
-		echo "ERROR: Cannot access socket of session < $SESSION_NAME> !"
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") Cannot access socket of session $(bold "$SESSION_NAME")!
+
+		EOF
 		return 23
 	fi
 
@@ -318,8 +340,10 @@ status () {
 # Switch to the game console in tmux session
 console () {
 	if ! status; then
-		echo "ERROR: $SERVER_TEXT is not running"
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") $SERVER_TEXT is not running
+
+		EOF
 		return 1
 	fi
 }
@@ -333,33 +357,37 @@ update () {
 	local ACTION="update"
 	if [[ $1 == "validate" ]]; then local ACTION="validate"; fi
 	if [[ $USER != $ADMIN ]]; then
-		echo "Only the admin < $ADMIN > can manage and $ACTION the game installation."
-		echo "Please log in to the account of < $ADMIN > now! (or CTRL-D to cancel)"
+		catwarn <<-EOF
+			Only the admin $(bold "$ADMIN") can $ACTION the base installation.
+			Please log in to the account of $(bold "$ADMIN") now! (or CTRL-D to cancel)
+		EOF
 		$SU "$ADMIN" -c "'$THIS_SCRIPT' $ACTION"
 		if (( $? )); then
-			echo "ERROR: Installation/update as < $ADMIN > failed!"
-			echo
+			caterr <<-EOF
+				$(bold "ERROR:") Installation/update as $(bold "$ADMIN") failed!
+
+			EOF
 			return 1
 		fi
 		return 0
 	fi
 
-	touch "$INSTALL_DIR/.msm/updating"
+	touch "$INSTALL_DIR/msm.d/updating"
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
 	echo > "$LOGFILE"
-	echo "Log File: < $LOGFILE >"
+	catinfo <<< "$(bold "INFO:")  Log File: $(bold "$LOGFILE")"
 	echo
 
 	tries=5
 	try=0
 	unset SUCCESS
 	until [[ $SUCCESS ]] || (( ++try > tries )); do
-		tee -a "$LOGFILE" <<-EOF
-			###################################################
+		tee -a "$LOGFILE" <<-EOF | catinfo
+			####################################################
 			# $(printf "[%2d/%2d] %40s" $try $tries "$(date)") #
-			# $(printf "%-47s" "Trying to $ACTION the game using SteamCMD ...") #
-			###################################################
+			# $(printf "%-48s" "Trying to $ACTION the game using SteamCMD ...") #
+			####################################################
 
 		EOF
 		$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/$ACTION" | tee -a "$LOGFILE"
@@ -374,24 +402,27 @@ update () {
 	fix-permissions
 
 	# Update timestamp on appid file, so clients know that files may have changed
-	rm "$INSTALL_DIR/.msm/updating"
-	touch "$INSTALL_DIR/.msm/appid"
+	rm "$INSTALL_DIR/msm.d/updating"
+	touch "$INSTALL_DIR/msm.d/appid"
 
 	unset try tries
 	if [[ $SUCCESS ]]; then
-		echo "Update completed successfully!"
+		catinfo <<< "$(bold "INFO:")  Update completed successfully!"
 		echo
 		return 0
 	else
-		echo "Update failed. For more information, see the log file at"
-		echo "               < $LOGFILE >"
+		catwarn <<-EOF
+			$(bold "WARN:")  Update failed! For more information, see the log file"
+			       at $(bold "$LOGFILE")."
+
+		EOF
 		echo
 		return 1
 	fi
 }
 
 delete-all-tmuxes () {
-	local BASEPATH="$INSTALL_DIR/.msm/clients"
+	local BASEPATH="$INSTALL_DIR/msm.d/clients"
 	# Nothing to do, if the path does not exist
 	if [[ ! -w $BASEPATH ]]; then return 0; fi
 
@@ -414,36 +445,39 @@ delete-all-tmuxes () {
 check-instance-dir () {
 	[[ -e $INSTANCE_DIR ]] && {
 		if ! [[ -d $INSTANCE_DIR ]]; then
-			echo "ERROR: < $INSTANCE_DIR > is not a directory! Move the file and try again."
-			echo
-			return 1
+			caterr <<-EOF
+				$(bold "ERROR:") $(bold "$INSTANCE_DIR") is not a directory! Move the file and try again.
+
+			EOF
+			return 23
 		fi
 
 		if ! [[ -r $INSTANCE_DIR && -w $INSTANCE_DIR && -x $INSTANCE_DIR ]]; then
-			echo "ERROR: You do not have the necessary privileges to create a server instance"
-			echo "       in < $INSTANCE_DIR > !"
-			echo
-			return 1
+			caterr <<-EOF
+				$(bold "ERROR:") You do not have the necessary privileges to create a server instance
+				       in $(bold "$INSTANCE_DIR")!
+
+			EOF
+			return 23
 		fi
 		
-		# INSTANCE_DIR contains data, but not of a game server (instance) of game APPID
-		if [[ $(ls -A "$INSTANCE_DIR") && $(cat $INSTANCE_DIR/.msm/appid 2> /dev/null) != $APPID ]]; then
-			echo "ERROR: The directory < $INSTANCE_DIR > already contains data"
-			echo "       different from game server data. Please move all files in that"
-			echo "       directory and try again!"
-			echo
+		if [[ $(ls -A "$INSTANCE_DIR") && $(cat $INSTANCE_DIR/msm.d/appid 2> /dev/null) != $APPID ]]; then
+			catwarn <<-EOF
+				$(bold "WARN:")  The directory $(bold "$INSTANCE_DIR") already contains data,
+				       which may or may not be game server data. Please backup any important
+				       files before proceeding!
+
+			EOF
 			return 1
 		fi
 
-		# INSTANCE_DIR contains a game instance and is not a base installation
-		if [[ $(ls -A "$INSTANCE_DIR") && ! -d $INSTANCE_DIR/.msm/clients ]]; then
-			echo
-			echo "WARN:  A game instance already exists at < $INSTANCE_DIR >."
-			echo "       If you continue, ALL THE DATA (configuration, mods, etc.) of this"
-			echo "       instance WILL BE DELETED. Backup all important data before proceeding!"
-			echo
-			if ! prompt; then echo; return 1; fi
-			echo
+		if [[ $(ls -A "$INSTANCE_DIR") && ! -d $INSTANCE_DIR/msm.d/clients ]]; then
+			catwarn <<-EOF
+				$(bold "WARN:")  A game instance already exists at $(bold "$INSTANCE_DIR").
+				       Please backup any important files before proceeding!
+
+			EOF
+			return 1
 		fi
 	}
 	return 0
@@ -457,7 +491,7 @@ symlink-all-files () {
 	# Loop through files in directory
 	for file in $(ls -A "$INSTALL_DIR/$1"); do
 		# MSM directory or already symlinked files do not need any more work
-		if [[ -L $INSTANCE_DIR/$1$file || $file == .msm ]]; then continue; fi
+		if [[ -L $INSTANCE_DIR/$1$file || $file == msm.d ]]; then continue; fi
 		# recurse through subdirectories
 		if [[ -d $INSTANCE_DIR/$1$file ]]; then symlink-all-files "${1}${file}/"; continue; fi
 		# Create symlink for nenexistent file
@@ -469,25 +503,42 @@ symlink-all-files () {
 }
 
 create-instance () {
-	echo "-------------------------------------------------------------------------------"
-	echo "               CS:GO Multi-Mode Server Manager - Instance Setup"
-	echo "-------------------------------------------------------------------------------"
+	cat <<-EOF
+		-------------------------------------------------------------------------------
+		               CS:GO Multi-Mode Server Manager - Instance Setup
+		-------------------------------------------------------------------------------
+	EOF
 
-	check-instance-dir || return 1
+	if [[ -d $INSTANCE_DIR/msm.d/clients ]]; then
+		catinfo <<-EOF
+			$(bold "INFO:")  You have selected a base installation, There is no need to create an
+			       instance here. If you want to create a new instance, set the instance
+			       name using \`$THIS_COMM @name create'.
 
-	if [[ -d $INSTANCE_DIR/.msm/clients ]]; then
-		echo "INFO:  You have selected a base installation, There is no need to create an"
-		echo "       instance here. If you want to create a new instance, set the instance"
-		echo "       name using \`$THIS_COMM @name create'."
-		echo
+		EOF
 		# This is already a working instance
 		return 0
+	fi
+
+	check-instance-dir
+	local errno=$?
+	if (( $errno == 1 )); then
+		catwarn <<-EOF
+			If you continue, ALL DATA in $(bold "$INSTANCE_DIR")
+			WILL BE DELETED! You have been warned!
+
+		EOF
+		sleep 3
+		prompt "Are you sure?" || { echo; return 1; }
+		echo
+	elif (( $errno )); then
+		return 1
 	fi
 
 	############ INSTANCE CREATION STARTS NOW ############
 	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 
-	mkdir -p "$INSTANCE_DIR/.msm"
+	mkdir -p "$INSTANCE_DIR/msm.d"
 
 	# Execute Instance creation script. This will copy all files that the
 	# instance owner should be able to modify himself.
@@ -497,8 +548,10 @@ create-instance () {
 	source "$SUBSCRIPT_DIR/instance.sh"
 
 	if (( $? )); then
-		echo "ERROR: An error occured while executing the instance creation script!"
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") An error occured while executing the instance creation script!
+
+		EOF
 		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 		return 1
 	fi
@@ -506,12 +559,13 @@ create-instance () {
 	echo
 	echo "Linking remaining files to the base installation ..."
 
-	echo "$INSTALL_DIR" > "$INSTANCE_DIR/.msm/install-dir"
-	symlink-all-files
+	echo "$INSTALL_DIR" > "$INSTANCE_DIR/msm.d/install-dir"
 
-	if (( $? )); then
-		echo "ERROR: Linking this instance to the base installation failed."
-		echo
+	if ! symlink-all-files; then
+		caterr <<-EOF
+			$(bold "ERROR:") Linking this instance to the base installation failed.
+
+		EOF
 		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 		return 1
 	fi
@@ -519,15 +573,15 @@ create-instance () {
 	echo
 	echo "Performing final steps ..."
 
-	cp "$INSTALL_DIR/.msm/appid" "$INSTANCE_DIR/.msm/appid"
-	cp "$INSTALL_DIR/.msm/appname" "$INSTANCE_DIR/.msm/appname"
-	cp -R "$INSTALL_DIR/.msm/modes" "$INSTANCE_DIR/.msm/modes"
-	cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/.msm/server.conf"
+	cp "$INSTALL_DIR/msm.d/appid" "$INSTANCE_DIR/msm.d/appid"
+	cp "$INSTALL_DIR/msm.d/appname" "$INSTANCE_DIR/msm.d/appname"
+	cp -R "$INSTALL_DIR/msm.d/modes" "$INSTANCE_DIR/msm.d/modes"
+	cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/msm.d/server.conf"
 	
 	fix-permissions
 
 	echo
-	echo "Instance crested successfully in < $INSTANCE_DIR > !"
+	echo "Instance created successfully in $(bold "$INSTANCE_DIR")!"
 	echo
 }
 
@@ -538,22 +592,24 @@ create-instance () {
 
 setup () {
 	# First-time setup
-	echo "-------------------------------------------------------------------------------"
-	echo "                CS:GO Multi-Mode Server Manager - Initial Setup"
-	echo "-------------------------------------------------------------------------------"
-	echo
-	echo "It seems like this is the first time you use this script on this machine."
-	echo "Before advancing, be aware of a few things:"
-	echo
-	echo ">>  A configuration file will be created in the location:"
-	echo "               < $CFG >"
-	echo
-	echo "    If you want to use a different location, exit and edit"
-	echo "    the \$MSM_CFG variable within this file accordingly."
-	echo
-	echo ">>  For multi-user setups, this script must be readable for all users"
-	echo "               < $THIS_SCRIPT >"
-	echo
+	cat <<-EOF
+		-------------------------------------------------------------------------------"
+		                CS:GO Multi-Mode Server Manager - Initial Setup"
+		-------------------------------------------------------------------------------"
+
+		It seems like this is the first time you use this script on this machine."
+		Before advancing, be aware of a few things:"
+
+		>>  A configuration file will be created in the location:"
+		        $(bold "$CFG")"
+
+		    If you want to use a different location, exit and edit"
+		    the \$MSM_CFG variable within this file accordingly."
+
+		>>  For multi-user setups, this script must be readable for all users"
+		        $(bold "$THIS_SCRIPT")
+
+	EOF
 	if ! prompt; then echo; return 1; fi
 	# Query steam installation admin user
 	echo
@@ -566,15 +622,17 @@ setup () {
 		read -p "Admin's username (default: $USER) " -r ADMIN
 		if [[ ! $ADMIN ]]; then ADMIN="$USER"; fi
 		if [[ ! $(getent passwd $ADMIN) ]]; then
+			caterr <<< "$(bold "ERROR:") User $(bold "$ADMIN") does not exist! Please specify a different admin."
 			echo
-			echo "User < $ADMIN > does not exist. Please try again!"
-			echo
+			continue
 		fi
 		ADMIN_HOME=$(eval echo "~$ADMIN")
 		if [[ ! -r $ADMIN_HOME ]]; then
-			echo
-			echo "That user's home directory < $ADMIN_HOME > is not readable. Please specify a different admin."
-			echo
+			caterr <<-EOF
+				$(bold "ERROR:") That user's home directory $(bold "$ADMIN_HOME")
+				       is not readable! Please specify a different admin.
+
+			EOF
 			ADMIN_HOME=
 		fi
 	done
@@ -585,18 +643,22 @@ setup () {
 		# If client installation fails (e.g. the admin has no configuration himself,
 		# try admin installation
 		if ! client-install; then
-			echo "Additional installation steps have to be taken on the admin account < $ADMIN >"
-			echo "Please log in to the account of < $ADMIN > now!"
+			echo "Additional installation steps have to be taken on the admin account $(bold "$ADMIN")."
+			echo "Please log in to the account of $(bold "$ADMIN") now!"
 			$SU $ADMIN -c "\"$THIS_SCRIPT\" admin-install"
 			if (( $? )); then
-				echo "ERROR: Admin Installation for < $ADMIN > failed!"
-				echo
+				caterr <<-EOF
+					$(bold "ERROR:") Admin Installation for $(bold "$ADMIN") failed!
+
+				EOF
 				return 1
 			fi
 			# Try client installation again!
 			if ! client-install; then
-				echo "ERROR: Client Installation failed!"
-				echo
+				caterr <<-EOF
+					$(bold "ERROR:") Client Installation failed!
+
+				EOF
 				return 1
 			fi
 		fi
@@ -606,11 +668,13 @@ setup () {
 }
 
 client-install () {
-	echo "Trying to import settings from < $ADMIN > ..."
+	echo "Trying to import settings from $(bold "$ADMIN") ..."
 	ADMIN_HOME=$(eval echo "~$ADMIN")
 	if [[ ! -r $ADMIN_HOME ]]; then
-		echo "ERROR: The admin's home directory < $ADMIN_HOME > is not readable."
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") The admin's home directory $(bold "$ADMIN_HOME") is not readable.
+
+		EOF
 		return 1
 	fi
 	ADMIN_CFG="$(cfgfile $ADMIN_HOME)"
@@ -627,35 +691,36 @@ admin-install () {
 	echo "-------------------------------------------------------------------------------"
 	echo
 	echo "Checking for an existing configuration ..."
-	if readcfg; then
+	if readcfg 2> /dev/null; then
 		if [[ $ADMIN == $USER ]]; then
-			echo
-			echo "A valid admin configuration already exists for this user < $ADMIN >."
-			echo "If you wish to start over, delete the configuration file"
-			echo "               < $CFG >"
-			echo "and try again."
-			echo
-			return 1
+			catwarn <<-EOF
+				$(bold "WARN:")  A valid admin configuration already exists for this user $(bold "$ADMIN").
+				       If you continue, the installation steps will be executed again.
+
+			EOF
 		else
-			echo
-			echo "This user is currently configured as client of user < $ADMIN >."
-			echo "If you continue, this user will create an own installation of the game instead."
-			echo
-			if ! prompt; then echo; return 1; fi
+			catwarn <<-EOF
+				$(bold "WARN:")  This user is currently configured as client of user $(bold "$ADMIN").
+				       If you continue, this user will create an own game installation instead.
+
+			EOF
 		fi
+		if ! prompt; then echo; return 1; fi
 	fi
 	if [[ ! "$APPNAME" || ! "$APPID" ]]; then
-		echo "ERROR: APPNAME and APPID are not set. Check this script and your configuration"
-		echo "       file and try again"
-		echo
+		caterr <<-EOF
+			$(bold "ERROR:") APPNAME and APPID are not set! Check this script and your configuration
+			       file and try again!"
+
+		EOF
 		return 1
 	fi
 	echo
 	ADMIN="$USER"
 	ADMIN_HOME=~
-	echo "You started the admin Installation for user < $ADMIN >"
+	echo "You started the admin Installation for user $(bold "$ADMIN")"
 	echo "This will create a configuration file in the location:"
-	echo "               < $CFG >"
+	echo "        $(bold "$CFG")"
 	echo
 	if ! prompt; then echo; return 1; fi
 	echo
@@ -664,8 +729,7 @@ admin-install () {
 	# Check for an existing SteamCMD
 	if [[ -x $ADMIN_HOME/steamcmd/steamcmd.sh ]]; then
 		STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
-		echo "An existing SteamCMD installation was found in < $STEAMCMD_DIR >"
-		echo
+		catinfo <<< "$(bold "INFO:")  An existing SteamCMD was found in $(bold "$STEAMCMD_DIR")."
 	else
 		# Ask for the SteamCMD directory
 		echo "To download/update the game, installing SteamCMD is required. Be aware that"
@@ -689,7 +753,7 @@ admin-install () {
 		until [[ $SUCCESS ]]; do
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
 			if (( $? )); then
-				echo "ERROR: SteamCMD Download failed."
+				caterror <<< "$(bold "ERROR:") SteamCMD Download failed."
 				if ! prompt "Retry?"; then echo; return 1; fi
 			else
 				local SUCCESS=1
@@ -701,7 +765,7 @@ admin-install () {
 		tar xzvf steamcmd_linux.tar.gz
 		rm steamcmd_linux.tar.gz &> /dev/null
 		if [[ ! -x $STEAMCMD_DIR/steamcmd.sh ]]; then
-			echo "ERROR: SteamCMD installation failed."
+			caterror <<< "$(bold "ERROR:") SteamCMD installation failed."
 			echo
 			return 1
 		fi
@@ -710,15 +774,15 @@ admin-install () {
 		echo "quit" | "$STEAMCMD_DIR/steamcmd.sh"
 		echo
 		echo "SteamCMD installed successfully."
-		echo
 		cd "$WDIR"
 	fi
 
 	############ GAME INSTALL DIRECTORY ############
+	echo
 	# check for an existing game installation
-	if [[ $(cat "$ADMIN_HOME/$APPNAME/.msm/appid" 2> /dev/null) == "$APPID" ]]; then
+	if [[ $(cat "$ADMIN_HOME/$APPNAME/msm.d/appid" 2> /dev/null) == "$APPID" ]]; then
 		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
-		echo "A previous game installation was found in < $INSTALL_DIR >"
+		catinfo <<< "$(bold "INFO:")  A previous game installation was found in $(bold "$INSTALL_DIR")."
 	else
 		echo "Next, please select the directory for the game server to be installed in."
 		unset SUCCESS
@@ -731,10 +795,25 @@ admin-install () {
 			if [[ ! $INSTALL_DIR =~ ^/ ]]; then
 				INSTALL_DIR="$ADMIN_HOME/$INSTALL_DIR"
 			fi
-			if INSTANCE_DIR="$INSTALL_DIR" check-instance-dir
-				then local SUCCESS=1;
-				else echo "ERROR: < $INSTALL_DIR > cannot be used as a base"
-					 echo "       installation directory! Please specify a different directory."
+
+			INSTANCE_DIR="$INSTALL_DIR" check-instance-dir
+
+			if (( $? == 1 )); then
+				catwarn <<-EOF
+					Do you wish to create a base installation in $(bold "$INSTALL_DIR") anyway?
+
+				EOF
+				prompt && SUCCESS=1
+			elif (( $? )); then
+				caterr <<-EOF
+					$(bold "ERROR:") $(bold "$INSTALL_DIR") cannot be used as a base
+					       installation directory!
+				EOF
+			else
+				SUCCESS=1
+			fi
+			if [[ ! $SUCCESS ]]; then
+				echo "Please specify a different directory."
 			fi
 		done
 		mkdir -p "$INSTALL_DIR"
@@ -742,6 +821,8 @@ admin-install () {
 
 	echo
 	echo "Preparing installation directories ..."
+
+	INSTANCE_DIR="$INSTALL_DIR"
 
 	# Create Update Script
 	local UPSCRIPT="$STEAMCMD_DIR/update"
@@ -764,14 +845,17 @@ admin-install () {
 	############ PREPARE MSM DIRECTORY ############
 	# Cleaning existing clients up
 	delete-all-tmuxes
-	rm -rf "$INSTALL_DIR/.msm/clients" &>/dev/null
+	rm -rf "$INSTALL_DIR/msm.d/clients" &>/dev/null
 
 	# Create settings directory within INSTALL_DIR
-	mkdir -p "$INSTALL_DIR/.msm"
+	mkdir -p "$INSTALL_DIR/msm.d"
 
-	echo "$APPID" > "$INSTALL_DIR/.msm/appid"
-	echo "$APPNAME" > "$INSTALL_DIR/.msm/appname"
-	mkdir -p "$INSTALL_DIR/.msm/clients"
+	echo "$APPID" > "$INSTALL_DIR/msm.d/appid"
+	echo "$APPNAME" > "$INSTALL_DIR/msm.d/appname"
+	if [[ ! -e "$INSTALL_DIR/msm.d/server.conf" ]]; then
+		cp "$SUBSCRIPT_DIR/server.conf" "$INSTALL_DIR/msm.d/server.conf"
+	fi
+	mkdir -p "$INSTALL_DIR/msm.d/clients"
 
 	fix-permissions
 
@@ -807,16 +891,16 @@ echo # Make some space
 
 # Detect if this has been called via source command
 if [[ $0 != ${BASH_SOURCE[0]} ]]; then
-	echo "INFO:  This script has been invoked using the \`source' builtin."
+	echo "$(bold "INFO:")  This script has been invoked using the \`source' builtin."
 	echo
 	alias exit="unalias exit; return"
 fi
 
 # Check required packages
-if [[ ! -x $(which awk)  ]]; then echo "ERROR: \`awk' is not installed, but required for this script!" ; echo; exit 1; fi
-if [[ ! -x $(which tmux) ]]; then echo "ERROR: \`tmux' is not installed, but required for this script!"; echo; exit 1; fi
-if [[ ! -x $(which wget) ]]; then echo "ERROR: \`wget' is not installed, but required for this script!"; echo; exit 1; fi
-if [[ ! -x $(which tar)  ]]; then echo "ERROR: \`tar' is not installed, but required for this script!" ; echo; exit 1; fi
+if [[ ! -x $(which awk)  ]]; then caterr <<< "$(bold "ERROR:") \`awk' is not installed, but required for this script!" ; echo; exit 1; fi
+if [[ ! -x $(which tmux) ]]; then caterr <<< "$(bold "ERROR:") \`tmux' is not installed, but required for this script!"; echo; exit 1; fi
+if [[ ! -x $(which wget) ]]; then caterr <<< "$(bold "ERROR:") \`wget' is not installed, but required for this script!"; echo; exit 1; fi
+if [[ ! -x $(which tar)  ]]; then caterr <<< "$(bold "ERROR:") \`tar' is not installed, but required for this script!" ; echo; exit 1; fi
 
 # Get script filename and directory
 basename="$(basename "${BASH_SOURCE[0]}")"
@@ -832,37 +916,45 @@ unset basename dirname
 
 SUBSCRIPT_DIR="$THIS_DIR/scripts-$APPID"
 if [[ ! -d $SUBSCRIPT_DIR ]]; then
-	echo "ERROR: The subscript directory was not found at"
-	echo "       < $SUBSCRIPT_DIR > !"
-	echo
+	caterr <<-EOF
+		$(bold "ERROR:") The subscript directory was not found at
+		       $(bold "$SUBSCRIPT_DIR")!
+
+	EOF
 	exit 1
 fi
 
 if [[ ! -r $SUBSCRIPT_DIR/instance.sh ]]; then
-	echo "ERROR: Instance creation script was not found at"
-	echo "       < $SUBSCRIPT_DIR/instance.sh > !"
-	echo
+	caterr <<-EOF
+		$(bold "ERROR:") Instance creation script was not found at
+		       $(bold "$SUBSCRIPT_DIR/instance.sh")!
+
+	EOF
 	exit 1
 fi
 
 if [[ ! -r $SUBSCRIPT_DIR/permissions.sh ]]; then
-	echo "ERROR: Permission management script was not found at"
-	echo "       < $SUBSCRIPT_DIR/permissions.sh > !"
-	echo
+	caterr <<-EOF
+		$(bold "ERROR:") Permission management script was not found at
+		       $(bold "$SUBSCRIPT_DIR/permissions.sh")!
+
+	EOF
 	exit 1
 fi
 
 if [[ ! -r $SUBSCRIPT_DIR/server.conf ]]; then
-	echo "ERROR: Default server configuration file was not found at"
-	echo "       < $SUBSCRIPT_DIR/server.conf > !"
-	echo
+	caterr <<-EOF
+		$(bold "ERROR:") Default server configuration file was not found at
+		       $(bold "$SUBSCRIPT_DIR/server.conf")!
+
+	EOF
 	exit 1
 fi
 
 ############################# LOAD CONFIGURATION FILE ############################
 
 NO_COMMAND=1
-readcfg && set-instance "$DEFAULT_INSTANCE" || NEED_SETUP=1
+readcfg 2> /dev/null && set-instance "$DEFAULT_INSTANCE" || NEED_SETUP=1
 
 
 
@@ -892,7 +984,7 @@ while [[ $1 ]]; do
 
 	( * )
 		# Read configuration changes and start setup if needed
-		readcfg || setup || exit 1
+		readcfg || { echo; setup; } || exit 1
 
 		# Check other cases, but respect preconditions
 
@@ -915,10 +1007,12 @@ while [[ $1 ]]; do
 			;;
 
 		( st | stat | status )
-			if status;
-				then echo "$SERVER_TEXT is RUNNING!"
-				else echo "$SERVER_TEXT is STOPPED!"
-			fi
+			status
+			if (( $? == 0 )); then
+				echo "$SERVER_TEXT is RUNNING!"
+			elif (( $? == 1 )); then
+				echo "$SERVER_TEXT is STOPPED!"
+			else exit 1; fi
 			echo
 			;;
 
@@ -939,8 +1033,8 @@ while [[ $1 ]]; do
 			;;
 
 		( * )
-			echo "ERROR: Unrecognized Option: < $1 >."
-			echo "       Try \`$THIS_COMM usage' for a list of available commands."
+			caterr <<< "$(bold "ERROR:") Unrecognized Option: $(bold "$1")."
+			echo       "       Try \`$THIS_COMM usage' for a list of available commands."
 			echo
 			exit 1
 			;;
