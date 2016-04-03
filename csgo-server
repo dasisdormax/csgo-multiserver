@@ -2,7 +2,7 @@
 
 ####################### LICENSE AND COPYRIGHT INFORMATION ########################
 
-info () { cat <<EOF
+info () { cat <<EOF; }
 ================================================================================
 
                            CS:GO Multi Server Manager
@@ -30,46 +30,44 @@ specific language governing permissions and limitations under the License.
 ================================================================================
 
 EOF
-}
 
 
 
 
 ############################## USAGE OF THIS SCRIPT ##############################
 
-usage () {
-	cat <<-EOF
-		Usage: $(bold "$THIS_COMM") < commands >
+usage () { cat <<EOF; }
+Usage: $(bold "$THIS_COMM") < commands >
 
-		$(printf "\x1b[1;36m%s\x1b[m"              "GENERAL COMMANDS:")
-		    usage    > Display this help message
-		    info     > About this script / copyright and license information
+$(printf "\x1b[1;36m%s\x1b[m"              "GENERAL COMMANDS:")
+    usage    > Display this help message
+    info     > About this script / copyright and license information
 
-		$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE SELECTION:")
-		    @...     > Select the server instance to apply the following commands on.
-		             > If no name is given, work on the base installation instead.
-		    The default instance \$DEFAULT_INSTANCE can be specified in the config file
+$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE SELECTION:")
+    @...     > Select the server instance to apply the following commands on.
+             > If no name is given, work on the base installation instead.
+    The default instance \$DEFAULT_INSTANCE can be specified in the config file
 
-		$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE-SPECIFIC COMMANDS:")
-		    create   > Create a new server instance
-		    start | stop | restart
-		             > Start/Stop/Restart given server instance (using tmux)
-		    status   > Check whether the server is currently running
-		    console  > Attach (connect) to the server's console. While inside, press
-		             > CTRL-D to detach (return to outside) without killing the server
+$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE-SPECIFIC COMMANDS:")
+    create   > Create a new server instance
+    start | stop | restart
+             > Start/Stop/Restart given server instance (using tmux)
+    status   > Check whether the server is currently running
+    console  > Attach (connect) to the server's console. While inside, press
+             > CTRL-D to detach (return to outside) without killing the server
 
-		$(printf "\x1b[1;36m%s\x1b[22m %s\x1b[m"   "ADMINISTRATION COMMANDS:" "(regarding the base installation)")
-		    admin-install
-		             > Configure this user as his own admin, install SteamCMD,
-		             > and optionally download the game
-		    update   > Install/Update the game server
-		    validate > Repair broken/missing game files
+$(printf "\x1b[1;36m%s\x1b[22m %s\x1b[m"   "ADMINISTRATION COMMANDS:" "(regarding the base installation)")
+    admin-install
+             > Configure this user as his own admin, install SteamCMD,
+             > and optionally download the game
+    update   > Install/Update the game server
+    validate > Repair broken/missing game files
 
-		Commands will be executed in the order they are given. If a command fails,
-		subsequent commands will not be executed.
+Commands will be executed in the order they are given. If a command fails,
+subsequent commands will not be executed.
 
-	EOF
-}
+EOF
+
 
 
 
@@ -246,43 +244,31 @@ writecfg () {
 start () {
 	echo "Starting $SERVER_TEXT ..."
 	# Nothing to do if server is already running
-	if status; then
-		catinfo <<-EOF
-			$(bold "INFO:")  $SERVER_TEXT is already running!
-			       Enter the console using \`$THIS_COMM @$INSTANCE console'
+	if status; then catinfo <<-EOF; return 0; fi
+		$(bold "INFO:")  $SERVER_TEXT is already running!
+		       Enter the console using \`$THIS_COMM @$INSTANCE console'
 
 		EOF
-		return 0 # already running
-	fi
 
-	if [[ ! -d $INSTANCE_DIR ]]; then
-		caterr <<-EOF
-			$(bold "ERROR:") Instance directory $(bold "$INSTANCE_DIR") does not exist!
-			       Create an instance using \`$THIS_COMM @$INSTANCE create-instance'
+	if [[ ! -d $INSTANCE_DIR ]]; then caterr <<-EOF; return 1; fi
+		$(bold "ERROR:") Instance directory $(bold "$INSTANCE_DIR") does not exist!
+		       Create an instance using \`$THIS_COMM @$INSTANCE create-instance'
 
 		EOF
-		return 1 # failure
-	fi
 
-	if [[ ! -w $INSTANCE_DIR ]]; then
-		caterr <<-EOF
-			$(bold "ERROR:") You do not have full access to $(bold "$INSTANCE_DIR")!
-			       Only $(bold "$ADMIN") can modify and launch the base installation! Try creating
-			       an own instance using \`$THIS_COMM @name create-instance' instead.
+	if [[ ! -w $INSTANCE_DIR ]]; then caterr <<-EOF; return 1; fi
+		$(bold "ERROR:") You do not have full access to $(bold "$INSTANCE_DIR")!
+		       Only $(bold "$ADMIN") can modify and launch the base installation! Try creating
+		       an own instance using \`$THIS_COMM @name create-instance' instead.
 
 		EOF
-		return 1 # failure
-	fi
 
-	if [[ ! -x $INSTANCE_DIR/$SERVER_EXEC ]]; then
-		caterr <<-EOF
-			$(bold "ERROR:") Server Executable not found at $(bold "$INSTANCE_DIR/$SERVER_EXEC")!
-			       Try repairing the installation using \`$THIS_COMM update',
-			       \`$THIS_COMM repair' or re-create this instance.
+	if [[ ! -x $INSTANCE_DIR/$SERVER_EXEC ]]; then caterr <<-EOF; return 1; fi
+		$(bold "ERROR:") Server Executable not found at $(bold "$INSTANCE_DIR/$SERVER_EXEC")!
+		       Try repairing the installation using \`$THIS_COMM update',
+		       \`$THIS_COMM repair' or re-create this instance.
 
 		EOF
-		return 1 # failure
-	fi
 
 	# TODO: actual start procedure here
 
@@ -308,13 +294,10 @@ status () {
 	if [[ ! -e "$SOCKET" ]]; then
 		return 1 # false - not running
 	fi
-	if [[ ! -w "$SOCKET" ]]; then
-		caterr <<-EOF
-			$(bold "ERROR:") Cannot access socket of session $(bold "$SESSION_NAME")!
+	if [[ ! -w "$SOCKET" ]]; then caterr <<-EOF; return 23; fi # 23 = access error
+		$(bold "ERROR:") Cannot access socket of session $(bold "$SESSION_NAME")!
 
 		EOF
-		return 23
-	fi
 
 	if ( tmux -S "$SOCKET" has-session >/dev/null ); then
 		# No session runs within tmux
@@ -339,13 +322,10 @@ status () {
 
 # Switch to the game console in tmux session
 console () {
-	if ! status; then
-		caterr <<-EOF
-			$(bold "ERROR:") $SERVER_TEXT is not running
+	if ! status; then caterr <<-EOF; return 1; fi
+		$(bold "ERROR:") $SERVER_TEXT is not running
 
 		EOF
-		return 1
-	fi
 }
 
 
@@ -360,15 +340,12 @@ update () {
 		catwarn <<-EOF
 			Only the admin $(bold "$ADMIN") can $ACTION the base installation.
 			Please log in to the account of $(bold "$ADMIN") now! (or CTRL-D to cancel)
-		EOF
+			EOF
 		$SU "$ADMIN" -c "'$THIS_SCRIPT' $ACTION"
-		if (( $? )); then
-			caterr <<-EOF
-				$(bold "ERROR:") Installation/update as $(bold "$ADMIN") failed!
+		if (( $? )); then caterr <<-EOF; return 1; fi
+			$(bold "ERROR:") Installation/update as $(bold "$ADMIN") failed!
 
 			EOF
-			return 1
-		fi
 		return 0
 	fi
 
@@ -389,7 +366,7 @@ update () {
 			# $(printf "%-48s" "Trying to $ACTION the game using SteamCMD ...") #
 			####################################################
 
-		EOF
+			EOF
 		$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/$ACTION" | tee -a "$LOGFILE"
 		echo >> "$LOGFILE" # an extra newline in the file because of the weird escape sequences that steam uses
 		echo | tee -a "$LOGFILE"
@@ -410,15 +387,11 @@ update () {
 		catinfo <<< "$(bold "INFO:")  Update completed successfully!"
 		echo
 		return 0
-	else
-		catwarn <<-EOF
-			$(bold "WARN:")  Update failed! For more information, see the log file"
-			       at $(bold "$LOGFILE")."
+	else catwarn <<-EOF; return 1; fi
+		$(bold "WARN:")  Update failed! For more information, see the log file"
+		       at $(bold "$LOGFILE")."
 
 		EOF
-		echo
-		return 1
-	fi
 }
 
 delete-all-tmuxes () {
@@ -448,7 +421,7 @@ check-instance-dir () {
 			caterr <<-EOF
 				$(bold "ERROR:") $(bold "$INSTANCE_DIR") is not a directory! Move the file and try again.
 
-			EOF
+				EOF
 			return 23
 		fi
 
@@ -457,7 +430,7 @@ check-instance-dir () {
 				$(bold "ERROR:") You do not have the necessary privileges to create a server instance
 				       in $(bold "$INSTANCE_DIR")!
 
-			EOF
+				EOF
 			return 23
 		fi
 		
@@ -467,7 +440,7 @@ check-instance-dir () {
 				       which may or may not be game server data. Please backup any important
 				       files before proceeding!
 
-			EOF
+				EOF
 			return 1
 		fi
 
@@ -476,7 +449,7 @@ check-instance-dir () {
 				$(bold "WARN:")  A game instance already exists at $(bold "$INSTANCE_DIR").
 				       Please backup any important files before proceeding!
 
-			EOF
+				EOF
 			return 1
 		fi
 	}
@@ -507,18 +480,14 @@ create-instance () {
 		-------------------------------------------------------------------------------
 		               CS:GO Multi-Mode Server Manager - Instance Setup
 		-------------------------------------------------------------------------------
-	EOF
+		EOF
 
-	if [[ -d $INSTANCE_DIR/msm.d/clients ]]; then
-		catinfo <<-EOF
-			$(bold "INFO:")  You have selected a base installation, There is no need to create an
-			       instance here. If you want to create a new instance, set the instance
-			       name using \`$THIS_COMM @name create'.
+	if [[ -d $INSTANCE_DIR/msm.d/clients ]]; then catinfo <<-EOF; return 0; fi
+		$(bold "INFO:")  You have selected a base installation, There is no need to create an
+		       instance here. If you want to create a new instance, set the instance
+		       name using \`$THIS_COMM @name create'.
 
 		EOF
-		# This is already a working instance
-		return 0
-	fi
 
 	check-instance-dir
 	local errno=$?
@@ -527,7 +496,7 @@ create-instance () {
 			If you continue, ALL DATA in $(bold "$INSTANCE_DIR")
 			WILL BE DELETED! You have been warned!
 
-		EOF
+			EOF
 		sleep 3
 		prompt "Are you sure?" || { echo; return 1; }
 		echo
@@ -551,7 +520,7 @@ create-instance () {
 		caterr <<-EOF
 			$(bold "ERROR:") An error occured while executing the instance creation script!
 
-		EOF
+			EOF
 		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 		return 1
 	fi
@@ -565,7 +534,7 @@ create-instance () {
 		caterr <<-EOF
 			$(bold "ERROR:") Linking this instance to the base installation failed.
 
-		EOF
+			EOF
 		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
 		return 1
 	fi
@@ -593,31 +562,34 @@ create-instance () {
 setup () {
 	# First-time setup
 	cat <<-EOF
-		-------------------------------------------------------------------------------"
-		                CS:GO Multi-Mode Server Manager - Initial Setup"
-		-------------------------------------------------------------------------------"
+		-------------------------------------------------------------------------------
+		                CS:GO Multi-Mode Server Manager - Initial Setup
+		-------------------------------------------------------------------------------
 
-		It seems like this is the first time you use this script on this machine."
-		Before advancing, be aware of a few things:"
+		It seems like this is the first time you use this script on this machine.
+		Before advancing, be aware of a few things:
 
-		>>  A configuration file will be created in the location:"
+		>>  A configuration file will be created in the location:
 		        $(bold "$CFG")"
 
-		    If you want to use a different location, exit and edit"
-		    the \$MSM_CFG variable within this file accordingly."
+		    If you want to use a different location, exit and edit
+		    the \$MSM_CFG variable within this file accordingly.
 
-		>>  For multi-user setups, this script must be readable for all users"
+		>>  For multi-user setups, this script, located at
 		        $(bold "$THIS_SCRIPT")
+		    must be readable for all users.
 
-	EOF
+		EOF
 	if ! prompt; then echo; return 1; fi
 	# Query steam installation admin user
-	echo
-	echo "Please choose the user that is responsible for the game installation and"
-	echo "updates on this machine. As long as the access rights are correctly set,"
-	echo "this server will use the game data provided by that user, which makes"
-	echo "re-downloading the game for multiple users unnecessary."
-	echo
+	cat <<-EOF
+
+		Please choose the user that is responsible for the game installation and
+		updates on this machine. As long as the access rights are correctly set,
+		this server will use the game data provided by that user, which makes
+		re-downloading the game for multiple users unnecessary.
+
+		EOF
 	while [[ ! $ADMIN_HOME ]]; do
 		read -p "Admin's username (default: $USER) " -r ADMIN
 		if [[ ! $ADMIN ]]; then ADMIN="$USER"; fi
@@ -632,7 +604,7 @@ setup () {
 				$(bold "ERROR:") That user's home directory $(bold "$ADMIN_HOME")
 				       is not readable! Please specify a different admin.
 
-			EOF
+				EOF
 			ADMIN_HOME=
 		fi
 	done
@@ -643,24 +615,23 @@ setup () {
 		# If client installation fails (e.g. the admin has no configuration himself,
 		# try admin installation
 		if ! client-install; then
-			echo "Additional installation steps have to be taken on the admin account $(bold "$ADMIN")."
-			echo "Please log in to the account of $(bold "$ADMIN") now!"
+			catwarn <<-EOF
+				$(bold "WARN:")  Additional installation steps are required on the account of $(bold "$ADMIN")!
+				       Please log in to the account of $(bold "$ADMIN") now!
+				EOF
+
 			$SU $ADMIN -c "\"$THIS_SCRIPT\" admin-install"
-			if (( $? )); then
-				caterr <<-EOF
-					$(bold "ERROR:") Admin Installation for $(bold "$ADMIN") failed!
+
+			if (( $? )); then caterr <<-EOF; return 1; fi
+				$(bold "ERROR:") Admin Installation for $(bold "$ADMIN") failed!
 
 				EOF
-				return 1
-			fi
+
 			# Try client installation again!
-			if ! client-install; then
-				caterr <<-EOF
-					$(bold "ERROR:") Client Installation failed!
+			if ! client-install; then caterr <<-EOF; return 1; fi
+				$(bold "ERROR:") Client Installation failed!
 
 				EOF
-				return 1
-			fi
 		fi
 	else
 		admin-install
@@ -670,13 +641,10 @@ setup () {
 client-install () {
 	echo "Trying to import settings from $(bold "$ADMIN") ..."
 	ADMIN_HOME=$(eval echo "~$ADMIN")
-	if [[ ! -r $ADMIN_HOME ]]; then
-		caterr <<-EOF
-			$(bold "ERROR:") The admin's home directory $(bold "$ADMIN_HOME") is not readable.
+	if [[ ! -r $ADMIN_HOME ]]; then caterr <<-EOF; return 1; fi
+		$(bold "ERROR:") The admin's home directory $(bold "$ADMIN_HOME") is not readable.
 
-		EOF
-		return 1
-	fi
+	EOF
 	ADMIN_CFG="$(cfgfile $ADMIN_HOME)"
 	readcfg "$ADMIN_CFG"
 	if (( $? )); then echo; return 1; fi
@@ -707,14 +675,10 @@ admin-install () {
 		fi
 		if ! prompt; then echo; return 1; fi
 	fi
-	if [[ ! "$APPNAME" || ! "$APPID" ]]; then
-		caterr <<-EOF
-			$(bold "ERROR:") APPNAME and APPID are not set! Check this script and your configuration
-			       file and try again!"
-
+	if [[ ! "$APPNAME" || ! "$APPID" ]]; then caterr <<-EOF; return 1; fi
+		$(bold "ERROR:") APPNAME and APPID are not set! Check this script and your configuration
+		       file and try again!"
 		EOF
-		return 1
-	fi
 	echo
 	ADMIN="$USER"
 	ADMIN_HOME=~
