@@ -644,7 +644,7 @@ client-install () {
 	if [[ ! -r $ADMIN_HOME ]]; then caterr <<-EOF; return 1; fi
 		$(bold "ERROR:") The admin's home directory $(bold "$ADMIN_HOME") is not readable.
 
-	EOF
+		EOF
 	ADMIN_CFG="$(cfgfile $ADMIN_HOME)"
 	readcfg "$ADMIN_CFG"
 	if (( $? )); then echo; return 1; fi
@@ -654,22 +654,22 @@ client-install () {
 }
 
 admin-install () {
-	echo "-------------------------------------------------------------------------------"
-	echo "                  CS:GO Multi Server Manager - Admin Install"
-	echo "-------------------------------------------------------------------------------"
-	echo
-	echo "Checking for an existing configuration ..."
+	cat <<-EOF
+		-------------------------------------------------------------------------------
+		                  CS:GO Multi Server Manager - Admin Install
+		-------------------------------------------------------------------------------
+
+		Checking for an existing configuration ...
+		EOF
 	if readcfg 2> /dev/null; then
-		if [[ $ADMIN == $USER ]]; then
-			catwarn <<-EOF
-				$(bold "WARN:")  A valid admin configuration already exists for this user $(bold "$ADMIN").
-				       If you continue, the installation steps will be executed again.
+		if [[ $ADMIN == $USER ]]; then catwarn <<-EOF
+			$(bold "WARN:")  A valid admin configuration already exists for this user $(bold "$ADMIN").
+			       If you continue, the installation steps will be executed again.
 
 			EOF
-		else
-			catwarn <<-EOF
-				$(bold "WARN:")  This user is currently configured as client of user $(bold "$ADMIN").
-				       If you continue, this user will create an own game installation instead.
+		else catwarn <<-EOF
+			$(bold "WARN:")  This user is currently configured as client of user $(bold "$ADMIN").
+			       If you continue, this user will create an own game installation instead.
 
 			EOF
 		fi
@@ -677,7 +677,7 @@ admin-install () {
 	fi
 	if [[ ! "$APPNAME" || ! "$APPID" ]]; then caterr <<-EOF; return 1; fi
 		$(bold "ERROR:") APPNAME and APPID are not set! Check this script and your configuration
-		       file and try again!"
+		       file and try again!
 		EOF
 	echo
 	ADMIN="$USER"
@@ -696,10 +696,12 @@ admin-install () {
 		catinfo <<< "$(bold "INFO:")  An existing SteamCMD was found in $(bold "$STEAMCMD_DIR")."
 	else
 		# Ask for the SteamCMD directory
-		echo "To download/update the game, installing SteamCMD is required. Be aware that"
-		echo "this will use a lot of data! Please specify the place for SteamCMD to be"
-		echo "installed in (absolute or relative to your home directory)."
-		echo
+		cat <<-EOF
+			To download/update the game, installing SteamCMD is required. Be aware that
+			this will use a lot of data! Please specify the place for SteamCMD to be
+			installed in (absolute or relative to your home directory).
+
+			EOF
 		read -r -p "SteamCMD install directory (default: steamcmd) " STEAMCMD_DIR
 		echo
 		if [[ ! $STEAMCMD_DIR ]]; then
@@ -717,7 +719,7 @@ admin-install () {
 		until [[ $SUCCESS ]]; do
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
 			if (( $? )); then
-				caterror <<< "$(bold "ERROR:") SteamCMD Download failed."
+				caterr <<< "$(bold "ERROR:") SteamCMD Download failed."
 				if ! prompt "Retry?"; then echo; return 1; fi
 			else
 				local SUCCESS=1
@@ -729,7 +731,7 @@ admin-install () {
 		tar xzvf steamcmd_linux.tar.gz
 		rm steamcmd_linux.tar.gz &> /dev/null
 		if [[ ! -x $STEAMCMD_DIR/steamcmd.sh ]]; then
-			caterror <<< "$(bold "ERROR:") SteamCMD installation failed."
+			caterr <<< "$(bold "ERROR:") SteamCMD installation failed."
 			echo
 			return 1
 		fi
@@ -766,13 +768,13 @@ admin-install () {
 				catwarn <<-EOF
 					Do you wish to create a base installation in $(bold "$INSTALL_DIR") anyway?
 
-				EOF
+					EOF
 				prompt && SUCCESS=1
 			elif (( $? )); then
 				caterr <<-EOF
 					$(bold "ERROR:") $(bold "$INSTALL_DIR") cannot be used as a base
 					       installation directory!
-				EOF
+					EOF
 			else
 				SUCCESS=1
 			fi
@@ -795,7 +797,7 @@ admin-install () {
 		force_install_dir "$INSTALL_DIR" 
 		app_update $APPID
 		quit
-	EOF
+		EOF
 
 	# Create Validate Script
 	local VALSCRIPT="$STEAMCMD_DIR/validate"
@@ -804,7 +806,7 @@ admin-install () {
 		force_install_dir "$INSTALL_DIR" 
 		app_update $APPID validate
 		quit
-	EOF
+		EOF
 
 	############ PREPARE MSM DIRECTORY ############
 	# Cleaning existing clients up
@@ -828,11 +830,13 @@ admin-install () {
 	writecfg
 	chmod a+r "$CFG"
 
-	echo "Basic Setup Complete!"
-	echo
-	echo "Do you want to install/update the game right now? If you choose No, you can"
-	echo "install the game later using \`$THIS_COMM install' or copy the files manually."
-	echo
+	cat <<-EOF
+		Basic Setup Complete!
+
+		Do you want to install/update the game right now? If you choose No, you can
+		install the game later using \`$THIS_COMM install' or copy the files manually.
+
+	EOF
 	if prompt "Install Now?"; then
 		echo
 		update
@@ -879,41 +883,29 @@ unset basename dirname
 ############################## LOOK FOR SUBSCRIPTS ###############################
 
 SUBSCRIPT_DIR="$THIS_DIR/scripts-$APPID"
-if [[ ! -d $SUBSCRIPT_DIR ]]; then
-	caterr <<-EOF
-		$(bold "ERROR:") The subscript directory was not found at
-		       $(bold "$SUBSCRIPT_DIR")!
+if [[ ! -d $SUBSCRIPT_DIR ]]; then caterr <<-EOF; exit 1; fi
+	$(bold "ERROR:") The subscript directory was not found at
+	       $(bold "$SUBSCRIPT_DIR")!
 
 	EOF
-	exit 1
-fi
 
-if [[ ! -r $SUBSCRIPT_DIR/instance.sh ]]; then
-	caterr <<-EOF
-		$(bold "ERROR:") Instance creation script was not found at
-		       $(bold "$SUBSCRIPT_DIR/instance.sh")!
+if [[ ! -r $SUBSCRIPT_DIR/instance.sh ]]; then caterr <<-EOF; exit 1; fi
+	$(bold "ERROR:") Instance creation script was not found at
+	       $(bold "$SUBSCRIPT_DIR/instance.sh")!
 
 	EOF
-	exit 1
-fi
 
-if [[ ! -r $SUBSCRIPT_DIR/permissions.sh ]]; then
-	caterr <<-EOF
-		$(bold "ERROR:") Permission management script was not found at
-		       $(bold "$SUBSCRIPT_DIR/permissions.sh")!
+if [[ ! -r $SUBSCRIPT_DIR/permissions.sh ]]; then caterr <<-EOF; exit 1; fi
+	$(bold "ERROR:") Permission management script was not found at
+	       $(bold "$SUBSCRIPT_DIR/permissions.sh")!
 
 	EOF
-	exit 1
-fi
 
-if [[ ! -r $SUBSCRIPT_DIR/server.conf ]]; then
-	caterr <<-EOF
+if [[ ! -r $SUBSCRIPT_DIR/server.conf ]]; then caterr <<-EOF; exit 1; fi
 		$(bold "ERROR:") Default server configuration file was not found at
 		       $(bold "$SUBSCRIPT_DIR/server.conf")!
 
 	EOF
-	exit 1
-fi
 
 ############################# LOAD CONFIGURATION FILE ############################
 
