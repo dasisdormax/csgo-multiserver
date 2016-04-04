@@ -54,7 +54,7 @@ Recommended additions:
 
 * _unbuffer_, to make update output and logging smoother (try `sudo apt-get install expect`)
 
-Of course, you need a Steam account with CS:GO owned to create a CS:GO dedicated server. If you wish anybody to be able to connect to your server, get your Gameserver auth tokens (CS:GO = 730) [here](http://steamcommunity.com/dev/managegameservers)
+Of course, you require a Steam account with the game owned to create a CS:GO dedicated server. If you wish anybody to be able to connect to your server, get your Gameserver auth tokens [here](http://steamcommunity.com/dev/managegameservers) (for CS:GO, use appid 730).
 
 
 
@@ -113,4 +113,6 @@ Other commands are sufficiently explained in the installation section above, I s
 
 Apache License 2.0. This should give nobody worries when using my program and making modifications to it. I would, though, appreciate if code improvements could make it back here.
 
-The original csgo-server-launcher by crazy is licensed as LGPLv3. At this point, no original code is being used anymore. See the branch [crazy](https://github.com/dasisdormax/csgo-multiserver/tree/crazy) for the last LGPL licensed state of this project.
+__Be aware that this only applies since MARCH 29, 2016__ (to be exact, since commit [20645aa](https://github.com/dasisdormax/csgo-multiserver/commit/20645aa13a654226fc08312411f6462bdb9c877f))
+
+For earlier states of this repository (up to the top of branch [crazy](https://github.com/dasisdormax/csgo-multiserver/tree/crazy)), the LGPLv3 still applies. The LGPLv3 was used by the original csgo-server-launcher by crazy. At this point, no original code is being used anymore. 
