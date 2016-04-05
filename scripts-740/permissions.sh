@@ -11,7 +11,7 @@ if [[ ! -d $INSTANCE_DIR ]]; then return; exit; fi
 # Remove execute bit on everything but directories
 chmod -R o-rw,a-x,ug+rwX "$INSTANCE_DIR"
 
-if [[ -d $INSTANCE_DIR/msm.d/clients ]]; then
+if [[ -e $INSTANCE_DIR/msm.d/is-admin ]]; then
 	# This is a base installation
 	
 	# Re-add exec bit on files that need to be executable

@@ -16,7 +16,7 @@ There is still A LOT to do!
 
 ## Currently working features
 
-* SteamCMD and Game Installation
+* SteamCMD and Game Installation, checking for and performing updates
 * CS:GO Server instance creation
 
 
