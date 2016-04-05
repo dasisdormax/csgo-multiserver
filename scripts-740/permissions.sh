@@ -21,8 +21,6 @@ if [[ -d $INSTANCE_DIR/msm.d/clients ]]; then
 
 	# Allow other users to read files and directories
 	chmod -R o+rX "$INSTANCE_DIR"
-
-	chmod a+rwx,g+s "$INSTANCE_DIR/msm.d/clients"
 fi
 
 chmod o-r "$INSTANCE_DIR/msm.d/server.conf"

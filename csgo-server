@@ -130,8 +130,7 @@ set-instance () {
 		INSTANCE_DIR="$INSTALL_DIR"
 		SERVER_TEXT="Base Installation"
 	fi
-	SESSION_NAME="$USER@$INSTANCE"
-	SOCKET="$INSTALL_DIR/msm.d/clients/$SESSION_NAME"
+	SOCKET="$INSTANCE_DIR/msm.d/tmux.socket"
 }
 
 caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
@@ -184,7 +183,7 @@ checkvars () {
 		caterr <<< "$(bold "ERROR:") $(bold "$INSTALL_DIR") does not exist or is not readable!"
 		return 1
 	fi
-	if [[ $(cat "$INSTALL_DIR/msm.d/appid" 2> /dev/null) != $APPID || ! -d "$INSTALL_DIR/msm.d/clients" ]]; then
+	if [[ $(cat "$INSTALL_DIR/msm.d/appid" 2> /dev/null) != $APPID || ! -e "$INSTALL_DIR/msm.d/is-admin" ]]; then
 		caterr <<-EOF
 			$(bold "ERROR:") The directory $(bold "$INSTALL_DIR")
 			       is not a valid base installation for $APPNAME!
@@ -288,14 +287,14 @@ stop () {
 	echo
 }
 
-# Status (Up/Down and extra info) of the server in tmux session $SESSION_NAME
+# Status (Up/Down and extra info) of the selected server instance
 status () {
 	# Check if tmux socket exists and is accessible
 	if [[ ! -e "$SOCKET" ]]; then
 		return 1 # false - not running
 	fi
-	if [[ ! -w "$SOCKET" ]]; then caterr <<-EOF; return 23; fi # 23 = access error
-		$(bold "ERROR:") Cannot access socket of session $(bold "$SESSION_NAME")!
+	if [[ ! -w "$SOCKET" ]]; then caterr <<-EOF; return 23; fi       # Return code 23 = access error
+		$(bold "ERROR:") Cannot access tmux socket of $SERVER_TEXT!
 
 		EOF
 
@@ -349,7 +348,32 @@ update () {
 		return 0
 	fi
 
-	touch "$INSTALL_DIR/msm.d/updating"
+	# First, check if an update is available at all
+	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_$APPID.acf"
+	if [[ -e $APPMANIFEST && $ACTION == "update" ]]; then
+		echo "Checking for updates ..."
+		rm ~/Steam/appcache/appinfo.vdf # Clear cache
+		local buildid=$( \
+			"$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update-check" | \
+				sed -n "/^\"740\"$/        ,/^}/       p" | \
+				sed -n "/^\t\t\"branches\"/,/^\t\t}/   p" | \
+				sed -n "/^\t\t\t\"public\"/,/^\t\t\t}/ p" | \
+				grep "buildid" | awk '{ print $2 }' \
+			)
+		if [[ $(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }' 2>/dev/null) == $buildid ]]; then
+			# No update is necessary
+			catinfo <<< "$(bold "INFO:")  The base installation is already up to date."
+			echo
+			return 0
+		fi
+		catinfo <<< "$(bold "INFO:")  An update for the base installation is available."
+		echo
+
+		touch "$INSTALL_DIR/msm.d/updating"
+		echo "Waiting 2 minutes for running instances to stop ..."
+		sleep 120
+		echo
+	fi
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
 	echo > "$LOGFILE"
@@ -379,7 +403,7 @@ update () {
 	fix-permissions
 
 	# Update timestamp on appid file, so clients know that files may have changed
-	rm "$INSTALL_DIR/msm.d/updating"
+	rm "$INSTALL_DIR/msm.d/updating" 2>/dev/null
 	touch "$INSTALL_DIR/msm.d/appid"
 
 	unset try tries
@@ -392,20 +416,6 @@ update () {
 		       at $(bold "$LOGFILE")."
 
 		EOF
-}
-
-delete-all-tmuxes () {
-	local BASEPATH="$INSTALL_DIR/msm.d/clients"
-	# Nothing to do, if the path does not exist
-	if [[ ! -w $BASEPATH ]]; then return 0; fi
-
-	for sock in $(ls "$BASEPATH"); do
-		local SOCKET="$BASEPATH/$sock"
-		if [[ -w $SOCKET ]]; then
-			delete-tmux
-		fi
-	done
-	unset sock
 }
 
 
@@ -433,8 +443,10 @@ check-instance-dir () {
 				EOF
 			return 23
 		fi
+
+		if ! [[ $(ls -A "$INSTANCE_DIR") ]]; then return 0; fi
 		
-		if [[ $(ls -A "$INSTANCE_DIR") && $(cat $INSTANCE_DIR/msm.d/appid 2> /dev/null) != $APPID ]]; then
+		if ! [[ $(cat $INSTANCE_DIR/msm.d/appid 2> /dev/null) == $APPID ]]; then
 			catwarn <<-EOF
 				$(bold "WARN:")  The directory $(bold "$INSTANCE_DIR") already contains data,
 				       which may or may not be game server data. Please backup any important
@@ -444,7 +456,7 @@ check-instance-dir () {
 			return 1
 		fi
 
-		if [[ $(ls -A "$INSTANCE_DIR") && ! -d $INSTANCE_DIR/msm.d/clients ]]; then
+		if ! [[ -e $INSTANCE_DIR/msm.d/is-admin ]]; then # Is an instance, but not an admin
 			catwarn <<-EOF
 				$(bold "WARN:")  A game instance already exists at $(bold "$INSTANCE_DIR").
 				       Please backup any important files before proceeding!
@@ -482,7 +494,7 @@ create-instance () {
 		-------------------------------------------------------------------------------
 		EOF
 
-	if [[ -d $INSTANCE_DIR/msm.d/clients ]]; then catinfo <<-EOF; return 0; fi
+	if [[ ! $INSTANCE ]]; then catinfo <<-EOF; return 0; fi
 		$(bold "INFO:")  You have selected a base installation, There is no need to create an
 		       instance here. If you want to create a new instance, set the instance
 		       name using \`$THIS_COMM @name create'.
@@ -676,8 +688,8 @@ admin-install () {
 		if ! prompt; then echo; return 1; fi
 	fi
 	if [[ ! "$APPNAME" || ! "$APPID" ]]; then caterr <<-EOF; return 1; fi
-		$(bold "ERROR:") APPNAME and APPID are not set! Check this script and your configuration
-		       file and try again!
+		$(bold "ERROR:") APPNAME and APPID are not set! Check this script and your
+		       configuration file and try again!
 		EOF
 	echo
 	ADMIN="$USER"
@@ -790,28 +802,29 @@ admin-install () {
 
 	INSTANCE_DIR="$INSTALL_DIR"
 
-	# Create Update Script
-	local UPSCRIPT="$STEAMCMD_DIR/update"
-	cat > "$UPSCRIPT" <<-EOF
+	# Create SteamCMD Scripts
+	cat > "$STEAMCMD_DIR/update" <<-EOF
 		login anonymous
 		force_install_dir "$INSTALL_DIR" 
 		app_update $APPID
 		quit
 		EOF
 
-	# Create Validate Script
-	local VALSCRIPT="$STEAMCMD_DIR/validate"
-	cat > "$VALSCRIPT" <<-EOF
+	cat > "$STEAMCMD_DIR/validate" <<-EOF
 		login anonymous
 		force_install_dir "$INSTALL_DIR" 
 		app_update $APPID validate
 		quit
 		EOF
 
+	cat > "$STEAMCMD_DIR/update-check" <<-EOF
+		login anonymous
+		app_info_update 1
+		app_info_print 740
+		quit
+		EOF
+
 	############ PREPARE MSM DIRECTORY ############
-	# Cleaning existing clients up
-	delete-all-tmuxes
-	rm -rf "$INSTALL_DIR/msm.d/clients" &>/dev/null
 
 	# Create settings directory within INSTALL_DIR
 	mkdir -p "$INSTALL_DIR/msm.d"
@@ -821,7 +834,7 @@ admin-install () {
 	if [[ ! -e "$INSTALL_DIR/msm.d/server.conf" ]]; then
 		cp "$SUBSCRIPT_DIR/server.conf" "$INSTALL_DIR/msm.d/server.conf"
 	fi
-	mkdir -p "$INSTALL_DIR/msm.d/clients"
+	touch "$INSTALL_DIR/msm.d/is-admin"
 
 	fix-permissions
 
