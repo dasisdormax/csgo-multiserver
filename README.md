@@ -40,19 +40,17 @@ The emphasis is on **MULTI**
 
 ## Requirements
 
-These scripts run in `bash` in _GNU/Linux_, so it expects usual commands to be available (awk, readlink).
+These scripts run in `bash` in _GNU/Linux_, so it expects usual commands to be available. These include `awk sed readlink wget tar git`, of which all are installed by default in Ubuntu Server 16.04
 
-Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Linux)! (On Ubuntu/Debian 64 Bit: `sudo apt-get install lib32gcc1`)
+Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Linux)! (On Ubuntu/Debian 64 Bit: `sudo apt install lib32gcc1`)
 
 Additional dependencies are:
 
-* _tmux_, see https://tmux.github.io/
-* _wget_, see https://en.wikipedia.org/wiki/Wget
-* _tar_, see http://linuxcommand.org/man_pages/tar1.html
+* _tmux_, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
 
 Recommended additions:
 
-* _unbuffer_, to make update output and logging smoother (try `sudo apt-get install expect`)
+* _unbuffer_, to make update output and logging smoother (try `sudo apt install expect`)
 
 Of course, you require a Steam account with the game owned to create a CS:GO dedicated server. If you wish anybody to be able to connect to your server, get your Gameserver auth tokens [here](http://steamcommunity.com/dev/managegameservers) (for CS:GO, use appid 730).
 
@@ -80,8 +78,8 @@ Other variables will be set up by configs within the game instance's directory
 
 1. (Optional, if you want to use installation sharing) Create a separate _admin_ user (__NOT root__, usually called _steam_) that controls SteamCMD and the base installation. You can, of course, be your own admin.
 2. Use `git clone https://github.com/dasisdormax/csgo-multiserver.git` to clone this repository to whatever place you like (preferably within the admin's home directory ~admin). Make sure this directory and all files in it are readable to all users who will use this script.
-3. For easier invocation (just by typing `csgo-server` in your terminal), do one of the following:
-    * `ln -s ~admin/csgo-multiserver/csgo-server /usr/bin/csgo-server`, to create a symlink to the main script
+3. For easier invocation of the main script (just by typing `csgo-server` in your terminal), do one of the following:
+    * `ln -s /home/admin/csgo-multiserver/csgo-server /usr/bin/csgo-server` (create a symlink)
     * add that place to your `$PATH` environment variable
 4. As the admin user (__NOT root__), try `csgo-server admin-install`. This will guide you through creating the initial configuration, downloading SteamCMD, and optionally installing and updating the base game server installation.
 5. Manage regularly and install updates as the admin user, with `csgo-server update` (possibly automated by cron)
