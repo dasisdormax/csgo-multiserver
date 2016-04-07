@@ -1,3 +1,9 @@
+#! /bin/bash
+
+# (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+#
+# This file is licensed under the Apache License 2.0. For more information,
+# see the LICENSE file or visit: http://www.apache.org/licenses/LICENSE-2.0
 
 
 
@@ -38,7 +44,7 @@ set-instance () {
 	else
 		INSTANCE_DIR="$INSTALL_DIR"
 		SERVER_TEXT="Base Installation"
-	fi
+		fi
 	SOCKET="$INSTANCE_DIR/msm.d/tmux.socket"
 }
 
@@ -66,8 +72,8 @@ cfgfile () {
 			echo "$1/$MSM_CFG"
 		else
 			echo "$HOME/$MSM_CFG"
+			fi
 		fi
-	fi
 }
 
 # Check environment variables for correctness
@@ -76,27 +82,27 @@ checkvars () {
 	if [[ $1 ]]; then local USER="$1"; fi
 	if [[ ! $ADMIN ]]; then
 		caterr <<< "$(bold "ERROR:") ADMIN is not defined!"
-		return 1
-	fi
+		return 1; fi
+
 	if [[ $USER == $ADMIN && ( ! $STEAMCMD_DIR || ! -x $STEAMCMD_DIR/steamcmd.sh ) ]]; then
 		caterr <<< "$(bold "ERROR:") STEAMCMD_DIR is not defined or steamcmd.sh was not found in it!"
-		return 1
-	fi
+		return 1; fi
+
 	if [[ ! $INSTALL_DIR ]]; then
 		caterr <<< "$(bold "ERROR:") INSTALL_DIR is not defined!"
-		return 1
-	fi
+		return 1; fi
+
 	if [[ ! -r $INSTALL_DIR ]]; then
 		caterr <<< "$(bold "ERROR:") $(bold "$INSTALL_DIR") does not exist or is not readable!"
-		return 1
-	fi
+		return 1; fi
+
 	if [[ $(cat "$INSTALL_DIR/msm.d/appid" 2> /dev/null) != $APPID || ! -e "$INSTALL_DIR/msm.d/is-admin" ]]; then
 		caterr <<-EOF
 			$(bold "ERROR:") The directory $(bold "$INSTALL_DIR")
 			       is not a valid base installation for $APPNAME!
-		EOF
-		return 1
-	fi
+			EOF
+		return 1; fi
+
 	return 0
 }
 
@@ -109,8 +115,8 @@ readcfg () {
 			caterr <<< "$(bold "ERROR:") One or more errors in the configuration file $(bold "$CFG")!"
 			return 1
 		}
-		return 0
-	fi
+		return 0; fi
+
 	caterr <<< "$(bold "ERROR:") Configuration file $(bold "$CFG") does not exist!"
 	return 1
 }
@@ -128,7 +134,7 @@ printcfg () {
 	if [[ $USER == $ADMIN ]]; then cat <<-EOF
 		STEAMCMD_DIR="$STEAMCMD_DIR"
 		EOF
-	fi
+		fi
 }
 
 # Write configuration file for the current user

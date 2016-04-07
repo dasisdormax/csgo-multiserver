@@ -2,7 +2,7 @@
 
 ####################### LICENSE AND COPYRIGHT INFORMATION ########################
 
-info () { cat <<EOF ; }
+info () { cat <<EOF
 ================================================================================
 
                            CS:GO Multi Server Manager
@@ -30,13 +30,14 @@ specific language governing permissions and limitations under the License.
 ================================================================================
 
 EOF
+}
 
 
 
 
 ############################## USAGE OF THIS SCRIPT ##############################
 
-usage () { cat <<EOF ; }
+usage () { cat <<EOF
 Usage: $(bold "$THIS_COMM") < commands >
 
 $(printf "\x1b[1;36m%s\x1b[m"              "GENERAL COMMANDS:")
@@ -67,7 +68,7 @@ Commands will be executed in the order they are given. If a command fails,
 subsequent commands will not be executed.
 
 EOF
-
+}
 
 
 
@@ -98,31 +99,35 @@ MSM_CFG="$APPNAME-msm.conf"
 start () {
 	echo "Starting $SERVER_TEXT ..."
 	# Nothing to do if server is already running
-	if status; then catinfo <<-EOF ; return 0; fi
-		$(bold "INFO:")  $SERVER_TEXT is already running!
-		       Enter the console using '$THIS_COMM @$INSTANCE console'
+	if status; then catinfo <<-EOF
+			$(bold "INFO:")  $SERVER_TEXT is already running!
+			       Enter the console using '$THIS_COMM @$INSTANCE console'
 
-		EOF
+			EOF
+		return 0; fi
 
-	if [[ ! -d $INSTANCE_DIR ]]; then caterr <<-EOF ; return 1; fi
-		$(bold "ERROR:") Instance directory $(bold "$INSTANCE_DIR") does not exist!
-		       Create an instance using '$THIS_COMM @$INSTANCE create-instance'
+	if [[ ! -d $INSTANCE_DIR ]]; then caterr <<-EOF
+			$(bold "ERROR:") Instance directory $(bold "$INSTANCE_DIR") does not exist!
+			       Create an instance using '$THIS_COMM @$INSTANCE create-instance'
 
-		EOF
+			EOF
+		return 1; fi
 
-	if [[ ! -w $INSTANCE_DIR ]]; then caterr <<-EOF ; return 1; fi
-		$(bold "ERROR:") You do not have full access to $(bold "$INSTANCE_DIR")!
-		       Only $(bold "$ADMIN") can modify and launch the base installation! Try creating
-		       an own instance using '$THIS_COMM @name create-instance' instead.
+	if [[ ! -w $INSTANCE_DIR ]]; then caterr <<-EOF
+			$(bold "ERROR:") You do not have full access to $(bold "$INSTANCE_DIR")!
+			       Only $(bold "$ADMIN") can modify and launch the base installation! Try creating
+			       an own instance using '$THIS_COMM @name create-instance' instead.
 
-		EOF
+			EOF
+		return 1; fi
 
-	if [[ ! -x $INSTANCE_DIR/$SERVER_EXEC ]]; then caterr <<-EOF ; return 1; fi
-		$(bold "ERROR:") Server Executable not found at $(bold "$INSTANCE_DIR/$SERVER_EXEC")!
-		       Try repairing the installation using '$THIS_COMM update',
-		       '$THIS_COMM repair' or re-create this instance.
+	if [[ ! -x $INSTANCE_DIR/$SERVER_EXEC ]]; then caterr <<-EOF
+			$(bold "ERROR:") Server Executable not found at $(bold "$INSTANCE_DIR/$SERVER_EXEC")!
+			       Try repairing the installation using '$THIS_COMM update',
+			       '$THIS_COMM repair' or re-create this instance.
 
-		EOF
+			EOF
+		return 1; fi
 
 	# TODO: actual start procedure here
 
@@ -145,41 +150,40 @@ stop () {
 # Status (Up/Down and extra info) of the selected server instance
 status () {
 	# Check if tmux socket exists and is accessible
-	if [[ ! -e "$SOCKET" ]]; then
-		return 1 # false - not running
-	fi
-	if [[ ! -w "$SOCKET" ]]; then caterr <<-EOF ; return 23; fi       # Return code 23 = access error
-		$(bold "ERROR:") Cannot access tmux socket of $SERVER_TEXT!
+	if [[ ! -e "$SOCKET" ]]; then return 1; fi
 
-		EOF
+	if [[ ! -w "$SOCKET" ]]; then caterr <<-EOF
+			$(bold "ERROR:") Cannot access tmux socket of $SERVER_TEXT!
+
+			EOF
+		return 23; fi # 23 = access error
 
 	if ( tmux -S "$SOCKET" has-session >/dev/null ); then
 		# No session runs within tmux
 		delete-tmux
-		return 1 # false - not running
-	fi
+		return 1; fi
 
-	# Get server pid and owner
+	# Get server pid
 	eval "local $(tmux -S "$SOCKET" showenv SERVER_PID)"
-	local SOCKET_OWNER="$(ls -ld "$SOCKET" | awk 'NR==1 {print $3}')"
 	if [[ ! $SERVER_PID ]]; then delete-tmux; fi
 
-	# Check, if pid actually is the server and belongs to the user
+	# Check, if pid actually is the server and belongs to us
 	local PS_OUT="$(ps -o uname=,comm= -p "$SERVER_PID"  2>/dev/null)"
-	if [[ $PS_OUT != "$SOCKET_OWNER $SERVER_EXEC" ]]; then
+	if [[ $PS_OUT != "$USER $SERVER_EXEC" ]]; then
 		delete-tmux
-		return 1 # false - not running
-	fi
+		return 1; fi
+
 	# Game Server found
 	return 0
 }
 
 # Switch to the game console in tmux session
 console () {
-	if ! status; then caterr <<-EOF ; return 1; fi
-		$(bold "ERROR:") $SERVER_TEXT is not running
+	if ! status; then caterr <<-EOF
+			$(bold "ERROR:") $SERVER_TEXT is not running
 
-		EOF
+			EOF
+		return 1; fi
 }
 
 
@@ -196,12 +200,13 @@ update () {
 			Please log in to the account of $(bold "$ADMIN") now! (or CTRL-D to cancel)
 			EOF
 		$SU "$ADMIN" -c "'$THIS_SCRIPT' $ACTION"
-		if (( $? )); then caterr <<-EOF ; return 1; fi
-			$(bold "ERROR:") Installation/update as $(bold "$ADMIN") failed!
+		if (( $? )); then caterr <<-EOF
+				$(bold "ERROR:") Installation/update as $(bold "$ADMIN") failed!
 
-			EOF
-		return 0
-	fi
+				EOF
+			return 1; fi
+
+		return 0; fi
 
 	# First, check if an update is available at all
 	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_$APPID.acf"
@@ -215,16 +220,18 @@ update () {
 				sed -n "/^\t\t\t\"public\"/,/^\t\t\t}/ p" | \
 				grep "buildid" | awk '{ print $2 }' \
 			)
-		if (( $? )); then caterr <<-EOF ; return 1; fi
-			$(bold "ERROR:") Searching for updates failed!
 
-			EOF
+		if (( $? )); then caterr <<-EOF
+				$(bold "ERROR:") Searching for updates failed!
+
+				EOF
+			return 1; fi
 		if [[ $(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }' 2>/dev/null) == $buildid ]]; then
 			# No update is necessary
 			catinfo <<< "$(bold "INFO:")  The base installation is already up to date."
 			echo
-			return 0
-		fi
+			return 0; fi
+
 		catinfo <<< "$(bold "INFO:")  An update for the base installation is available."
 		echo
 
@@ -232,11 +239,11 @@ update () {
 		echo "Waiting 2 minutes for running instances to stop ..."
 		sleep 120
 		echo
-	fi
+		fi
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
 	echo > "$LOGFILE"
-	catinfo <<< "$(bold "INFO:")  Log File: $(bold "$LOGFILE")"
+	echo "Performing update/installation NOW. Log File: $(bold "$LOGFILE")"
 	echo
 
 	tries=5
@@ -254,10 +261,9 @@ update () {
 		echo >> "$LOGFILE" # an extra newline in the file because of the weird escape sequences that steam uses
 		echo | tee -a "$LOGFILE"
 
-		if ( egrep "Success! App '$APPID'.*(fully installed|up to date)" "$LOGFILE" > /dev/null ); then
-			local SUCCESS=1
-		fi
-	done
+		egrep "Success! App '$APPID'.*(fully installed|up to date)" "$LOGFILE" > /dev/null && local SUCCESS=1
+
+		done
 
 	fix-permissions
 
@@ -270,11 +276,12 @@ update () {
 		catinfo <<< "$(bold "INFO:")  Update completed successfully!"
 		echo
 		return 0
-	else catwarn <<-EOF ; return 1; fi
+	else catwarn <<-EOF
 		$(bold "WARN:")  Update failed! For more information, see the log file"
 		       at $(bold "$LOGFILE")."
 
 		EOF
+		return 1; fi
 }
 
 
@@ -291,8 +298,7 @@ check-instance-dir () {
 				$(bold "ERROR:") $(bold "$INSTANCE_DIR") is not a directory! Move the file and try again.
 
 				EOF
-			return 23
-		fi
+			return 23; fi
 
 		if ! [[ -r $INSTANCE_DIR && -w $INSTANCE_DIR && -x $INSTANCE_DIR ]]; then
 			caterr <<-EOF
@@ -300,8 +306,7 @@ check-instance-dir () {
 				       in $(bold "$INSTANCE_DIR")!
 
 				EOF
-			return 23
-		fi
+			return 23; fi
 
 		if ! [[ $(ls -A "$INSTANCE_DIR") ]]; then return 0; fi
 		
@@ -312,8 +317,7 @@ check-instance-dir () {
 				       files before proceeding!
 
 				EOF
-			return 1
-		fi
+			return 1; fi
 
 		if ! [[ -e $INSTANCE_DIR/msm.d/is-admin ]]; then # Is an instance, but not an admin
 			catwarn <<-EOF
@@ -321,8 +325,7 @@ check-instance-dir () {
 				       Please backup any important files before proceeding!
 
 				EOF
-			return 1
-		fi
+			return 1; fi
 	}
 	return 0
 }
@@ -332,18 +335,21 @@ symlink-all-files () {
 	# Return if .donotlink file exists in target.
 	# This file should be created by instance creation scripts
 	if [[ -e $INSTANCE_DIR/$1.donotlink ]]; then return 0; fi
+
 	# Loop through files in directory
 	for file in $(ls -A "$INSTALL_DIR/$1"); do
 		# MSM directory or already symlinked files do not need any more work
-		if [[ -L $INSTANCE_DIR/$1$file || $file == msm.d ]]; then continue; fi
+		if [[ -L $INSTANCE_DIR/$1$file || $file == msm.d ]]; then continue ; fi
+
 		# recurse through subdirectories
-		if [[ -d $INSTANCE_DIR/$1$file ]]; then symlink-all-files "${1}${file}/"; continue; fi
-		# Create symlink for nenexistent file
+		if [[ -d $INSTANCE_DIR/$1$file ]]; then symlink-all-files "${1}${file}/"; continue ; fi
+
+		# Create symlink for files that do not exist yet in the target directory
 		if [[ ! -e $INSTANCE_DIR/$1$file ]]; then 
 			ln -s "$INSTALL_DIR/$1$file" "$INSTANCE_DIR/$1$file"
-			continue
-		fi
-	done
+			continue ; fi
+
+		done
 }
 
 create-instance () {
@@ -353,12 +359,13 @@ create-instance () {
 		-------------------------------------------------------------------------------
 		EOF
 
-	if [[ ! $INSTANCE ]]; then catinfo <<-EOF ; return 0; fi
+	if [[ ! $INSTANCE ]]; then catinfo <<-EOF
 		$(bold "INFO:")  You have selected a base installation, There is no need to create an
 		       instance here. If you want to create a new instance, set the instance
 		       name using '$THIS_COMM @name create'.
 
 		EOF
+		return 0; fi
 
 	check-instance-dir
 	local errno=$?
@@ -372,8 +379,7 @@ create-instance () {
 		prompt "Are you sure?" || { echo; return 1; }
 		echo
 	elif (( $errno )); then
-		return 1
-	fi
+		return 1; fi
 
 	############ INSTANCE CREATION STARTS NOW ############
 	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
@@ -393,8 +399,7 @@ create-instance () {
 
 			EOF
 		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
-		return 1
-	fi
+		return 1; fi
 
 	echo
 	echo "Linking remaining files to the base installation ..."
@@ -407,8 +412,7 @@ create-instance () {
 
 			EOF
 		rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
-		return 1
-	fi
+		return 1; fi
 
 	echo
 	echo "Performing final steps ..."
@@ -441,7 +445,7 @@ if [[ $0 != ${BASH_SOURCE[0]} ]]; then
 	echo "$(bold "INFO:")  This script has been invoked using the 'source' builtin."
 	echo
 	alias exit="unalias exit; return"
-fi
+	fi
 
 # Check required packages
 if [[ ! -x $(which awk)  ]]; then caterr <<< "$(bold "ERROR:") 'awk' is not installed, but required for this script!" ; echo; exit 1; fi
@@ -459,11 +463,13 @@ unset basename dirname
 
 ############################### INCLUDE FUNCTIONS ################################
 
-if ! [[ -e "$THIS_DIR/helpers.sh" && -e "$THIS_DIR/setup.sh" ]]; then caterr <<-EOF ; exit 1; fi
+if ! [[ -e "$THIS_DIR/helpers.sh" && -e "$THIS_DIR/setup.sh" ]]; then caterr <<-EOF
 	$(bold "ERROR:") The helper scripts for this program could not be found.
 	       You can get the latest state and all files using
 	       'git clone https://github.com/dasisdormax/csgo-multiserver'
 	EOF
+	exit 1; fi
+
 . "$THIS_DIR/helpers.sh"
 . "$THIS_DIR/setup.sh"
 CFG=$(cfgfile)
@@ -471,29 +477,33 @@ CFG=$(cfgfile)
 ############################## LOOK FOR SUBSCRIPTS ###############################
 
 SUBSCRIPT_DIR="$THIS_DIR/scripts-$APPID"
-if [[ ! -d $SUBSCRIPT_DIR ]]; then caterr <<-EOF ; exit 1; fi
+if [[ ! -d $SUBSCRIPT_DIR ]]; then caterr <<-EOF
 	$(bold "ERROR:") The subscript directory was not found at
 	       $(bold "$SUBSCRIPT_DIR")!
 
 	EOF
+	exit 1; fi
 
-if [[ ! -r $SUBSCRIPT_DIR/instance.sh ]]; then caterr <<-EOF ; exit 1; fi
+if [[ ! -r $SUBSCRIPT_DIR/instance.sh ]]; then caterr <<-EOF
 	$(bold "ERROR:") Instance creation script was not found at
 	       $(bold "$SUBSCRIPT_DIR/instance.sh")!
 
 	EOF
+	exit 1; fi
 
-if [[ ! -r $SUBSCRIPT_DIR/permissions.sh ]]; then caterr <<-EOF ; exit 1; fi
+if [[ ! -r $SUBSCRIPT_DIR/permissions.sh ]]; then caterr <<-EOF
 	$(bold "ERROR:") Permission management script was not found at
 	       $(bold "$SUBSCRIPT_DIR/permissions.sh")!
 
 	EOF
+	exit 1; fi
 
-if [[ ! -r $SUBSCRIPT_DIR/server.conf ]]; then caterr <<-EOF ; exit 1; fi
+if [[ ! -r $SUBSCRIPT_DIR/server.conf ]]; then caterr <<-EOF
 		$(bold "ERROR:") Default server configuration file was not found at
 		       $(bold "$SUBSCRIPT_DIR/server.conf")!
 
 	EOF
+	exit 1; fi
 
 ############################# LOAD CONFIGURATION FILE ############################
 
@@ -556,7 +566,9 @@ while [[ $1 ]]; do
 				echo "$SERVER_TEXT is RUNNING!"
 			elif (( $? == 1 )); then
 				echo "$SERVER_TEXT is STOPPED!"
-			else exit 1; fi
+			else 
+				exit 1; fi
+
 			echo
 			;;
 
