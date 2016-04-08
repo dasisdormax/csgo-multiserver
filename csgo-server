@@ -101,14 +101,14 @@ start () {
 	# Nothing to do if server is already running
 	if status; then catinfo <<-EOF
 			$(bold "INFO:")  $SERVER_TEXT is already running!
-			       Enter the console using '$THIS_COMM @$INSTANCE console'
+			       Enter the console using '$THIS_COMM @$INSTANCE console'.
 
 			EOF
 		return 0; fi
 
 	if [[ ! -d $INSTANCE_DIR ]]; then caterr <<-EOF
 			$(bold "ERROR:") Instance directory $(bold "$INSTANCE_DIR") does not exist!
-			       Create an instance using '$THIS_COMM @$INSTANCE create-instance'
+			       Create an instance using '$THIS_COMM @$INSTANCE create-instance'.
 
 			EOF
 		return 1; fi
@@ -212,7 +212,7 @@ update () {
 	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_$APPID.acf"
 	if [[ -e $APPMANIFEST && $ACTION == "update" ]]; then
 		echo "Checking for updates ..."
-		rm ~/Steam/appcache/appinfo.vdf # Clear cache
+		rm ~/Steam/appcache/appinfo.vdf 2>/dev/null # Clear cache
 		local buildid=$( \
 			"$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update-check" | \
 				sed -n "/^\"740\"$/        ,/^}/       p" | \

@@ -157,8 +157,8 @@ admin-install () {
 
 	############ STEAMCMD ############
 	# Check for an existing SteamCMD
-	if [[ -x $ADMIN_HOME/steamcmd/steamcmd.sh ]]; then
-		STEAMCMD_DIR="$ADMIN_HOME/steamcmd"
+	if [[ -x $ADMIN_HOME/Steam/steamcmd/steamcmd.sh ]]; then
+		STEAMCMD_DIR="$ADMIN_HOME/Steam/steamcmd"
 		catinfo <<< "$(bold "INFO:")  An existing SteamCMD was found in $(bold "$STEAMCMD_DIR")."
 	else
 		# Ask for the SteamCMD directory
@@ -168,17 +168,33 @@ admin-install () {
 			installed in (absolute or relative to your home directory).
 
 			EOF
-		read -r -p "SteamCMD install directory (default: steamcmd) " STEAMCMD_DIR
 
-		if [[ ! $STEAMCMD_DIR ]]; then
-			STEAMCMD_DIR=steamcmd;
-			fi
-		if [[ ! $STEAMCMD_DIR =~ ^/ ]]; then
-			STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
-			fi
-		# TODO: Add directory checks
+		unset SUCCESS
+		until [[ $SUCCESS ]]; do
+			read -r -p "SteamCMD install directory (default: Steam/steamcmd) " STEAMCMD_DIR
 
-		# Download and install SteamCMD
+			if [[ ! $STEAMCMD_DIR ]]; then
+				STEAMCMD_DIR=Steam/steamcmd;
+				fi
+			if [[ ! $STEAMCMD_DIR =~ ^/ ]]; then
+				STEAMCMD_DIR="$ADMIN_HOME/$STEAMCMD_DIR"
+				fi
+
+			# If steamcmd exists in the specified directory, nothing more to do
+			if [[ -x $STEAMCMD_DIR/steamcmd.sh ]]; then break; fi
+			if [[ $(ls -A "$STEAMCMD_DIR" 2>/dev/null) ]]; then catwarn <<-EOF
+					$(bold "WARN:")  The specified directory $(bold "$STEAMCMD_DIR")
+					       is non-empty. Please backup any important data before proceeding
+					       or choose another directory!
+					EOF
+				prompt "Install SteamCMD in this directory?" && SUCCESS=1
+			else SUCCESS=1; fi
+
+			done
+		fi
+
+	# Download and install SteamCMD, only if SteamCMD does not already exist in the target directory.
+	if [[ ! -x $STEAMCMD_DIR/steamcmd.sh ]]; then
 		WDIR=$(pwd)
 		mkdir -p "$STEAMCMD_DIR"
 		cd "$STEAMCMD_DIR"
