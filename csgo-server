@@ -129,6 +129,13 @@ start () {
 			EOF
 		return 1; fi
 
+	# Symlink new files
+	if [[ $INSTALL_DIR/msm.d/appid -nt $INSTANCE_DIR/msm.d/appid ]]; then
+		echo "Syncing to latest update of base installation ..."
+		symlink-all-files
+		touch "$INSTANCE_DIR/msm.d/appid"
+	fi
+
 	# TODO: actual start procedure here
 
 	echo
@@ -164,7 +171,7 @@ status () {
 		return 1; fi
 
 	# Get server pid
-	eval "local $(tmux -S "$SOCKET" showenv SERVER_PID)"
+	local SERVER_PID=$(cat "$PIDFILE")
 	if [[ ! $SERVER_PID ]]; then delete-tmux; fi
 
 	# Check, if pid actually is the server and belongs to us
