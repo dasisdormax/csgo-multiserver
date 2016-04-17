@@ -134,7 +134,7 @@ start () {
 		echo "Syncing to latest update of base installation ..."
 		symlink-all-files
 		touch "$INSTANCE_DIR/msm.d/appid"
-	fi
+		fi
 
 	# TODO: actual start procedure here
 
@@ -170,18 +170,9 @@ status () {
 		delete-tmux
 		return 1; fi
 
-	# Get server pid
-	local SERVER_PID=$(cat "$PIDFILE")
-	if [[ ! $SERVER_PID ]]; then delete-tmux; fi
+	if [[ $(cat "$STATUS_FILE") =~ RUNNING ]]; then return 0; fi
 
-	# Check, if pid actually is the server and belongs to us
-	local PS_OUT="$(ps -o uname=,comm= -p "$SERVER_PID"  2>/dev/null)"
-	if [[ $PS_OUT != "$USER $SERVER_EXEC" ]]; then
-		delete-tmux
-		return 1; fi
-
-	# Game Server found
-	return 0
+	return -1
 }
 
 # Switch to the game console in tmux session
