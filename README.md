@@ -29,7 +29,7 @@ The emphasis is on **MULTI**
 * **_MULTIPLE_ INSTANCES**: Each game server instance shares the base files, but has its own configuration. Multiple instances can run on a system simultaneously. Supporting network bridges would be nice for the future.
 * **_MULTIPLE_ CONFIGURATIONS**: Different gamemodes (like competitive/deathmatch/surfing) that can be chosen when starting the server
 
-* More options should be controlled using environment variables, like **MAPS** (a mapcycle generator), **TEAM_T**, **TEAM_CT** (automatic team assignment, depends on plugins)
+* More options should be controlled using environment variables, like **MAPS** (a mapcycle generator), **TEAM\_T**, **TEAM\_CT** (automatic team assignment, depends on plugins)
 * Magic network features that let you start/stop a server on a remote machine and copy game/config files over (far future, you can use ssh and rsync anyway)
 * It should, though, still be easy to set it up just for one user
 * Sourcemod plugin management for each instance (including downloading them), and enabling/disabling them based on configuration
@@ -63,8 +63,8 @@ The main configuration file, by default, will be placed in `~/csgo-msm.conf`. It
 
 * **ADMIN** - Name of the user that 'controls' the installation
 * **INSTALL_DIR** - The directory of the base installation. In **ADMIN**'s control.
-* **DEFAULT_INSTANCE** - The default server instance
-* **DEFAULT_MODE** - The default server gamemode
+* **DEFAULT\_INSTANCE** - The default server instance
+* **DEFAULT\_MODE** - The default server gamemode
 
 Other variables will be set up by configs within the game instance's directory
 
@@ -86,12 +86,12 @@ Other variables will be set up by configs within the game instance's directory
  
 #### Steps for the individual user
 
-Note that individual servers are called _instances_. These can share a large amount of files and assets with the base installation, but have their own configurations.
+Note that individual servers are called _instances_. These share most of the files (like maps, textures, etc.) with the base installation, but can have their own configurations.
 
 It is, though, not required to create a separate instance if you do not intend to run more than one server on the machine. If you omit the instance parameter `@instance-name`, the base installation will be selected by default.
 
 1. If this is the first time the script is used on the current account, type `csgo-server` and follow the instructions to import the configuration from the admin.
-2. (If applicable) Create your own instance (fork off the selected base installation) named _myinstance_ using `csgo-server @myinstance create`.
+2. (If applicable) Create your own instance (a fork of the base installation) named _myinstance_ using `csgo-server @myinstance create`.
 3. Manage mods/addons using `csgo-server @myinstance manage`
 
 
@@ -100,7 +100,7 @@ It is, though, not required to create a separate instance if you do not intend t
 ## Usage, when fully set up
 
 * `csgo-server @instance-name ( start | stop | restart )` to start/stop/restart the given server instance respectively. The server will run in the background in a separate tmux environment. Please note that the selected _admin_ can stop the server to perform updates without nasty effects.
-* `csgo-server @instance-name console` to access the in-game console (= attach to the tmux environment) to manually enter commands. You can return to your bash (detach) by typing CTRL-D, a frozen server can be killed using CTRL-K.
+* `csgo-server @instance-name console` to access the in-game console (= attach to the tmux environment) to manually enter commands. You can return to your original shell (detach) by typing CTRL-D, a frozen server can be killed using CTRL-K.
 * `csgo-server usage` will display detailed usage information
 * `csgo-server info` for information about copyright and license.
 
@@ -111,8 +111,8 @@ Other commands are sufficiently explained in the installation section above, I s
 
 ## License
 
-Apache License 2.0. This should give nobody worries when using my program and making modifications to it. I would, though, appreciate if code improvements could make it back here.
+Apache License 2.0. I chose it because I specifically want to allow others to build services upon this script. However, I would still appreciate if improvements and fixes could make it back here.
 
 __Be aware that this only applies since MARCH 29, 2016__ (to be exact, since commit [20645aa](https://github.com/dasisdormax/csgo-multiserver/commit/20645aa13a654226fc08312411f6462bdb9c877f))
 
-For earlier states of this repository (up to the top of branch [crazy](https://github.com/dasisdormax/csgo-multiserver/tree/crazy)), the LGPLv3 still applies. The LGPLv3 was used by the original csgo-server-launcher by crazy. At this point, no original code is being used anymore. 
+For earlier states of this repository (or up to the top of branch [crazy](https://github.com/dasisdormax/csgo-multiserver/tree/crazy)), the LGPLv3 still applies. The LGPLv3 was used by the original csgo-server-launcher by crazy. At this point, no original code is being used anymore. 

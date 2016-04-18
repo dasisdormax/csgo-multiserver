@@ -46,9 +46,9 @@ setup () {
 	while [[ ! $ADMIN_HOME ]]; do
 		read -p "Admin's username (default: $USER) " -r ADMIN
 		
-		if [[ ! $ADMIN ]]; then ADMIN="$USER"; fi
+		if [[ ! $ADMIN ]]; then ADMIN=$USER; fi
 		if [[ ! $(getent passwd $ADMIN) ]]; then
-			caterr <<< "$(bold "ERROR:") User $(bold "$ADMIN") does not exist! Please specify a different admin."
+			caterr <<< "$(bold ERROR:) User $(bold $ADMIN) does not exist! Please specify a different admin."
 			echo
 			continue
 			fi
@@ -56,7 +56,7 @@ setup () {
 		ADMIN_HOME=$(eval echo "~$ADMIN")
 		if [[ ! -r $ADMIN_HOME ]]; then
 			caterr <<-EOF
-				$(bold "ERROR:") That user's home directory $(bold "$ADMIN_HOME")
+				$(bold ERROR:) That user's home directory $(bold "$ADMIN_HOME")
 				       is not readable! Please specify a different admin.
 
 				EOF
@@ -72,21 +72,21 @@ setup () {
 		# try switching to the admin and performing the admin installation there
 		if ! client-install; then
 			catwarn <<-EOF
-				$(bold "WARN:")  Additional installation steps are required on the account of $(bold "$ADMIN")!
-				       Please log in to the account of $(bold "$ADMIN") now!
+				$(bold WARN:)  Additional installation steps are required on the account of $(bold $ADMIN)!
+				       Please log in to the account of $(bold $ADMIN) now!
 				EOF
 
-			$SU $ADMIN -c "\"$THIS_SCRIPT\" admin-install"
+			sudo -i -u $ADMIN "$THIS_SCRIPT" admin-install
 
 			if (( $? )); then caterr <<-EOF
-					$(bold "ERROR:") Admin Installation for $(bold "$ADMIN") failed!
+					$(bold ERROR:) Admin Installation for $(bold $ADMIN) failed!
 
 					EOF
 				return 1; fi
 
 			# Try client installation again!
 			if ! client-install; then caterr <<-EOF
-					$(bold "ERROR:") Client Installation failed!
+					$(bold ERROR:) Client Installation failed!
 
 					EOF
 				return 1; fi
@@ -99,11 +99,11 @@ setup () {
 }
 
 client-install () {
-	echo "Trying to import settings from $(bold "$ADMIN") ..."
+	echo "Trying to import settings from $(bold $ADMIN) ..."
 
 	ADMIN_HOME=$(eval echo "~$ADMIN")
 	if [[ ! -r $ADMIN_HOME ]]; then caterr <<-EOF
-			$(bold "ERROR:") The admin's home directory $(bold "$ADMIN_HOME") is not readable.
+			$(bold ERROR:) The admin's home directory $(bold "$ADMIN_HOME") is not readable.
 
 			EOF
 		return 1; fi
@@ -111,7 +111,6 @@ client-install () {
 	ADMIN_CFG="$(cfgfile $ADMIN_HOME)"
 	readcfg "$ADMIN_CFG"
 	if (( $? )); then echo; return 1; fi
-	echo
 	writecfg
 	return 0
 }
@@ -126,12 +125,12 @@ admin-install () {
 		EOF
 	if readcfg 2> /dev/null; then
 		if [[ $ADMIN == $USER ]]; then catwarn <<-EOF
-				$(bold "WARN:")  A valid admin configuration already exists for this user $(bold "$ADMIN").
+				$(bold WARN:)  A valid admin configuration already exists for this user $(bold $ADMIN).
 				       If you continue, the installation steps will be executed again.
 
 				EOF
 		else catwarn <<-EOF
-				$(bold "WARN:")  This user is currently configured as client of user $(bold "$ADMIN").
+				$(bold WARN:)  This user is currently configured as client of user $(bold $ADMIN).
 				       If you continue, this user will create an own game installation instead.
 
 				EOF
@@ -139,16 +138,16 @@ admin-install () {
 		if ! prompt; then echo; return 1; fi
 		fi
 
-	if [[ ! "$APPNAME" || ! "$APPID" ]]; then caterr <<-EOF
-		$(bold "ERROR:") APPNAME and APPID are not set! Check this script and your
+	if [[ ! $APPNAME || ! $APPID ]]; then caterr <<-EOF
+		$(bold ERROR:) APPNAME and APPID are not set! Check this script and your
 		       configuration file and try again!
 		EOF
 		return 1; fi
 
 	echo
-	ADMIN="$USER"
+	ADMIN=$USER
 	ADMIN_HOME=~
-	echo "You started the admin Installation for user $(bold "$ADMIN")"
+	echo "You started the admin Installation for user $(bold $ADMIN)"
 	echo "This will create a configuration file in the location:"
 	echo "        $(bold "$CFG")"
 	echo
@@ -159,13 +158,13 @@ admin-install () {
 	# Check for an existing SteamCMD
 	if [[ -x $ADMIN_HOME/Steam/steamcmd/steamcmd.sh ]]; then
 		STEAMCMD_DIR="$ADMIN_HOME/Steam/steamcmd"
-		catinfo <<< "$(bold "INFO:")  An existing SteamCMD was found in $(bold "$STEAMCMD_DIR")."
+		catinfo <<< "$(bold INFO:)  An existing SteamCMD was found in $(bold "$STEAMCMD_DIR")."
 	else
 		# Ask for the SteamCMD directory
 		cat <<-EOF
-			To download/update the game, installing SteamCMD is required. Be aware that
-			this will use a lot of data! Please specify the place for SteamCMD to be
-			installed in (absolute or relative to your home directory).
+			SteamCMD is required to install the game server and its updates. Please
+			specify the directory (absolute or relative to your home directory)
+			for SteamCMD to be installed in.
 
 			EOF
 
@@ -183,7 +182,7 @@ admin-install () {
 			# If steamcmd exists in the specified directory, nothing more to do
 			if [[ -x $STEAMCMD_DIR/steamcmd.sh ]]; then break; fi
 			if [[ $(ls -A "$STEAMCMD_DIR" 2>/dev/null) ]]; then catwarn <<-EOF
-					$(bold "WARN:")  The specified directory $(bold "$STEAMCMD_DIR")
+					$(bold WARN:)  The specified directory $(bold "$STEAMCMD_DIR")
 					       is non-empty. Please backup any important data before proceeding
 					       or choose another directory!
 					EOF
@@ -198,13 +197,13 @@ admin-install () {
 		WDIR=$(pwd)
 		mkdir -p "$STEAMCMD_DIR"
 		cd "$STEAMCMD_DIR"
-		echo "Installing SteamCMD to $(bold $STEAMCMD_DIR) ..."
+		echo "Installing SteamCMD to $(bold "$STEAMCMD_DIR") ..."
 
 		unset SUCCESS
 		until [[ $SUCCESS ]]; do
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
 			if (( $? )); then
-				caterr <<< "$(bold "ERROR:") SteamCMD Download failed."
+				caterr <<< "$(bold ERROR:) SteamCMD Download failed."
 				if ! prompt "Retry?"; then echo; return 1; fi
 			else
 				local SUCCESS=1
@@ -216,7 +215,7 @@ admin-install () {
 		tar xzvf steamcmd_linux.tar.gz
 		rm steamcmd_linux.tar.gz &> /dev/null
 		if [[ ! -x $STEAMCMD_DIR/steamcmd.sh ]]; then
-			caterr <<< "$(bold "ERROR:") SteamCMD installation failed."
+			caterr <<< "$(bold ERROR:) SteamCMD installation failed."
 			echo
 			return 1; fi
 
@@ -224,18 +223,25 @@ admin-install () {
 		echo "Updating SteamCMD ..."
 		echo "quit" | "$STEAMCMD_DIR/steamcmd.sh"
 		echo
+		echo
 		echo "SteamCMD installed successfully."
 		cd "$WDIR"
 		fi
 
 	############ GAME INSTALL DIRECTORY ############
-	echo
 	# check for an existing game installation
-	if [[ $(cat "$ADMIN_HOME/$APPNAME/msm.d/appid" 2> /dev/null) == "$APPID" ]]; then
+	if [[ $(cat "$ADMIN_HOME/$APPNAME/msm.d/appid" 2> /dev/null) == $APPID ]]; then
 		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
-		catinfo <<< "$(bold "INFO:")  A previous game installation was found in $(bold "$INSTALL_DIR")."
+		catinfo <<< "$(bold INFO:)  A previous game installation was found in $(bold "$INSTALL_DIR")."
 	else
-		echo "Next, please select the directory for the game server to be installed in."
+		echo
+		cat <<-EOF
+			Now, please select the base installation directory. This is the directory the
+			server will be downloaded to, make sure that there is plenty of free space on
+			the disk. Be aware that this directory will be made public readable, so other
+			users on the system can create server instances based on it.
+			EOF
+
 		unset SUCCESS
 		until [[ $SUCCESS ]]; do
 			echo
@@ -259,7 +265,7 @@ admin-install () {
 				prompt && SUCCESS=1
 			elif (( $errno )); then
 				caterr <<-EOF
-					$(bold "ERROR:") $(bold "$INSTALL_DIR") cannot be used as a base
+					$(bold ERROR:) $(bold "$INSTALL_DIR") cannot be used as a base
 					       installation directory!
 					EOF
 			else
@@ -304,7 +310,7 @@ admin-install () {
 	# Create settings directory within INSTALL_DIR
 	mkdir -p "$INSTALL_DIR/msm.d"
 
-	echo "$APPID" > "$INSTALL_DIR/msm.d/appid"
+	echo "$APPID"   > "$INSTALL_DIR/msm.d/appid"
 	echo "$APPNAME" > "$INSTALL_DIR/msm.d/appname"
 	if [[ ! -e "$INSTALL_DIR/msm.d/server.conf" ]]; then
 		cp "$SUBSCRIPT_DIR/server.conf" "$INSTALL_DIR/msm.d/server.conf"
@@ -314,7 +320,6 @@ admin-install () {
 	fix-permissions
 
 	# Create Config and make it readable
-	echo
 	writecfg
 	chmod a+r "$CFG"
 

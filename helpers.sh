@@ -82,24 +82,24 @@ cfgfile () {
 checkvars () {
 	if [[ $1 ]]; then local USER="$1"; fi
 	if [[ ! $ADMIN ]]; then
-		caterr <<< "$(bold "ERROR:") ADMIN is not defined!"
+		caterr <<< "$(bold ERROR:) ADMIN is not defined!"
 		return 1; fi
 
 	if [[ $USER == $ADMIN && ( ! $STEAMCMD_DIR || ! -x $STEAMCMD_DIR/steamcmd.sh ) ]]; then
-		caterr <<< "$(bold "ERROR:") STEAMCMD_DIR is not defined or steamcmd.sh was not found in it!"
+		caterr <<< "$(bold ERROR:) STEAMCMD_DIR is not defined or steamcmd.sh was not found in it!"
 		return 1; fi
 
 	if [[ ! $INSTALL_DIR ]]; then
-		caterr <<< "$(bold "ERROR:") INSTALL_DIR is not defined!"
+		caterr <<< "$(bold ERROR:) INSTALL_DIR is not defined!"
 		return 1; fi
 
 	if [[ ! -r $INSTALL_DIR ]]; then
-		caterr <<< "$(bold "ERROR:") $(bold "$INSTALL_DIR") does not exist or is not readable!"
+		caterr <<< "$(bold ERROR:) $(bold "$INSTALL_DIR") does not exist or is not readable!"
 		return 1; fi
 
 	if [[ $(cat "$INSTALL_DIR/msm.d/appid" 2> /dev/null) != $APPID || ! -e "$INSTALL_DIR/msm.d/is-admin" ]]; then
 		caterr <<-EOF
-			$(bold "ERROR:") The directory $(bold "$INSTALL_DIR")
+			$(bold ERROR:) The directory $(bold "$INSTALL_DIR")
 			       is not a valid base installation for $APPNAME!
 			EOF
 		return 1; fi
@@ -113,12 +113,12 @@ readcfg () {
 	if [[ -r $CFG ]]; then
 		source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
 		checkvars || {
-			caterr <<< "$(bold "ERROR:") One or more errors in the configuration file $(bold "$CFG")!"
+			caterr <<< "$(bold ERROR:) One or more errors in the configuration file $(bold "$CFG")!"
 			return 1
 		}
 		return 0; fi
 
-	caterr <<< "$(bold "ERROR:") Configuration file $(bold "$CFG") does not exist!"
+	caterr <<< "$(bold ERROR:) Configuration file $(bold "$CFG") does not exist!"
 	return 1
 }
 
@@ -127,7 +127,7 @@ printcfg () {
 	cat <<-EOF
 		#! /bin/bash
 		# This is a configuration file for CS:GO Multi Server Manager
-		ADMIN="$ADMIN"
+		ADMIN=$ADMIN
 		INSTALL_DIR="$INSTALL_DIR"
 		DEFAULT_INSTANCE="$DEFAULT_INSTANCE"
 		EOF
