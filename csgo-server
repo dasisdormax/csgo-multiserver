@@ -110,7 +110,7 @@ start () {
 
 	if [[ ! -w $INSTANCE_DIR ]]; then caterr <<-EOF
 			$(bold ERROR:) You do not have full access to $(bold "$INSTANCE_DIR")!
-			       Only $(bold "$ADMIN") can modify and launch the base installation! Try creating
+			       Only $(bold $ADMIN) can modify and launch the base installation! Try creating
 			       an own instance using '$THIS_COMM @name create-instance' instead.
 
 			EOF
@@ -145,6 +145,7 @@ stop () {
 	status || { echo; return 0; }
 
 	# TODO: actual stop procedure here
+	console <<< "quit"
 
 	echo
 }
@@ -177,6 +178,8 @@ console () {
 
 			EOF
 		return 1; fi
+
+	tmux -s "$SOCKET" attach -t ":$APPNAME-server"
 }
 
 
@@ -189,12 +192,12 @@ update () {
 	if [[ $1 == "validate" ]]; then local ACTION="validate"; fi
 	if [[ $USER != $ADMIN ]]; then
 		catwarn <<-EOF
-			Only the admin $(bold "$ADMIN") can $ACTION the base installation.
-			Please log in to the account of $(bold "$ADMIN") now! (or CTRL-D to cancel)
+			Only the admin $(bold $ADMIN) can $ACTION the base installation.
+			Please switch to the account of $(bold $ADMIN) now! (or CTRL-D to cancel)
 			EOF
-		sudo -i -u "$ADMIN" "$THIS_SCRIPT" "$ACTION"
+		sudo -i -u $ADMIN "$THIS_SCRIPT" "$ACTION"
 		if (( $? )); then caterr <<-EOF
-				$(bold ERROR:) Installation/update as $(bold "$ADMIN") failed!
+				$(bold ERROR:) Installation/update as $(bold $ADMIN) failed!
 
 				EOF
 			return 1; fi
@@ -229,9 +232,11 @@ update () {
 		echo
 
 		touch "$INSTALL_DIR/msm.d/updating"
-		echo "Waiting 2 minutes for running instances to stop ..."
-		sleep 120
-		echo
+		printf "Waiting 3 minutes for running instances to stop (CTRL-C to skip waiting) ... "
+		trap "printf ''" SIGINT
+		sleep 180
+		trap "exit 130" SIGINT
+		echo; echo
 		fi
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
