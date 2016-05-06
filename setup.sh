@@ -31,7 +31,7 @@ setup () {
 		    must be readable for all users.
 
 		EOF
-	if ! prompt; then echo; return 1; fi
+	if ! promptY; then echo; return 1; fi
 
 	# Query steam installation admin user
 	cat <<-EOF
@@ -135,7 +135,7 @@ admin-install () {
 
 				EOF
 			fi
-		if ! prompt; then echo; return 1; fi
+		promptN || { echo; return 1; }
 		fi
 
 	if [[ ! $APPNAME || ! $APPID ]]; then caterr <<-EOF
@@ -151,7 +151,7 @@ admin-install () {
 	echo "This will create a configuration file in the location:"
 	echo "        $(bold "$CFG")"
 	echo
-	if ! prompt; then echo; return 1; fi
+	promptY || { echo; return 1; }
 	echo
 
 	############ STEAMCMD ############
@@ -186,7 +186,7 @@ admin-install () {
 					       is non-empty. Please backup any important data before proceeding
 					       or choose another directory!
 					EOF
-				prompt "Install SteamCMD in this directory?" && SUCCESS=1
+				promptN "Use this directory for the SteamCMD installation?" && SUCCESS=1
 			else SUCCESS=1; fi
 
 			done
@@ -204,7 +204,7 @@ admin-install () {
 			wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
 			if (( $? )); then
 				caterr <<< "$(bold ERROR:) SteamCMD Download failed."
-				if ! prompt "Retry?"; then echo; return 1; fi
+				if ! promptY "Retry?"; then echo; return 1; fi
 			else
 				local SUCCESS=1
 				fi
@@ -230,7 +230,8 @@ admin-install () {
 
 	############ GAME INSTALL DIRECTORY ############
 	# check for an existing game installation
-	if [[ $(cat "$ADMIN_HOME/$APPNAME/msm.d/appid" 2> /dev/null) == $APPID ]]; then
+	if	[[		$(cat "$ADMIN_HOME/$APPNAME/msm.d/appid" 2> /dev/null) == $APPID	\
+			&&	-e "$ADMIN_HOME/$APPNAME/msm.d/is-admin"							]]; then
 		INSTALL_DIR="$ADMIN_HOME/$APPNAME"
 		catinfo <<< "$(bold INFO:)  A previous game installation was found in $(bold "$INSTALL_DIR")."
 	else
@@ -259,10 +260,11 @@ admin-install () {
 			errno=$?
 			if (( $errno == 1 )); then
 				catwarn <<-EOF
-					Do you wish to create a base installation in $(bold "$INSTALL_DIR") anyway?
+					       This operation may $(bold "DELETE EXISTING DATA") in $(bold "$INSTALL_DIR") ...
 
 					EOF
-				prompt && SUCCESS=1
+				sleep 2
+				promptN && SUCCESS=1
 			elif (( $errno )); then
 				caterr <<-EOF
 					$(bold ERROR:) $(bold "$INSTALL_DIR") cannot be used as a base
@@ -331,7 +333,7 @@ admin-install () {
 
 		EOF
 
-	if prompt "Install Now?"; then
+	if promptY "Install Now?"; then
 		echo
 		update
 		return 0; fi

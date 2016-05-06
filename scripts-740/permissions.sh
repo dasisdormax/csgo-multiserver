@@ -23,4 +23,7 @@ if [[ -e $INSTANCE_DIR/msm.d/is-admin ]]; then
 	chmod -R o+rX "$INSTANCE_DIR"
 fi
 
+# Remove read privileges for files that may contain sensitive data
+# (such as passwords, IP addresses, etc)
 chmod o-r "$INSTANCE_DIR/msm.d/server.conf"
+chmod o-r "$INSTANCE_DIR/csgo/cfg/server.cfg"

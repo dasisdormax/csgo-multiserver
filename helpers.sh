@@ -11,14 +11,25 @@
 ################################ HELPER FUNCTIONS ################################
 
 # A yes/no prompt. With the first parameter $1, an alternative prompt message can be given.
-# returns true (0) for yes, and false (1) for no
-prompt () {
-	PROMPT="Proceed?"
-	if [[ $1 ]]; then PROMPT="$1"; fi
+# returns true (0) for yes, and false (1) for no. Defaults to YES
+promptY () {
+	local PROMPT="Proceed?"
+	if [[ $1 ]]; then local PROMPT="$1"; fi
 
-	read -r -p "$PROMPT (Y/n) " INPUT
+	read -r -p "$PROMPT ($(bold Y)/n) " INPUT
 	# Implicit return value below
 	[[ ! $INPUT || $INPUT =~ ^([Yy]|[Yy][Ee][Ss])$ ]]
+}
+
+# A similar prompt that defaults to NO instead
+promptN () {
+	local PROMPT="Are you sure?"
+	if [[ $1 ]]; then local PROMPT="$1"; fi
+	printf "\x1b[33m"
+	read -r -p "$PROMPT (y/$(bold N)) " INPUT
+	printf "\x1b[m"
+	# Implicit return value below
+	[[ $INPUT =~ ^([Yy]|[Yy][Ee][Ss])$ ]]
 }
 
 # kills and deletes the tmux-session at location $SOCKET
@@ -147,4 +158,53 @@ writecfg () {
 	rm $CFG > /dev/null 2>&1
 	printcfg > $CFG
 	echo
+}
+
+
+
+
+################################ DIRECTORY CHECKS ################################
+
+# Checks existing data in INSTANCE_DIR, and prints appropriate warnings
+# if data would have to be deleted
+# Returns 0  if it is an empty directory
+#         1  if it contains data
+#         23 if it is not a directory or the user has insufficient access rights 
+check-instance-dir () {
+	[[ -e $INSTANCE_DIR ]] && {
+		if ! [[ -d $INSTANCE_DIR ]]; then
+			caterr <<-EOF
+				$(bold ERROR:) $(bold "$INSTANCE_DIR") is not a directory! Move the file and try again.
+
+				EOF
+			return 23; fi
+
+		if ! [[ -r $INSTANCE_DIR && -w $INSTANCE_DIR && -x $INSTANCE_DIR ]]; then
+			caterr <<-EOF
+				$(bold ERROR:) You do not have the necessary privileges to create a server instance
+				       in $(bold "$INSTANCE_DIR")!
+
+				EOF
+			return 23; fi
+
+		if ! [[ $(ls -A "$INSTANCE_DIR") ]]; then return 0; fi
+		
+		if ! [[ $(cat $INSTANCE_DIR/msm.d/appid 2> /dev/null) == $APPID ]]; then
+			catwarn <<-EOF
+				$(bold WARN:)  The directory $(bold "$INSTANCE_DIR") already contains data,
+				       which may or may not be game server data. Please backup any important
+				       files before proceeding!
+
+				EOF
+			return 1; fi
+
+		if ! [[ -e $INSTANCE_DIR/msm.d/is-admin ]]; then # Is an instance, but not an admin
+			catwarn <<-EOF
+				$(bold WARN:)  A game instance already exists at $(bold "$INSTANCE_DIR").
+				       Please backup any important files before proceeding!
+
+				EOF
+			return 1; fi
+	}
+	return 0
 }

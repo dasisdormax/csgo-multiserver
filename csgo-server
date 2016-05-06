@@ -132,6 +132,10 @@ start () {
 		fi
 
 	# TODO: actual start procedure here
+	PARAMS=
+
+	script $INSTANCE_DIR/msm.d/server.conf
+	# Here should come any module configurations
 
 	echo
 	echo "$SERVER_TEXT started successfully!"
@@ -230,14 +234,14 @@ update () {
 
 		catinfo <<< "$(bold INFO:)  An update for the base installation is available."
 		echo
-
-		touch "$INSTALL_DIR/msm.d/updating"
-		printf "Waiting 3 minutes for running instances to stop (CTRL-C to skip waiting) ... "
-		trap "printf ''" SIGINT
-		sleep 180
-		trap "exit 130" SIGINT
-		echo; echo
 		fi
+
+	touch "$INSTALL_DIR/msm.d/updating"
+	printf "Waiting 3 minutes for running instances to stop (CTRL-C to skip waiting) ... "
+	trap "printf ''" SIGINT
+	sleep 180
+	trap "exit 130" SIGINT
+	echo; echo
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
 	echo > "$LOGFILE"
@@ -287,55 +291,17 @@ update () {
 
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
 
-# Checks existing data in INSTANCE_DIR, and prints appropriate warnings
-# if data would have to be deleted
-check-instance-dir () {
-	[[ -e $INSTANCE_DIR ]] && {
-		if ! [[ -d $INSTANCE_DIR ]]; then
-			caterr <<-EOF
-				$(bold ERROR:) $(bold "$INSTANCE_DIR") is not a directory! Move the file and try again.
-
-				EOF
-			return 23; fi
-
-		if ! [[ -r $INSTANCE_DIR && -w $INSTANCE_DIR && -x $INSTANCE_DIR ]]; then
-			caterr <<-EOF
-				$(bold ERROR:) You do not have the necessary privileges to create a server instance
-				       in $(bold "$INSTANCE_DIR")!
-
-				EOF
-			return 23; fi
-
-		if ! [[ $(ls -A "$INSTANCE_DIR") ]]; then return 0; fi
-		
-		if ! [[ $(cat $INSTANCE_DIR/msm.d/appid 2> /dev/null) == $APPID ]]; then
-			catwarn <<-EOF
-				$(bold WARN:)  The directory $(bold "$INSTANCE_DIR") already contains data,
-				       which may or may not be game server data. Please backup any important
-				       files before proceeding!
-
-				EOF
-			return 1; fi
-
-		if ! [[ -e $INSTANCE_DIR/msm.d/is-admin ]]; then # Is an instance, but not an admin
-			catwarn <<-EOF
-				$(bold WARN:)  A game instance already exists at $(bold "$INSTANCE_DIR").
-				       Please backup any important files before proceeding!
-
-				EOF
-			return 1; fi
-	}
-	return 0
-}
-
 # recursively symlinks all files from the base installation that do not exist yet in the instance
 symlink-all-files () {
 	# Return if .donotlink file exists in target.
-	# This file should be created by instance creation scripts
+	# This file could be made by instance creation scripts, to indicate that new or missing files should not be linked from the base instance again
 	if [[ -e $INSTANCE_DIR/$1.donotlink ]]; then return 0; fi
 
 	# Loop through files in directory
 	for file in $(ls -A "$INSTALL_DIR/$1"); do
+		# Skip files that are not readable for the current user
+		if [[ ! -r $INSTALL_DIR/$1$file ]]; then continue ; fi
+
 		# MSM directory or already symlinked files do not need any more work
 		if [[ -L $INSTANCE_DIR/$1$file || $file == msm.d ]]; then continue ; fi
 
@@ -369,13 +335,11 @@ create-instance () {
 	local errno=$?
 	if (( $errno == 1 )); then
 		catwarn <<-EOF
-			If you continue, ALL DATA in $(bold "$INSTANCE_DIR")
-			WILL BE DELETED! You have been warned!
+			       This operation $(bold "WILL DELETE ALL DATA") in $(bold "$INSTANCE_DIR") ...
 
 			EOF
-		sleep 3
-		prompt "Are you sure?" || { echo; return 1; }
-		echo
+		sleep 2
+		promptN || { echo; return 1; }
 	elif (( $errno )); then
 		return 1; fi
 
@@ -417,14 +381,21 @@ create-instance () {
 
 	cp "$INSTALL_DIR/msm.d/appid" "$INSTANCE_DIR/msm.d/appid"
 	cp "$INSTALL_DIR/msm.d/appname" "$INSTANCE_DIR/msm.d/appname"
-	cp -R "$INSTALL_DIR/msm.d/modes" "$INSTANCE_DIR/msm.d/modes"
 	cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/msm.d/server.conf"
 	
 	fix-permissions
 
-	echo
-	echo "Instance created successfully in $(bold "$INSTANCE_DIR")!"
-	echo
+	cat <<-EOF
+
+		Instance created successfully in $(bold "$INSTANCE_DIR")!
+
+		EOF
+	catinfo <<-EOF
+		$(bold INFO:)  You should now edit your instance's configuration, located in
+		            $(bold "$INSTANCE_DIR/msm.d/server.conf")
+		       in order to set IP, port, passwords and other game settings.
+
+		EOF
 }
 
 
