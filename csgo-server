@@ -132,9 +132,8 @@ start () {
 		fi
 
 	# TODO: actual start procedure here
-	PARAMS=
 
-	script $INSTANCE_DIR/msm.d/server.conf
+	. $INSTANCE_DIR/msm.d/server.conf
 	# Here should come any module configurations
 
 	echo
@@ -382,7 +381,11 @@ create-instance () {
 	cp "$INSTALL_DIR/msm.d/appid" "$INSTANCE_DIR/msm.d/appid"
 	cp "$INSTALL_DIR/msm.d/appname" "$INSTANCE_DIR/msm.d/appname"
 	cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/msm.d/server.conf"
-	
+
+	# Copy gamemodes and addons from the base installation
+	cp -R "$INSTALL_DIR/msm.d/modes" "$INSTANCE_DIR/msm.d/modes"
+	cp -R "$INSTALL_DIR/msm.d/addons" "$INSTANCE_DIR/msm.d/addons"
+
 	fix-permissions
 
 	cat <<-EOF

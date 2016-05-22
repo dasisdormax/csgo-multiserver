@@ -314,9 +314,12 @@ admin-install () {
 
 	echo "$APPID"   > "$INSTALL_DIR/msm.d/appid"
 	echo "$APPNAME" > "$INSTALL_DIR/msm.d/appname"
-	if [[ ! -e "$INSTALL_DIR/msm.d/server.conf" ]]; then
-		cp "$SUBSCRIPT_DIR/server.conf" "$INSTALL_DIR/msm.d/server.conf"
-		fi
+	# Copy scripts, but do not overwrite existing files/modifications
+	cp -n "$SUBSCRIPT_DIR/server.conf" "$INSTALL_DIR/msm.d/server.conf"
+	cp -n -R "$THIS_DIR/modes-$APPID" "$INSTALL_DIR/msm.d/modes"
+	cp -n -R "$THIS_DIR/addons-$APPID" "$INSTALL_DIR/msm.d/addons"
+
+
 	touch "$INSTALL_DIR/msm.d/is-admin"
 
 	fix-permissions
