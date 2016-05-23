@@ -141,16 +141,19 @@ start () {
 			$(bold $SERVER_EXEC) $ARGS
 		EOF
 
-	LOGFILE="$INSTANCE_DIR/msm.d/log/$(date +%Y.%m.%d-%H:%m)-controller.log"
-
 	rm -rf "$INSTANCE_DIR/msm.d/tmp"
 	mkdir -p "$INSTANCE_DIR/msm.d/tmp"
 	mkdir -p "$INSTANCE_DIR/msm.d/log"
 
-	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<< "$SERVER_EXEC $ARGS            | tee \"\$LOGFILE\""
+	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<-EOF
+			#! /bin/bash
+			$SERVER_EXEC $ARGS | tee \"$INSTANCE_DIR/msm.d/log/\$(date +%Y.%m.%d-%H:%m)-server.log\"
+		EOF
+
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-control.sh" <<-EOF
+			#! /bin/bash
 			INSTANCE_DIR="$INSTANCE_DIR"
-			. $THIS_DIR/server-control.sh | tee \"$LOGFILE\"
+			. $THIS_DIR/server-control.sh | tee \"$INSTANCE_DIR/msm.d/log/\$(date +%Y.%m.%d-%H:%m)-controller.log\"
 		EOF
 
 	# LAUNCH! (in tmux)
