@@ -15,7 +15,6 @@ if [[ -e $INSTANCE_DIR/msm.d/is-admin ]]; then
 	# This is a base installation
 	
 	# Re-add exec bit on files that need to be executable
-	chmod ug+x "$INSTANCE_DIR/srcds.exe"
 	chmod ug+x "$INSTANCE_DIR/srcds_linux"
 	chmod ug+x "$INSTANCE_DIR/srcds_run"
 
@@ -26,4 +25,8 @@ fi
 # Remove read privileges for files that may contain sensitive data
 # (such as passwords, IP addresses, etc)
 chmod o-r "$INSTANCE_DIR/msm.d/server.conf"
+chmod o-r "$INSTANCE_DIR/csgo/cfg/autoexec.cfg"
 chmod o-r "$INSTANCE_DIR/csgo/cfg/server.cfg"
+
+chmod -R o-r "$INSTANCE_DIR/msm.d/tmp"
+chmod -R o-r "$INSTANCE_DIR/msm.d/logs"

@@ -56,8 +56,8 @@ set-instance () {
 		INSTANCE_DIR="$INSTALL_DIR"
 		SERVER_TEXT="Base Installation"
 		fi
-	SOCKET="$INSTANCE_DIR/msm.d/server.tmux-socket"
-	STATUS_FILE="$INSTANCE_DIR/msm.d/server.status"
+	SOCKET="$INSTANCE_DIR/msm.d/tmp/server.tmux-socket"
+	STATUS_FILE="$INSTANCE_DIR/msm.d/tmp/server.status"
 }
 
 caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }

@@ -131,16 +131,29 @@ start () {
 		touch "$INSTANCE_DIR/msm.d/appid"
 		fi
 
-	# TODO: actual start procedure here
-
+	# Load instance configuration
 	. $INSTANCE_DIR/msm.d/server.conf
-	# Here should come any module configurations
 
+	# TODO: Load addon configuration here
 
 	catinfo <<-EOF
-			$(bold INFO:)  Command is:
-			       $(bold $SERVER_EXEC) $ARGS
+			$(bold INFO:)  The launch command is:
+			$(bold $SERVER_EXEC) $ARGS
 		EOF
+
+	LOGFILE="$INSTANCE_DIR/msm.d/log/$(date +%Y.%m.%d-%H:%m)-controller.log"
+
+	rm -rf "$INSTANCE_DIR/msm.d/tmp"
+	mkdir -p "$INSTANCE_DIR/msm.d/tmp"
+	mkdir -p "$INSTANCE_DIR/msm.d/log"
+
+	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<< "$SERVER_EXEC $ARGS            | tee \"\$LOGFILE\""
+	cat > "$INSTANCE_DIR/msm.d/tmp/server-control.sh" <<-EOF
+			INSTANCE_DIR="$INSTANCE_DIR"
+			. $THIS_DIR/server-control.sh | tee \"$LOGFILE\"
+		EOF
+
+	# LAUNCH! (in tmux)
 
 	echo
 	echo "$SERVER_TEXT started successfully!"
