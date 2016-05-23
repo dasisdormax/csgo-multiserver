@@ -136,6 +136,12 @@ start () {
 	. $INSTANCE_DIR/msm.d/server.conf
 	# Here should come any module configurations
 
+
+	catinfo <<-EOF
+			$(bold INFO:)  Command is:
+			       $(bold $SERVER_EXEC) $ARGS
+		EOF
+
 	echo
 	echo "$SERVER_TEXT started successfully!"
 	echo "To enter the game's console, type '$THIS_COMM @$INSTANCE console'."
@@ -148,7 +154,7 @@ stop () {
 	status || { echo; return 0; }
 
 	# TODO: actual stop procedure here
-	console <<< "quit"
+	console <<< "exit"
 
 	echo
 }
