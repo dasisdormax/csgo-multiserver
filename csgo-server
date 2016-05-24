@@ -133,6 +133,8 @@ start () {
 
 	# Load instance configuration
 	. $INSTANCE_DIR/msm.d/server.conf
+	local errno=$?
+	if (( $errno )); then return $errno; fi
 
 	# TODO: Load addon configuration here
 
@@ -145,15 +147,17 @@ start () {
 	mkdir -p "$INSTANCE_DIR/msm.d/tmp"
 	mkdir -p "$INSTANCE_DIR/msm.d/log"
 
+	TIMESTAMP="\$(date +%Y.%m.%d_%T_%z)"
+
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<-EOF
 			#! /bin/bash
-			$SERVER_EXEC $ARGS | tee \"$INSTANCE_DIR/msm.d/log/\$(date +%Y.%m.%d-%H:%m)-server.log\"
+			$SERVER_EXEC $ARGS | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-server.log"
 		EOF
 
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-control.sh" <<-EOF
 			#! /bin/bash
 			INSTANCE_DIR="$INSTANCE_DIR"
-			. $THIS_DIR/server-control.sh | tee \"$INSTANCE_DIR/msm.d/log/\$(date +%Y.%m.%d-%H:%m)-controller.log\"
+			. $THIS_DIR/server-control.sh | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-controller.log"
 		EOF
 
 	# LAUNCH! (in tmux)
