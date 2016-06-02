@@ -29,4 +29,4 @@ chmod o-r "$INSTANCE_DIR/csgo/cfg/autoexec.cfg"
 chmod o-r "$INSTANCE_DIR/csgo/cfg/server.cfg"
 
 chmod -R o-r "$INSTANCE_DIR/msm.d/tmp"
-chmod -R o-r "$INSTANCE_DIR/msm.d/logs"
+chmod -R o-r "$INSTANCE_DIR/msm.d/log"

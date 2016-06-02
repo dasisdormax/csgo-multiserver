@@ -35,7 +35,7 @@ promptN () {
 # kills and deletes the tmux-session at location $SOCKET
 delete-tmux () {
 	tmux -S "$SOCKET" kill-server > /dev/null 2>&1
-	rm $SOCKET
+	rm $SOCKET > /dev/null 2>&1
 	return 0
 }
 
