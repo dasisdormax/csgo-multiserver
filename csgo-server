@@ -93,14 +93,8 @@ MSM_CFG="$APPNAME-msm.conf"
 
 start () {
 	echo "Starting $SERVER_TEXT ..."
-	# Nothing to do if server is already running
-	if status; then catinfo <<-EOF
-			$(bold INFO:)  $SERVER_TEXT is already running!
-			       Enter the console using '$THIS_COMM @$INSTANCE console'.
 
-			EOF
-		return 0; fi
-
+	# Check, if instance exists and the user does own it
 	if [[ ! -d $INSTANCE_DIR ]]; then caterr <<-EOF
 			$(bold ERROR:) Instance directory $(bold "$INSTANCE_DIR") does not exist!
 			       Create an instance using '$THIS_COMM @$INSTANCE create-instance'.
@@ -124,6 +118,15 @@ start () {
 			EOF
 		return 1; fi
 
+	# Check, if server is already running
+	status
+	if (( $? < 2 )); then catinfo <<-EOF
+			$(bold INFO:)  $SERVER_TEXT is already running!
+			       Enter the console using '$THIS_COMM @$INSTANCE console'.
+
+			EOF
+		return 0; fi
+
 	# Symlink new files
 	if [[ $INSTALL_DIR/msm.d/appid -nt $INSTANCE_DIR/msm.d/appid ]]; then
 		echo "Syncing to latest update of base installation ..."
@@ -143,24 +146,29 @@ start () {
 			$(bold $SERVER_EXEC) $ARGS
 		EOF
 
-	rm -rf "$INSTANCE_DIR/msm.d/tmp"
 	mkdir -p "$INSTANCE_DIR/msm.d/tmp"
 	mkdir -p "$INSTANCE_DIR/msm.d/log"
+
+	rm -f "$INSTANCE_DIR/msm.d/tmp/"*
 
 	TIMESTAMP="\$(date +%Y.%m.%d_%T_%z)"
 
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<-EOF
 			#! /bin/bash
-			$SERVER_EXEC $ARGS | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-server.log"
+			"$INSTANCE_DIR/$SERVER_EXEC" $ARGS | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-server.log"
 		EOF
 
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-control.sh" <<-EOF
 			#! /bin/bash
+			APPNAME="$APPNAME"
+			THIS_DIR="$THIS_DIR"
 			INSTANCE_DIR="$INSTANCE_DIR"
-			. $THIS_DIR/server-control.sh | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-controller.log"
+			. "\$THIS_DIR/server-control.sh" | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-controller.log"
 		EOF
 
 	# LAUNCH! (in tmux)
+
+	tmux -f "$THIS_DIR/tmux.conf" -S "$SOCKET" new-session /bin/bash "$INSTANCE_DIR/msm.d/tmp/server-control.sh" \; detach
 
 	echo
 	echo "$SERVER_TEXT started successfully!"
@@ -171,44 +179,75 @@ start () {
 
 stop () {
 	echo "Stopping $SERVER_TEXT ..."
-	status || { echo; return 0; }
+	status
+	local errno=$?
+	if (( errno == 23 )); then return 0; fi
+	if (( errno == 2 )); then echo; return 0; fi
 
 	# TODO: actual stop procedure here
-	console <<< "exit"
+
+
+
+	# Final method
+	delete-tmux
 
 	echo
 }
 
 # Status (Up/Down and extra info) of the selected server instance
+#
+# Return Codes:
+# true/0   running
+#      1   launching/updating
+#      2   stopped
+#     23   access error
 status () {
-	# Check if tmux socket exists and is accessible
-	if [[ ! -e "$SOCKET" ]]; then return 1; fi
+	if [[ ! -w "$INSTANCE_DIR" ]]; then caterr <<-EOF
+			$(bold ERROR:) $SERVER_TEXT (directory: $(bold "$INSTANCE_DIR"))
+			       does not exist or you do not have the necessary access permissions!
 
+			EOF
+		return 23; fi
+
+	# Check if tmux socket exists and is accessible
+	if [[ ! -e "$SOCKET" ]]; then return 2; fi
 	if [[ ! -w "$SOCKET" ]]; then caterr <<-EOF
-			$(bold ERROR:) Cannot access tmux socket of $SERVER_TEXT!
+			$(bold ERROR:) Tmux socket of $SERVER_TEXT is not accessible!
 
 			EOF
 		return 23; fi # 23 = access error
 
-	if ( tmux -S "$SOCKET" has-session >/dev/null ); then
+	if ! ( tmux -S "$SOCKET" has-session > /dev/null 2>&1 ); then
 		# No session runs within tmux
 		delete-tmux
+		return 2; fi
+
+	if ! ( tmux -S "$SOCKET" list-windows | grep "$APPNAME-server" > /dev/null ); then
+		# Server is not active, most likely due to the server updating or starting up
 		return 1; fi
 
-	if [[ $(cat "$STATUS_FILE") =~ RUNNING ]]; then return 0; fi
-
-	return -1
+	return 0
 }
 
 # Switch to the game console in tmux session
 console () {
-	if ! status; then caterr <<-EOF
-			$(bold ERROR:) $SERVER_TEXT is not running
+	status;
+	local errno=$?
+	if (( $errno > 1 )); then caterr <<-EOF
+			$(bold ERROR:) Cannot access the console of $SERVER_TEXT!
+			       Check your server's status using '$THIS_COMM @$INSTANCE status'
 
 			EOF
 		return 1; fi
 
-	tmux -s "$SOCKET" attach -t ":$APPNAME-server"
+	if (( $errno == 1 )); then
+		tmux -S "$SOCKET" attach
+	else
+		tmux -S "$SOCKET" attach -t ":$APPNAME-server"
+		fi
+
+	echo
+	return 0
 }
 
 
@@ -262,8 +301,8 @@ update () {
 		fi
 
 	touch "$INSTALL_DIR/msm.d/updating"
-	printf "Waiting 3 minutes for running instances to stop (CTRL-C to skip waiting) ... "
-	trap "printf ''" SIGINT
+	printf "Waiting 180 seconds for running instances to stop (CTRL-C to skip waiting) ... "
+	trap "" SIGINT
 	sleep 180
 	trap "exit 130" SIGINT
 	echo; echo
@@ -560,9 +599,12 @@ while [[ $1 ]]; do
 
 		( st | stat | status )
 			status
-			if (( $? == 0 )); then
+			errno=$?
+			if (( $errno == 0 )); then
 				echo "$SERVER_TEXT is RUNNING!"
-			elif (( $? == 1 )); then
+			elif (( $errno == 1 )); then
+				echo "$SERVER_TEXT is currently LAUNCHING or UPDATING!"
+			elif (( $errno == 2 )); then
 				echo "$SERVER_TEXT is STOPPED!"
 			else 
 				exit 1; fi

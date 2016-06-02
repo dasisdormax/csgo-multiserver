@@ -34,7 +34,7 @@ promptN () {
 
 # kills and deletes the tmux-session at location $SOCKET
 delete-tmux () {
-	tmux -S "$SOCKET" kill-server
+	tmux -S "$SOCKET" kill-server > /dev/null 2>&1
 	rm $SOCKET
 	return 0
 }
@@ -51,13 +51,12 @@ set-instance () {
 	if [[ $INSTANCE ]];
 	then
 		INSTANCE_DIR="$HOME/$APPNAME@$INSTANCE"
-		SERVER_TEXT="Server Instance @$INSTANCE"
+		SERVER_TEXT="Server Instance $(bold "@$INSTANCE")"
 	else
 		INSTANCE_DIR="$INSTALL_DIR"
-		SERVER_TEXT="Base Installation"
+		SERVER_TEXT="$(bold "Base Installation")"
 		fi
 	SOCKET="$INSTANCE_DIR/msm.d/tmp/server.tmux-socket"
-	STATUS_FILE="$INSTANCE_DIR/msm.d/tmp/server.status"
 }
 
 caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
