@@ -18,6 +18,10 @@ There is still A LOT to do!
 
 * SteamCMD and Game Installation, checking for and performing updates
 * CS:GO Server instance creation
+* Instance configuration using `$INSTANCE_DIR/msm.d/server.conf` config file.
+	* In most cases, variables set using the command line are more important than configuration file settings.
+	* Select the mode with the **MODE** variable, custom modes can be configured in `$INSTANCE_DIR/msm.d/modes/$MODE.conf`
+* Starting a server basically works! Yay! 
 
 
 
@@ -49,7 +53,7 @@ Additional dependencies are:
 * _tmux_, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
 * _inotifywait_, found in the `inotify-tools` package for Ubuntu, used by the server control to efficiently wait for file changes 
 
-Recommended additions:
+Highly recommended additions:
 
 * _unbuffer_, to make update and server output and logging smoother (try `sudo apt install expect`)
 

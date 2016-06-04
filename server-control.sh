@@ -29,7 +29,9 @@ start-server () {
 	tmux new-window -n "$APPNAME-server" /bin/bash "$INSTANCE_DIR/msm.d/tmp/server-start.sh"
 }
 
-alias echo='echo "[$(date "+%Y/%m/%d %T")]"'
+echo () {
+	command echo "[$(date "+%Y/%m/%d %T")]" $*
+}
 
 ##################################################################################
 ############################### PROGRAM STARTS HERE ##############################
@@ -51,6 +53,7 @@ catinfo <<-EOF
 	EOF
 
 tmux rename-window server-control
+
 
 # Start the action
 

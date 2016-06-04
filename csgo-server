@@ -154,10 +154,11 @@ start () {
 	rm -f "$INSTANCE_DIR/msm.d/tmp/"*
 
 	TIMESTAMP="\$(date +%Y.%m.%d_%T_%z)"
+	UNBUFFER="$(which unbuffer)"
 
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<-EOF
 			#! /bin/bash
-			\$(which unbuffer) "$INSTANCE_DIR/$SERVER_EXEC" $ARGS | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-server.log"
+			${UNBUFFER:+$UNBUFFER -p} "$INSTANCE_DIR/$SERVER_EXEC" $ARGS | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-server.log"
 			echo $? > "$INSTANCE_DIR/msm.d/tmp/server.exit-code"
 		EOF
 
