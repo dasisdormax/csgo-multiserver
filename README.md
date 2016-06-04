@@ -47,10 +47,11 @@ Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com
 Additional dependencies are:
 
 * _tmux_, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
+* _inotifywait_, found in the `inotify-tools` package for Ubuntu, used by the server control to efficiently wait for file changes 
 
 Recommended additions:
 
-* _unbuffer_, to make update output and logging smoother (try `sudo apt install expect`)
+* _unbuffer_, to make update and server output and logging smoother (try `sudo apt install expect`)
 
 Of course, you require a Steam account with the game owned to create a CS:GO dedicated server. If you wish anybody to be able to connect to your server, get your Gameserver auth tokens [here](http://steamcommunity.com/dev/managegameservers) (for CS:GO, use appid 730).
 

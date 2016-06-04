@@ -84,7 +84,7 @@ SERVER_EXEC="srcds_run"
 
 # MSM_CFG: General Configuration file location
 # if a relative path is given, it is interpreted as relative to the user's home directory
-MSM_CFG="$APPNAME-msm.conf"
+MSM_CFG="msm.$APPNAME.conf"
 
 # UPDATE_WAITTIME: The time to wait for running servers to stop before performing an update (in seconds)
 UPDATE_WAITTIME=120
@@ -157,13 +157,13 @@ start () {
 
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<-EOF
 			#! /bin/bash
-			"$INSTANCE_DIR/$SERVER_EXEC" $ARGS | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-server.log"
+			\$(which unbuffer) "$INSTANCE_DIR/$SERVER_EXEC" $ARGS | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-server.log"
 			echo $? > "$INSTANCE_DIR/msm.d/tmp/server.exit-code"
 		EOF
 
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-control.sh" <<-EOF
 			#! /bin/bash
-			APPNAME="$APPNAME"
+			. "$HOME/$MSM_CFG"
 			THIS_DIR="$THIS_DIR"
 			INSTANCE_DIR="$INSTANCE_DIR"
 			. "\$THIS_DIR/server-control.sh" | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-controller.log"
@@ -325,9 +325,12 @@ update () {
 
 		echo; return $errno; fi
 
-	echo $(( $(date +%s) + $UPDATE_WAITTIME )) > "$INSTALL_DIR/msm.d/update"
+	local UPDATE_TIME=$(( $(date +%s) + $UPDATE_WAITTIME ))
+	echo $UPDATE_TIME > "$INSTALL_DIR/msm.d/update"
+	trap "" SIGINT
 	printf "Waiting $UPDATE_WAITTIME seconds for running instances to stop ... "
-	sleep $UPDATE_WAITTIME
+	while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
+	trap SIGINT
 	echo; echo
 
 	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
@@ -581,90 +584,93 @@ while [[ $1 ]]; do
 	unset NEED_SETUP
 	unset NO_COMMAND
 
-	############ BEGIN OUTER CASE ############
-	case "$1" in
+	
+	case "$1" in ############ BEGIN OUTER CASE ############
 
-	( info | about | license | copyright )
-		info
-		;;
-
-	( help | --help | usage )
-		usage
-		;;
-
-	( admin-install )
-		admin-install || exit 0
-		;;
-
-	( * )
-		# Read configuration changes and start setup if needed
-		readcfg || { echo; setup; } || exit 1
-
-		# Check other cases, but respect preconditions
-
-		############ BEGIN INNER CASE ############
-		case "$1" in
-		( @* )
-			set-instance ${1:1}
+		( info | about | license | copyright )
+			info
 			;;
 
-		( launch | start )
-			start || exit 1
+		( help | --help | usage )
+			usage
 			;;
 
-		( halt | stop )
-			stop || exit 1
-			;;
-
-		( restart )
-			stop &&	start || exit 1
-			;;
-
-		( st | stat | status )
-			status
-			errno=$?
-			if (( $errno == 0 )); then
-				echo "$SERVER_TEXT is RUNNING!"
-			elif (( $errno == 1 )); then
-				echo "$SERVER_TEXT is currently LAUNCHING or UPDATING!"
-			elif (( $errno == 2 )); then
-				echo "$SERVER_TEXT is STOPPED!"
-			else 
-				exit 1; fi
-
-			echo
-			;;
-
-		( console )
-			console
-			;;
-
-		( up | update | install )
-			update || exit 1
-			;;
-
-		( create | create-instance )
-			create-instance || exit 1
-			;;
-
-		( validate | repair )
-			update validate || exit 1
+		( admin-install )
+			admin-install || exit 0
 			;;
 
 		( * )
-			caterr <<< "$(bold ERROR:) Unrecognized Option: $(bold "$1")."
-			echo       "       Try '$THIS_COMM usage' for a list of available commands."
-			echo
-			exit 1
-			;;
-		esac
-		############ END INNER CASE ############
-		;;
-	esac
-	############ END OUTER CASE ############
-	shift
+			# Read configuration changes and start setup if needed
+			readcfg || { echo; setup; } || exit 1
 
-done
+			# Check other cases, but respect preconditions
+
+
+			case "$1" in ############ BEGIN INNER CASE ############
+
+				( @* )
+					set-instance ${1:1}
+					;;
+
+				( launch | start )
+					start || exit 1
+					;;
+
+				( halt | stop )
+					stop || exit 1
+					;;
+
+				( restart )
+					stop &&	start || exit 1
+					;;
+
+				( st | stat | status )
+					status
+					errno=$?
+					if (( $errno == 0 )); then
+						echo "$SERVER_TEXT is RUNNING!"
+					elif (( $errno == 1 )); then
+						echo "$SERVER_TEXT is currently LAUNCHING or UPDATING!"
+					elif (( $errno == 2 )); then
+						echo "$SERVER_TEXT is STOPPED!"
+					else 
+						exit 1; fi
+
+					echo
+					;;
+
+				( console )
+					console
+					;;
+
+				( up | update | install )
+					update || exit 1
+					;;
+
+				( create | create-instance )
+					create-instance || exit 1
+					;;
+
+				( validate | repair )
+					update validate || exit 1
+					;;
+
+				( * )
+					caterr <<< "$(bold ERROR:) Unrecognized Option: $(bold "$1")."
+					echo       "       Try '$THIS_COMM usage' for a list of available commands."
+					echo
+					exit 1
+					;;
+
+				esac ############ END INNER CASE ############
+			;;
+
+		esac ############ END OUTER CASE ############
+	
+
+	shift; done ############ END LOOP ############
+
+
 
 if [[ $NEED_SETUP ]]; then unset NEED_SETUP NO_COMMAND; setup; exit $?; fi
 
