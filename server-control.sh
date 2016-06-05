@@ -25,12 +25,12 @@ update-check () {
 }
 
 start-server () {
-	rm "$INSTANCE_DIR/msm.d/tmp/server.exit-code" 2>/dev/null
-	tmux new-window -n "$APPNAME-server" /bin/bash "$INSTANCE_DIR/msm.d/tmp/server-start.sh"
+	rm "$TMPDIR/server.exit-code" 2>/dev/null
+	tmux new-window -n "$APPNAME-server" /bin/bash "$TMPDIR/server-start.sh"
 }
 
 echo () {
-	command echo "[$(date "+%Y/%m/%d %T")]" $*
+	builtin echo "[$(date "+%Y/%m/%d %T")]" $*
 }
 
 ##################################################################################
@@ -40,65 +40,101 @@ echo () {
 # Initialization
 . "$THIS_DIR/helpers.sh"
 APPNAME=$(cat "$INSTANCE_DIR/msm.d/appname")
+
 cat <<-EOF
 		                           server-control.sh
 		                           =================
 
 	EOF
 
-catinfo <<-EOF
+catinfo <<-EOF; builtin echo
 		$(bold INFO:)  This program will control the $(bold $APPNAME) server and react to events
 		       such as server crashes, pending updates and user commands.
-
-	EOF
-
-tmux rename-window server-control
-
-
-# Start the action
+EOF
 
 ############ STATES ############
-# - Updating
-# - Launching
-# - Running
-# - StoppingForUpdate
-# - Stopping
-# - Stopped
+# - UPDATING                   #
+# - LAUNCHING                  #
+# - RUNNING                    #
+# - STOPPING FOR UPDATE        #
+# - STOPPING                   #
+# - STOPPED                    #
 ################################
-STATE="Updating"
+STATE="UPDATING"
 
-while [[ $STATE != "Stopped" ]]; do
-
+while [[ $STATE != "STOPPED" ]]; do
 
 	case "$STATE" in
 
-		( Updating )
-			if update-check; then
-				# Update has finished
-				STATE="Launching"
+		( UPDATING )
+			if [[ -e "$INSTANCE_DIR/msm.d/tmp/stop" ]]; then 
+				echo "Received stop signal!"
+				STATE="STOPPED"
 			else
-				echo "Waiting for updates to finish ..."
-				inotifywait -t $(( 21600 - TIME_DIFF )) "$INSTALL_DIR/msm.d/update"
+				if update-check; then
+					# Update has finished
+					STATE="LAUNCHING"
+				else
+					echo "Waiting for updates to finish ..."
+					inotifywait -qq -t $(( 21600 - TIME_DIFF )) -e close_write,delete_self "$INSTALL_DIR/msm.d/update" "$INSTANCE_DIR/msm.d/tmp"
+					continue; fi
 				fi
 			;;
 
-		( Launching )
+		( LAUNCHING )
+			# TODO: symlink_all_files here
 			echo "Launching $APPNAME server ..."
 			start-server
-			STATE="Running"
+			STATE="RUNNING"
 			;;
 
-		( Running )
-			sleep 5 # For now
+		( RUNNING )
+			# Perform ALL the checks
+			if [[ -e "$INSTANCE_DIR/msm.d/tmp/stop" ]]; then 
+				echo "Received stop signal!"
+				STATE="STOPPING"; fi
+			
+			if ! update-check; then STATE="STOPPING FOR UPDATE"; fi # if an update is pending
+
+			errno="$( cat "$INSTANCE_DIR/msm.d/tmp/server.exit-code" 2>/dev/null )"
+			if [[ $errno ]]; then
+				echo "Server exited with exit code $errno."
+				if (( $errno ))
+					then echo "Server crashed. Relaunching ..."; STATE="LAUNCHING"
+					else STATE="STOPPED"; fi
+				fi
+
+			# Wait for stop/update commands or the server exiting
+			# Regularly check if something has happened
+			if [[ $STATE == "RUNNING" ]]; then
+				inotifywait -qq -t 300 -e close_write,delete_self "$INSTALL_DIR/msm.d" "$INSTANCE_DIR/msm.d/tmp"
+				continue; fi
 			;;
 
-		( StoppingForUpdate )
+		( "STOPPING FOR UPDATE" )
+			if ( tmux list-windows | grep "$APPNAME-server" > /dev/null ); then # server still running
+				# TODO: try it the soft way
+
+				# Do it the hard way
+				tmux kill-window -t ":$APPNAME-server"
+				continue
+			else STATE="UPDATING"; fi
 			;;
 
-		( Stopping )
+		( STOPPING )
+			if ( tmux list-windows | grep "$APPNAME-server" > /dev/null ); then # server still running
+				# TODO: try it the soft way
+
+				# Do it the hard way
+				tmux kill-window -t ":$APPNAME-server"
+				continue
+			else STATE="STOPPED"; fi
 			;;
 
 		esac
+
+	builtin echo
+	echo "==> $STATE"
 
 
 	done

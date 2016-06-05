@@ -167,12 +167,16 @@ start () {
 			. "$HOME/$MSM_CFG"
 			THIS_DIR="$THIS_DIR"
 			INSTANCE_DIR="$INSTANCE_DIR"
-			. "\$THIS_DIR/server-control.sh" | tee "$INSTANCE_DIR/msm.d/log/$TIMESTAMP-controller.log"
+			INSTALL_DIR="$INSTALL_DIR"
+			TMPDIR="$INSTANCE_DIR/msm.d/tmp"
+			LOGFILE="$INSTANCE_DIR/msm.d/log/$TIMESTAMP-controller.log"
+			echo "\$LOGFILE" > "\$TMPDIR/server-control.logfile"
+			. "\$THIS_DIR/server-control.sh" | tee "\$LOGFILE"
 		EOF
 
 	# LAUNCH! (in tmux)
 
-	tmux -f "$THIS_DIR/tmux.conf" -S "$SOCKET" new-session /bin/bash "$INSTANCE_DIR/msm.d/tmp/server-control.sh" \; detach
+	tmux -f "$THIS_DIR/tmux.conf" -S "$SOCKET" new-session -n "server-control" -s "$APPNAME@$INSTANCE" /bin/bash "$INSTANCE_DIR/msm.d/tmp/server-control.sh" \; detach
 
 	echo
 	echo "$SERVER_TEXT started successfully!"
@@ -182,20 +186,24 @@ start () {
 }
 
 stop () {
-	echo "Stopping $SERVER_TEXT ..."
 	status
 	local errno=$?
-	if (( errno == 23 )); then       return 0; fi
-	if (( errno ==  2 )); then echo; return 0; fi
+	if (( errno == 23 )); then return 1; fi
+	if (( errno ==  2 )); then echo "$SERVER_TEXT is already STOPPED!"; echo; return 0; fi
 
-	# TODO: actual stop procedure here
+	echo "Stopping $SERVER_TEXT ..."
 
+	touch "$INSTANCE_DIR/msm.d/tmp/stop"
 
+	# Give 60 seconds to stop 'softly'
+	inotifywait -qq -t 60 -e close_write "$(cat "$INSTANCE_DIR/msm.d/tmp/server-control.logfile")"
 
-	# Final method
+	rm "$INSTANCE_DIR/msm.d/tmp/stop"
+
+	# If it hasn't stopped yet, the server will be stopped the hard way now
 	delete-tmux
 
-	echo
+	echo "$SERVER_TEXT is STOPPED!"; echo
 }
 
 # Status (Up/Down and extra info) of the selected server instance
@@ -613,11 +621,11 @@ while [[ $1 ]]; do
 					set-instance ${1:1}
 					;;
 
-				( launch | start )
+				( start | launch )
 					start || exit 1
 					;;
 
-				( halt | stop )
+				( stop | exit | halt)
 					stop || exit 1
 					;;
 
@@ -625,7 +633,7 @@ while [[ $1 ]]; do
 					stop &&	start || exit 1
 					;;
 
-				( st | stat | status )
+				( status )
 					status
 					errno=$?
 					if (( $errno == 0 )); then
@@ -644,7 +652,7 @@ while [[ $1 ]]; do
 					console
 					;;
 
-				( up | update | install )
+				( update | up | install )
 					update || exit 1
 					;;
 
