@@ -9,7 +9,9 @@ Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
 This is a complete rewrite of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be primarily designed for rented root servers). Intention is to make server management easier in both shared server and LAN environments.
 
-There is still A LOT to do!
+The core features of this script are finally working enough for this script to be somewhat useful. The first release is not too far anymore, only a softer server stop needs to be implemented. 
+
+Anyway, I haven't had many opportunities for testing yet, so I'd appreciate every bit of feedback. This script is nowhere near complete, there is still _a lot_ more to do (addons, etc). 
 
 
 
@@ -18,10 +20,8 @@ There is still A LOT to do!
 
 * SteamCMD and Game Installation, checking for and performing updates
 * CS:GO Server instance creation
-* Instance configuration using `$INSTANCE_DIR/msm.d/server.conf` config file.
-	* In most cases, variables set using the command line are more important than configuration file settings.
-	* Select the mode with the **MODE** variable, custom modes can be configured in `$INSTANCE_DIR/msm.d/modes/$MODE.conf`
-* Starting a server basically works! Yay! 
+* Instance-specific server configuration
+* Running a server basically works (Including logging)! Yay! 
 
 
 
@@ -29,15 +29,18 @@ There is still A LOT to do!
 ## Planned features
 
 The emphasis is on **MULTI**
-* **_MULTIPLE_ USERS**: An admin-client system for sharing the base installation. This can save bandwidth/storage
-* **_MULTIPLE_ INSTANCES**: Each game server instance shares the base files, but has its own configuration. Multiple instances can run on a system simultaneously. Supporting network bridges would be nice for the future.
+
+* **_MULTIPLE_ USERS**: An admin-client system for sharing the base installation. Thus, the same files do not have to be downloaded and stored multiple times.
+* **_MULTIPLE_ INSTANCES**: Each game server instance shares the base files, but has its own configuration. Multiple instances can run on a system simultaneously.
 * **_MULTIPLE_ CONFIGURATIONS**: Different gamemodes (like competitive/deathmatch/surfing) that can be chosen when starting the server
 
-* More options should be controlled using environment variables, like **MAPS** (a mapcycle generator), **TEAM\_T**, **TEAM\_CT** (automatic team assignment, depends on plugins)
-* Magic network features that let you start/stop a server on a remote machine and copy game/config files over (far future, you can use ssh and rsync anyway)
-* It should, though, still be easy to set it up just for one user
+Additional plans:
+
+* While the _MULTI_ features are the highlight, managing a single server for yourself should be just as easy.
 * Sourcemod plugin management for each instance (including downloading them), and enabling/disabling them based on configuration
-* various improvements and all that stuff
+* Game configuration upon launch with environment variables. Possible features:
+	- Mapcycle generator (as `MAPS` variable)
+	- automatic team assignment (as `TEAM_T` and `TEAM_CT` variable)
 
 
 
@@ -64,16 +67,16 @@ Of course, you require a Steam account with the game owned to create a CS:GO ded
 
 ## Configuration and Environment Variables
 
-The main configuration file, by default, will be placed in `~/csgo-msm.conf`. It will set up all the important environment variables.
+The main configuration file, by default, will be placed in `~/msm.csgo.conf`. It will set up all the important environment variables.
 
 * **ADMIN** - Name of the user that 'controls' the installation
 * **INSTALL_DIR** - The directory of the base installation. In **ADMIN**'s control.
 * **DEFAULT\_INSTANCE** - The default server instance
 * **DEFAULT\_MODE** - The default server gamemode
 
-Other variables will be set up by configs within the game instance's directory
+The server settings themselves are instance-specific and can be configured in `$INSTANCE_DIR/msm.d/server.conf`. Most importantly, you should check and set the `GSLT`, `IP` and `PORT` variables for every new instance.
 
-**LOTS OF STUFF IS MISSING**
+**TO BE IMPLEMENTED:** Support for workshop maps, configuration and installation of addons, GOTV Settings have to be tested/refined.
 
 
 
