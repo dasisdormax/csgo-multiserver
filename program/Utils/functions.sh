@@ -74,17 +74,12 @@ bold () { printf "\x1b[1m%s\x1b[22m" "$1"; }
 ########################## GENERAL SCRIPT CONFIGURATION ##########################
 
 # Get absolute config file location, based on MSM_CFG
-# $1 is the base directory, if omitted, the current home directory is taken
+# relative to either the home directory or the given directory $1
 cfgfile () {
-	if [[ $MSM_CFG =~ ^/ ]]; then
-		local CFG="$MSM_CFG"
+	if [[ $1 ]]; then
+		echo "$1/$MSM_CFG"
 	else
-		if [[ $1 ]]; then
-			echo "$1/$MSM_CFG"
-		else
-			echo "$HOME/$MSM_CFG"
-			fi
-		fi
+		echo "$HOME/$MSM_CFG"; fi
 }
 
 # Check environment variables for correctness

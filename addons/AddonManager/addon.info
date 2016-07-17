@@ -1,0 +1,13 @@
+#! /bin/bash
+local ADDON_NAME="Addon Manager"
+
+local AUTHOR_ALIAS="//chilly™//"
+local AUTHOR_NAME="Maximilian Wende"
+local AUTHOR_EMAIL="maximilian.wende@gmail.com"
+
+# If this addon is specific to a game, specify it here
+# local REQUIRES_APP="csgo"
+
+# If this addon requires other addons to be enabled as well, specify them here (separated by spaces)
+# local REQUIRES_ADDONS=""
+
