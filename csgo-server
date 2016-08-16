@@ -56,18 +56,18 @@ USER_DIR="$HOME/msm.d"
 # or the user's own msm settings directory
 . () {
 	if [[ -r "$USER_DIR/$cmd" ]] && ! [[ $1 =~ ^program/ ]]; then
-		.. $USER_DIR $@
+		.. "$USER_DIR/$@"
 	elif [[ -r "$THIS_DIR/$cmd" ]]; then
-		.. $THIS_DIR $@
+		.. "$THIS_DIR/$@"
 	else return 1; fi
 }
 
 .. () {
-	if [[ -d $1/$2 ]]; then
-		for file in "$1/$2"/*.sh; do .. "$1/$2/$file"; done
+	if [[ -d $1 ]]; then
+		for file in "$1"/*.sh; do .. "$file"; done
 	else
-		currentSrcDir="$1/$(dirname $2)"
-		builtin . "$1/$2" ${@:3}; fi
+		local currentSrcDir="$(dirname $1)"
+		builtin . "$1" ${@:2}; fi
 }
 
 # override colon builtin: execute a file relative to the current file's base directory
@@ -77,8 +77,6 @@ USER_DIR="$HOME/msm.d"
 	builtin . "$oldSrcDir/$1"
 }
 
-shopt -s expand_aliases
-
 
 
 . defaults.conf
@@ -87,5 +85,5 @@ shopt -s expand_aliases
 
 
 errno=$?
-unset -f . :
+unset -f . .. :
 if [[ $0 != ${BASH_SOURCE[0]} ]]; then return $errno; else exit $errno; fi

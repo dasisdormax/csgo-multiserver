@@ -9,20 +9,21 @@
 
 
 
-AddonEngine::loadModule () {
-	local MOD_DIR=${1//./\/}
-	if [[ $1 =~ ^App$|^Addon|^AE$ ]]; then return 1; fi
-	   
-	   AddonEngine::loadModuleFunctions program/$MOD_DIR $1 \
-	|| AddonEngine::loadModuleFunctions addons/$MOD_DIR $1
+::init () {
+	RequestedModules=
+	LoadedModules=
 }
 
-AddonEngine::loadApp () {
-	. "apps/$APP/app.info" && AddonEngine::loadModuleFunctions apps/$APP
+::load () {
+	if [[ $1 == App ]]; then
+		. "apps/$APP/app.info" && ::importFuns apps/$APP
+	else
+		local MOD_DIR=${1//./\/}
+		::importFuns program/$MOD_DIR $1 || ::importFuns addons/$MOD_DIR $1; fi
 }
 
 # Loads the functions in the given module directory (first parameter)
 # in the given namespace (second parameter, to be implemented)
-AddonEngine::loadModuleFunctions () {
+::importFuns () {
 	. "$1/functions.sh" || . "$1/functions"
 }
