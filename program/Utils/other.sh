@@ -29,9 +29,9 @@ array-contains () {
 # Remove Elements in $2 from $1, Result is echoed
 array-diff () {
 	local elem
-	local arr=$1
+	local arr=" $1 "
 	for elem in $2; do
-		arr=${arr//$elem/}; done
+		arr=${arr// $elem / }; done
 	echo $arr
 }
 

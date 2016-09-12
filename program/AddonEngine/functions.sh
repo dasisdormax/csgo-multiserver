@@ -14,13 +14,16 @@
 	Modules=( )
 }
 
+# Add a module to the list of requested modules
+# Automatically takes care of duplicates
 ::add () {
-	RequestedModules=( ${RequestedModules[*]//$1/} $1 )
+	array-contains "${RequestedModules[*]}" $1 || RequestedModules=( ${RequestedModules[*]} $1 )
 }
 
+# Remove a module from the list of requested modules
 ::remove () {
-	RequestedModules=( ${RequestedModules[*]//$1/} )
-	echo ${RequestedModules[*]}
+	local rm=" ${RequestedModules[*]} "
+	RequestedModules=( ${rm/ $1 / } )
 }
 
 ::update () {
@@ -43,6 +46,8 @@
 		::execHandler $module unload; done
 
 	# second: delete all module functions
+	# NOTE: only namespaced functions are deleted. If your module uses,
+	#       non-namespaced ones, unset them in your unload handler
 	for module in ${Modules[*]}; do
 		funs=$(declare -f -F | grep -o "\<$module::.*$")
 		[[ $funs ]] && unset -f funs; done
@@ -50,19 +55,23 @@
 	Modules=( )
 }
 
+# Loads the given modules' functions, applies before and after function
+# modifications and triggers their load event
 ::loadModules () {
 	local module
 	local funs
+	local errno
 
 	# first: load module functions
 	for module in $*; do
-		# TODO: Namespace filtering
-		::execHandler $module functions && Modules=( ${Modules[*]} $module ); done
+		# No Namespace filtering, you have to trust the module anyway to not mess stuff up
+		::execHandler $module functions && Modules=( ${Modules[*]} $module ) || errno=1; done
 
-	# second: execute load handler
+	# TODO: second: update function with before and after handlers
+
+	# third: execute load handler
 	for module in $*; do
 		::execHandler $module load; done
-
 }
 
 ::moduleDir () {
