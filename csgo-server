@@ -52,22 +52,20 @@ unset basename dirname
 USER_DIR="$HOME/msm.d"
 
 
-# override dot builtin: execute a file relative to the csgo-mulitserver base
-# or the user's own msm settings directory
+# override dot builtin: execute a handler (either a .sh-file or .sh-files in a directory)
 . () {
-	if [[ -r "$USER_DIR/$cmd" ]] && ! [[ $1 =~ ^program/ ]]; then
-		.. "$USER_DIR/$@"
-	elif [[ -r "$THIS_DIR/$cmd" ]]; then
-		.. "$THIS_DIR/$@"
-	else return 1; fi
+	local cmd=${1%%.*} # Strip file extension
+	shift
+	.file "$cmd.sh" $@ || .dir "$cmd" $@
 }
 
-.. () {
-	if [[ -d $1 ]]; then
-		for file in "$1"/*.sh; do .. "$file"; done
-	else
-		local currentSrcDir="$(dirname $1)"
-		builtin . "$1" ${@:2}; fi
+.dir () {
+	[[ -d $1 ]] && { for file in "$1"/*.sh; do .file "$file" ${@:2}; done; }
+}
+
+.file () {
+	local currentSrcDir="$(dirname $1)"
+	[[ -f $1 ]] && builtin . "$1" ${@:2}
 }
 
 # override colon builtin: execute a file relative to the current file's base directory

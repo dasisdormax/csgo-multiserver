@@ -19,6 +19,22 @@
 
 
 
+
+# Search if an element is in an array
+# Syntax: array-contains "${arr[*]}" elem
+array-contains () {
+	[[ " $1 " =~ " $2 " ]]
+}
+
+# Remove Elements in $2 from $1, Result is echoed
+array-diff () {
+	local elem
+	local arr=$1
+	for elem in $2; do
+		arr=${arr//$elem/}; done
+	echo $arr
+}
+
 # kills and deletes the tmux-session at location $SOCKET
 delete-tmux () {
 	tmux -S "$SOCKET" kill-server > /dev/null 2>&1

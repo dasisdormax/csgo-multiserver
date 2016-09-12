@@ -24,18 +24,20 @@ if [[ ! -x $(which tar)  ]]; then caterr <<< "$(bold ERROR:) 'tar' is not instal
 
 ################################### LOAD MODULES #################################
 
-. program/AddonEngine/functions.sh
 . program/Utils
+. program/AddonEngine
 
 ::init
 
-::load Core.CommandLine
-::load Core.Setup
-::load Core.BaseInstallation
-::load Core.Instance
-::load Core.ServerControl
-::load Core.Wrapper
-::load App
+::add Core.CommandLine
+::add Core.Setup
+::add Core.BaseInstallation
+::add Core.Instance
+::add Core.ServerControl
+::add Core.Wrapper
+
+::loadApp
+::update
 
 
 
