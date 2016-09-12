@@ -35,6 +35,12 @@ array-diff () {
 	echo $arr
 }
 
+# Reverses the array of parameters given to this function.
+# May break with large arrays due to the recursive nature
+array-reverse () {
+	[[ $1 ]] &&	echo $(array-reverse ${@:2}) $1
+}
+
 # kills and deletes the tmux-session at location $SOCKET
 delete-tmux () {
 	tmux -S "$SOCKET" kill-server > /dev/null 2>&1

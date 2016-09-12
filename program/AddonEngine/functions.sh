@@ -10,53 +10,59 @@
 
 
 ::init () {
-	Modules=
-	ActiveModules=
+	RequestedModules=( )
+	Modules=( )
 }
 
 ::add () {
-	Modules=( ${Modules[*]//$1/} $1 )
+	RequestedModules=( ${RequestedModules[*]//$1/} $1 )
 }
 
 ::remove () {
-	Modules=( ${Modules[*]//$1/} )
+	RequestedModules=( ${RequestedModules[*]//$1/} )
+	echo ${RequestedModules[*]}
 }
 
 ::update () {
-	::unloadModules $(array-diff "${ActiveModules[*]}" "${Modules[*]}")
-	::loadModules   $(array-diff "${Modules[*]}" "${ActiveModules[*]}")
-
-	ActiveModules=( ${Modules[*]} )
+	::unloadModules $(array-diff "${Modules[*]}" "${RequestedModules[*]}")
+	::loadModules   $(array-diff "${RequestedModules[*]}" "${Modules[*]}")
 }
 
+# unloads all modules if any is set to be removed
+#
+# Things *may* get weird when unloading Core modules whose functions are
+# still 'on the stack' and active. Only testing will find out.
 ::unloadModules () {
+	if [[ ! $* ]]; then return 0; fi
+
 	local module
-	local fun
 	local funs
 
-	# first: execute unload handler
-	for module in $*; do
+	# first: execute all unload handlers
+	for module in $(array-reverse ${Modules[*]}); do
 		::execHandler $module unload; done
 
-	# second: delete module functions
-	for module in $*; do
-		funs=$(declare -f -F | grep -o "\<$module::")
-		unset -f funs; done
+	# second: delete all module functions
+	for module in ${Modules[*]}; do
+		funs=$(declare -f -F | grep -o "\<$module::.*$")
+		[[ $funs ]] && unset -f funs; done
+
+	Modules=( )
 }
 
 ::loadModules () {
 	local module
-	local fun
 	local funs
 
 	# first: load module functions
 	for module in $*; do
 		# TODO: Namespace filtering
-		::execHandler $module functions; done
+		::execHandler $module functions && Modules=( ${Modules[*]} $module ); done
 
 	# second: execute load handler
 	for module in $*; do
 		::execHandler $module load; done
+
 }
 
 ::moduleDir () {
