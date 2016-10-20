@@ -10,9 +10,11 @@
 
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 
-update () {
+Core.BaseInstallation::requestUpdate () {
 	local ACTION="update"
 	if [[ $1 == "validate" ]]; then local ACTION="validate"; fi
+
+	# First: Check, if the user can update the base installation, otherwise switch user
 	if [[ $USER != $ADMIN ]]; then
 		catwarn <<-EOF
 			Only the admin $(bold $ADMIN) can $ACTION the base installation.
@@ -27,7 +29,7 @@ update () {
 
 		return 0; fi
 
-	# First, check if an update is available at all
+	# Now, check if an update is available at all
 	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_$APPID.acf"
 	if [[ ! $PERFORM_UPDATE && -e $APPMANIFEST && $ACTION == "update" ]]; then
 		echo "Checking for updates ..."
@@ -55,8 +57,8 @@ update () {
 		echo
 		fi
 
-	# Perform the actual update within a tmux environment, so closing the terminal or
-	# an interruption of an SSH session does not interrupt the update
+	# If not in a TMUX environment, switch into one to perform the update.
+	# This way, an SSH disconnection or closing the terminal won't interrupt it.
 	if ! [[ $TMUX && $PERFORM_UPDATE ]]; then
 		echo "Switching into TMUX for performing the update ..."
 
@@ -65,8 +67,8 @@ update () {
 		local SOCKET="$TMPDIR/update.tmux-socket"
 
 		if ( tmux -S "$SOCKET" has-session > /dev/null 2>&1 ); then 
-			tmux -S "$SOCKET" attach
-			echo; return 0; fi
+			tmux -S "$SOCKET" attach; echo
+			return 0; fi
 
 		delete-tmux
 
@@ -74,11 +76,19 @@ update () {
 		tmux -S "$SOCKET" -f "$THIS_DIR/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
 		local errno=$?
 		unset PERFORM_UPDATE
+		echo
 
-		echo; return $errno; fi
+		return $errno; fi
 
+	Core.BaseInstallation::performUpdate $ACTION
+}
+
+# Actually perform a requested update
+# Takes the action (either update or validate) as parameter
+Core.BaseInstallation::performUpdate () {
+	# Tell running instances that the update is starting soon
 	local UPDATE_TIME=$(( $(date +%s) + $UPDATE_WAITTIME ))
-	echo $UPDATE_TIME > "$INSTALL_DIR/msm.d/update"
+	echo $UPDATE_TIME > "$INSTALL_DIR/msm.d/update" # obtain 'lock' in the future
 	trap "" SIGINT
 	printf "Waiting $UPDATE_WAITTIME seconds for running instances to stop ... "
 	while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done

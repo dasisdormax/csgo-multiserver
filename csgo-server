@@ -70,9 +70,9 @@ USER_DIR="$HOME/msm.d"
 #
 # Fails and exits if any file is faulty or no files exist in the directory
 .dir () {
-	[[ -d $1 ]] && {								\
-		for file in "$1"/*.sh; do					\
-			.file "$file" ${@:2} || return 1; done; \
+	[[ -d $1 ]] && {
+		for file in "$1"/*.sh; do
+			.file "$file" ${@:2} || return 1; done;
 		}
 }
 

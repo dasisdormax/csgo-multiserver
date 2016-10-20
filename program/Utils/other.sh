@@ -20,25 +20,27 @@
 
 
 
-# Search if an element is in an array
-# Syntax: array-contains "${arr[*]}" elem
-array-contains () {
+# Search if an element is in a list
+# Usage: list-contains "$list" $elem
+list-contains () {
 	[[ " $1 " =~ " $2 " ]]
 }
 
-# Remove Elements in $2 from $1, Result is echoed
-array-diff () {
+# Remove Elements from a list, Result is echoed
+# Usage: diff="$(list-diff "$list" $elems_to_remove)"
+list-diff () {
 	local elem
-	local arr=" $1 "
-	for elem in $2; do
-		arr=${arr// $elem / }; done
-	echo $arr
+	list=" $1 "
+	for elem in ${*:2}; do
+		list=${list// $elem / }; done # Replace " $elem " with " "
+	echo "$list"
 }
 
-# Reverses the array of parameters given to this function.
+# Reverses the list of parameters given to this function.
 # May break with large arrays due to the recursive nature
-array-reverse () {
-	[[ $1 ]] &&	echo $(array-reverse ${@:2}) $1
+# Usage: revList="$(list-reverse $list)"
+list-reverse () {
+	[[ $1 ]] &&	echo $(list-reverse ${@:2}) $1
 }
 
 # kills and deletes the tmux-session at location $SOCKET

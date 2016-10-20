@@ -10,7 +10,7 @@
 
 # usage: display all the possible commands and a short explanation of what they do
 # 
-# Addons should at some time be able to inject their usage information into this function
+# TODO: Allow addons to inject their usage information into this function
 Core.CommandLine::usage () { cat <<EOF
 Usage: $(bold "$THIS_COMM") < commands >
 
@@ -51,6 +51,7 @@ EOF
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
 ##################################################################################
 
+# TODO: Allow addons to define their own arguments and corresponding actions
 Core.CommandLine::parseArguments () {
 
 	while [[ $1 ]]; do
@@ -67,7 +68,7 @@ Core.CommandLine::parseArguments () {
 				Core.CommandLine::usage
 				;;
 
-			( admin-install )
+			( admin-install | setup )
 				admin-install || exit 0
 				;;
 
@@ -116,7 +117,7 @@ Core.CommandLine::parseArguments () {
 						;;
 
 					( update | up | install )
-						update || exit 1
+						Core.BaseInstallation::requestUpdate || exit 1
 						;;
 
 					( create | create-instance )
@@ -124,7 +125,7 @@ Core.CommandLine::parseArguments () {
 						;;
 
 					( validate | repair )
-						update validate || exit 1
+						Core.BaseInstallation::requestUpdate validate || exit 1
 						;;
 
 					( * )

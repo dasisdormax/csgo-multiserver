@@ -10,49 +10,51 @@
 
 
 ::init () {
-	RequestedModules=( )
-	Modules=( )
+	RequestedModules=
+	Modules=
 }
 
 # Add a module to the list of requested modules
 # Automatically takes care of duplicates
 ::add () {
-	array-contains "${RequestedModules[*]}" $1 || RequestedModules=( ${RequestedModules[*]} $1 )
+	list-contains "$RequestedModules" $1 || RequestedModules="$RequestedModules $1"
 }
 
 # Remove a module from the list of requested modules
 ::remove () {
-	local rm=" ${RequestedModules[*]} "
-	RequestedModules=( ${rm/ $1 / } )
+	RequestedModules=$(list-diff "$RequestedModules" $1)
 }
 
 ::update () {
-	::unloadModules $(array-diff "${Modules[*]}" "${RequestedModules[*]}")
-	::loadModules   $(array-diff "${RequestedModules[*]}" "${Modules[*]}")
+	::unloadModules $(list-diff "$Modules" "$RequestedModules")
+	::loadModules   $(list-diff "$RequestedModules" "$Modules")
 }
 
 # unloads all modules if any is set to be removed
 #
+# Unloads all modules because remaining modules may still expect the
+# others to be available
+#
 # Things *may* get weird when unloading Core modules whose functions are
 # still 'on the stack' and active. Only testing will find out.
 ::unloadModules () {
-	if [[ ! $* ]]; then return 0; fi
+	if [[ ! $@ ]]; then return 0; fi
 
 	local module
 	local funs
 
 	# first: execute all unload handlers
-	for module in $(array-reverse ${Modules[*]}); do
+	for module in $Modules; do
 		::execHandler $module unload; done
 
 	# second: delete all module functions
 	# NOTE: only namespaced functions are deleted. If your module uses,
 	#       non-namespaced ones, unset them in your unload handler
-	for module in ${Modules[*]}; do
+	for module in $Modules; do
 		funs=$(declare -f -F | grep -o "\<$module::.*$")
 		[[ $funs ]] && unset -f funs; done
 
-	Modules=( )
+	Modules=
 }
 
 # Loads the given modules' functions, applies before and after function
@@ -65,9 +67,9 @@
 	# first: load module functions
 	for module in $*; do
 		# No Namespace filtering, you have to trust the module anyway to not mess stuff up
-		::execHandler $module functions && Modules=( ${Modules[*]} $module ) || errno=1; done
+		::execHandler $module functions && Modules="$module $Modules" || errno=1; done
 
-	# TODO: second: update function with before and after handlers
+	# TODO: second: update functions with before and after handlers
 
 	# third: execute load handler
 	for module in $*; do
@@ -90,5 +92,9 @@
 }
 
 ::loadApp () {
-	. "apps/$APP/app.info" && . "apps/$APP/functions"
+	local dir
+	local candidates=( "$THIS_DIR/apps/$APP" "$USER_DIR/apps/$APP" )
+	for dir in ${candidates[@]}; do
+		[[ -d $dir ]] && . "$dir/app.info" && . "$dir/functions" && return 0; done
+	return 1
 }
