@@ -8,24 +8,26 @@
 
 
 
+main () {
+
 ######################### INITIAL CHECKS AND CALCULATIONS ########################
 
 echo # Make some space
 
 
 # Check required packages
-if [[ ! -x $(which awk)  ]]; then caterr <<< "$(bold ERROR:) 'awk' is not installed, but required for this script!" ; echo; return 1; fi
-if [[ ! -x $(which tmux) ]]; then caterr <<< "$(bold ERROR:) 'tmux' is not installed, but required for this script!"; echo; return 1; fi
-if [[ ! -x $(which wget) ]]; then caterr <<< "$(bold ERROR:) 'wget' is not installed, but required for this script!"; echo; return 1; fi
-if [[ ! -x $(which tar)  ]]; then caterr <<< "$(bold ERROR:) 'tar' is not installed, but required for this script!" ; echo; return 1; fi
+if [[ ! -x $(which awk)  ]]; then error <<< "'awk' is not installed, but required for this script!"; return; fi
+if [[ ! -x $(which tmux) ]]; then error <<< "'tmux' is not installed, but required for this script!"; return; fi
+if [[ ! -x $(which wget) ]]; then error <<< "'wget' is not installed, but required for this script!"; return; fi
+if [[ ! -x $(which tar)  ]]; then error <<< "'tar' is not installed, but required for this script!"; return; fi
 
 
 
 
 ################################### LOAD MODULES #################################
 
-: Utils
-: AddonEngine
+. program/Utils
+. program/AddonEngine
 
 ::init
 
@@ -44,15 +46,20 @@ if [[ ! -x $(which tar)  ]]; then caterr <<< "$(bold ERROR:) 'tar' is not instal
 
 ############################# LOAD CONFIGURATION FILE ############################
 
-NO_COMMAND=1
-readcfg 2> /dev/null && set-instance "$DEFAULT_INSTANCE" || NEED_SETUP=1
+if ! Core.Setup::loadConfig; then
+	warning <<-EOF
+			The configuration file for csgo-multiserver does not exist or is
+			damaged. Do you want to setup a new configuration now?
+		EOF
+	promptY && Core.Setup::beginSetup; fi
 
+# These should be executed in the Core.Setup and Core.Instance init handlers
+readcfg 2> /dev/null && set-instance "$DEFAULT_INSTANCE" || NEED_SETUP=1
 
 Core.CommandLine::parseArguments $@
 
-
-if [[ $NEED_SETUP ]]; then unset NEED_SETUP NO_COMMAND; setup; return $?; fi
-
-if [[ $NO_COMMAND ]]; then unset NO_COMMAND; usage; return 1; fi
+if [[ $NEED_SETUP ]]; then unset NEED_SETUP; setup; return; fi
 
 return 0
+
+}

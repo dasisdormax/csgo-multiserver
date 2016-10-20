@@ -104,25 +104,22 @@
 
 # override command not found message
 command_not_found_handle () {
-	caterr <<-EOF
-			$(bold "ERROR: $1") - command or executable not found
-		EOF
+	error <<< "$(bold "$1") - command not found:"
 	local mod=$(echo $1 | grep -o '^..*::')
 	if [[ $mod ]]; then
+		caterr <<< " "
 		local mod=${mod::-2}
 		local funs=$(::moduleFuns $mod)
 
 		if [[ $funs ]]; then
-			caterr <<-EOF
-				       The following functions are provided by '$mod':
-				EOF
+			caterr <<< "    Available functions from the '$mod' module:"
 			local fun
 			for fun in $funs; do
-				caterr <<< "           $fun"; done
+				caterr <<< "        $(bold $fun)"; done
 
 		else caterr <<-EOF; fi; fi
-				       The module '$mod' is not loaded
-				       or does not provide any functions.
+				    The module '$mod' is not loaded
+				    or does not provide any functions.
 			EOF
 
 	return 127

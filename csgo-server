@@ -42,8 +42,8 @@ EOF
 basename="$(basename "${BASH_SOURCE[0]}")"
 dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ $PATH =~ (^|:)$dirname(:|$) ]]; 
-	then THIS_COMM="$basename"; 
-	else THIS_COMM="${BASH_SOURCE[0]}"; fi
+	then THIS_COMMAND="$basename";
+	else THIS_COMMAND="${BASH_SOURCE[0]}"; fi
 
 THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null)"
 THIS_DIR="$(dirname "$THIS_SCRIPT")"
@@ -59,7 +59,7 @@ USER_DIR="$HOME/msm.d"
 	shift               # Makes ${@:2} unnecessary
 	# Try executing file or file.sh (depending on extension) otherwise execute sh-files in directory
 	if [[ $cmd =~ \.[^/]*$ ]]
-		then .file "$cmd" $@ && return
+		then .file "$cmd"    $@ && return
 		else .file "$cmd.sh" $@ && return; fi
 	.dir "$cmd" $@
 }
@@ -99,7 +99,7 @@ USER_DIR="$HOME/msm.d"
 . "$USER_DIR/defaults.conf" || . "$THIS_DIR/defaults.conf"
 
 # Run the thing
-. "$THIS_DIR/program" $@
+. "$THIS_DIR/program/main.sh" && main $@
 
 
 

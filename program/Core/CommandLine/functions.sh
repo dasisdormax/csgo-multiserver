@@ -68,7 +68,11 @@ Core.CommandLine::parseArguments () {
 				Core.CommandLine::usage
 				;;
 
-			( admin-install | setup )
+			( setup )
+				Core.Setup::beginSetup
+				;;
+
+			( admin-install )
 				admin-install || exit 0
 				;;
 

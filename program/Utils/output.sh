@@ -27,32 +27,38 @@ catinfo () { printf "\x1b[36m"     ; cat     ; printf "\x1b[m"     ; }
 # TODO: logging and loglevels
 log () { false; }
 
+indent () { sed 's/^/    /'; }
+
+trace () {
+	local i=1;
+	local indent
+	while [[ ${FUNCNAME[$i]} != main ]]; do
+		printf "%s( from %s at %s:%s )\n" "$indent" \
+			${FUNCNAME[$i+1]} ${BASH_SOURCE[$i+1]/"$THIS_DIR/"/} ${BASH_LINENO[$i]}
+		indent="         "
+		(( i++ ))
+	done
+}
+
 error () {
-	{
-		printf "\x1b[31m\x1b[1m"
-		printf "ERROR:\x1b[22m\n"
-		printf "       "; cat
-		printf "\x1b[m"
-	} | fmt -c
+	printf "\x1b[1;31mError:\x1b[22m   " >&2
+	trace >&2
+	fmt -w67 | indent >&2
+	printf "\x1b[m" >&2
 	false
 }
 
 warning () {
-	{
-		printf "\x1b[33m\x1b[1m"
-		printf "WARN: \x1b[22m\n"
-		printf "       "; cat
-		printf "\x1b[m"
-	} | fmt -c
+	printf "\x1b[1;33mWarning:\x1b[22m " >&2
+	trace >&2
+	fmt -w67 | indent >&2
+	printf "\x1b[m" >&2
 }
 
 info () {
-	{
-		printf "\x1b[36m\x1b[1m"
-		printf "INFO: \x1b[22m\n"
-		printf "       "; cat
-		printf "\x1b[m"
-	} | fmt -c
+	printf "\x1b[1;36mInfo:\x1b[22m\n"
+	fmt -w67 | indent >&2
+	printf "\x1b[m" >&2
 }
 
 # Make text $1 bold
