@@ -7,6 +7,7 @@
 
 
 
+
 ######################### INITIAL CHECKS AND CALCULATIONS ########################
 
 echo # Make some space
@@ -17,7 +18,6 @@ if [[ ! -x $(which awk)  ]]; then caterr <<< "$(bold ERROR:) 'awk' is not instal
 if [[ ! -x $(which tmux) ]]; then caterr <<< "$(bold ERROR:) 'tmux' is not installed, but required for this script!"; echo; return 1; fi
 if [[ ! -x $(which wget) ]]; then caterr <<< "$(bold ERROR:) 'wget' is not installed, but required for this script!"; echo; return 1; fi
 if [[ ! -x $(which tar)  ]]; then caterr <<< "$(bold ERROR:) 'tar' is not installed, but required for this script!" ; echo; return 1; fi
-
 
 
 

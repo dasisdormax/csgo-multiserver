@@ -18,58 +18,41 @@
 
 
 
-# Get absolute config file location, based on MSM_CFG
-# relative to either the home directory or the given directory $1
-cfgfile () {
-	if [[ $1 ]]; then
-		echo "$1/$MSM_CFG"
-	else
-		echo "$HOME/$MSM_CFG"; fi
-}
-
 # Check environment variables for correctness
 # If an argument $1 is given, these variables are checked for that user instead of the current one
 checkvars () {
 	if [[ $1 ]]; then local USER="$1"; fi
 	if [[ ! $ADMIN ]]; then
-		caterr <<< "$(bold ERROR:) ADMIN is not defined!"
+		error <<< "ADMIN is not defined!"
 		return 1; fi
 
 	if [[ $USER == $ADMIN && ( ! $STEAMCMD_DIR || ! -x $STEAMCMD_DIR/steamcmd.sh ) ]]; then
-		caterr <<< "$(bold ERROR:) STEAMCMD_DIR is not defined or steamcmd.sh was not found in it!"
+		error <<< "STEAMCMD_DIR is not defined or steamcmd.sh was not found in it!"
 		return 1; fi
 
 	if [[ ! $INSTALL_DIR ]]; then
-		caterr <<< "$(bold ERROR:) INSTALL_DIR is not defined!"
+		error <<< "INSTALL_DIR is not defined!"
 		return 1; fi
 
 	if [[ ! -r $INSTALL_DIR ]]; then
-		caterr <<< "$(bold ERROR:) $(bold "$INSTALL_DIR") does not exist or is not readable!"
+		error <<< "$(bold "$INSTALL_DIR") does not exist or is not readable!"
 		return 1; fi
 
 	if [[ $(cat "$INSTALL_DIR/msm.d/appid" 2> /dev/null) != $APPID || ! -e "$INSTALL_DIR/msm.d/is-admin" ]]; then
-		caterr <<-EOF
-			$(bold ERROR:) The directory $(bold "$INSTALL_DIR")
-			       is not a valid base installation for $APPNAME!
-			EOF
+		error <<< "The directory $(bold "$INSTALL_DIR") is not a valid base installation for $APPNAME!"
 		return 1; fi
 
 	return 0
 }
 
-# reads the user's configuration file or the file given with $1
+# reads the user's configuration file
 readcfg () {
-	if [[ $1 ]]; then local CFG="$1"; fi
+	if [[ $1 ]]; then local CFG="$1/$CFG_PATH"; fi
 	if [[ -r $CFG ]]; then
 		source "$CFG" # this isn't great, as a config file of a different user can potentially be malicious
-		checkvars || {
-			caterr <<< "$(bold ERROR:) One or more errors in the configuration file $(bold "$CFG")!"
-			return 1
-		}
-		return 0; fi
-
-	caterr <<< "$(bold ERROR:) Configuration file $(bold "$CFG") does not exist!"
-	return 1
+		checkvars || error <<< "One or more errors in the configuration file $(bold "$CFG")!"
+	else
+		error <<< "Configuration file $(bold "$CFG") does not exist!"; fi
 }
 
 # prints the variable values for the config file
@@ -90,7 +73,6 @@ printcfg () {
 
 # Write configuration file for the current user
 writecfg () {
-	CFG=$(cfgfile)
 	echo "Creating CS:GO MSM Config File in $(bold "$CFG") ..."
 	checkvars || { echo; return 1; }
 

@@ -13,6 +13,7 @@
 #  TODO: Add logging  #
 #                     #
 #######################
+# TODO: Auto-format using 'fmt -c'
 
 
 
@@ -22,6 +23,37 @@ caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
 catwarn () { printf "\x1b[33m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
 
 catinfo () { printf "\x1b[36m"     ; cat     ; printf "\x1b[m"     ; }
+
+# TODO: logging and loglevels
+log () { false; }
+
+error () {
+	{
+		printf "\x1b[31m\x1b[1m"
+		printf "ERROR:\x1b[22m\n"
+		printf "       "; cat
+		printf "\x1b[m"
+	} | fmt -c
+	false
+}
+
+warning () {
+	{
+		printf "\x1b[33m\x1b[1m"
+		printf "WARN: \x1b[22m\n"
+		printf "       "; cat
+		printf "\x1b[m"
+	} | fmt -c
+}
+
+info () {
+	{
+		printf "\x1b[36m\x1b[1m"
+		printf "INFO: \x1b[22m\n"
+		printf "       "; cat
+		printf "\x1b[m"
+	} | fmt -c
+}
 
 # Make text $1 bold
 bold () { printf "\x1b[1m%s\x1b[22m" "$1"; }
