@@ -104,5 +104,5 @@ USER_DIR="$HOME/msm.d"
 
 
 errno=$?
-unset -f . .. :
+unset -f . .file .dir :
 if [[ $0 != ${BASH_SOURCE[0]} ]]; then return $errno; else exit $errno; fi

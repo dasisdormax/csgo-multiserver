@@ -51,8 +51,7 @@
 	# NOTE: only namespaced functions are deleted. If your module uses,
 	#       non-namespaced ones, unset them in your unload handler
 	for module in $Modules; do
-		funs=$(declare -f -F | grep -o "\<$module::.*$")
-		[[ $funs ]] && unset -f funs; done
+		unset -f $(::moduleFuns $module); done
 
 	Modules=
 }
@@ -87,6 +86,10 @@
 	return 1
 }
 
+::moduleFuns () {
+	declare -f -F | grep -o "\<$1::.*$"
+}
+
 ::execHandler () {
 	local dir="$(::moduleDir $1)" && . "$dir/$2"
 }
@@ -97,4 +100,30 @@
 	for dir in ${candidates[@]}; do
 		[[ -d $dir ]] && . "$dir/app.info" && . "$dir/functions" && return 0; done
 	return 1
+}
+
+# override command not found message
+command_not_found_handle () {
+	caterr <<-EOF
+			$(bold "ERROR: $1") - command or executable not found
+		EOF
+	local mod=$(echo $1 | grep -o '^..*::')
+	if [[ $mod ]]; then
+		local mod=${mod::-2}
+		local funs=$(::moduleFuns $mod)
+
+		if [[ $funs ]]; then
+			caterr <<-EOF
+				       The following functions are provided by '$mod':
+				EOF
+			local fun
+			for fun in $funs; do
+				caterr <<< "           $fun"; done
+
+		else caterr <<-EOF; fi; fi
+				       The module '$mod' is not loaded
+				       or does not provide any functions.
+			EOF
+
+	return 127
 }

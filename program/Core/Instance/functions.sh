@@ -8,10 +8,30 @@
 
 
 
+################################ INSTANCE HELPERS ################################
+
+# true, if an instance exists in directory $INSTANCE_DIR
+Core.Instance::isInstance () {
+	[[ $(cat "$INSTANCE_DIR/msm.d/appname" 2>/dev/null) == $APP ]]
+}
+
+# true, if $INSTANCE_DIR is a base installation
+Core.Instance::isBaseInstallation () {
+	Core.Instance::isInstance && [[ -e $INSTANCE_DIR/msm.d/is-admin ]]
+}
+
+# true, if $INSTANCE_DIR can be used as directory for a new instance
+Core.Instance::isValidDir () {
+	[[ ! -e $INSTANCE_DIR ]] || [[ -d $INSTANCE_DIR && ! $(ls "$INSTANCE_DIR") ]]
+}
+
+
+
+
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
 
 # recursively symlinks all files from the base installation that do not exist yet in the instance
-symlink-all-files () {
+Core.Instance::symlinkFiles () {
 	# Return if .donotlink file exists in target.
 	# This file could be made by instance creation scripts, to indicate that new or missing files should not be linked from the base instance again
 	if [[ -e $INSTANCE_DIR/$1.donotlink ]]; then return 0; fi
@@ -25,7 +45,9 @@ symlink-all-files () {
 		if [[ -L $INSTANCE_DIR/$1$file || $file == msm.d ]]; then continue ; fi
 
 		# recurse through subdirectories
-		if [[ -d $INSTANCE_DIR/$1$file ]]; then symlink-all-files "${1}${file}/"; continue ; fi
+		if [[ -d $INSTANCE_DIR/$1$file ]]; then
+			Core.Instance::symlinkFiles "${1}${file}/";
+			continue ; fi
 
 		# Create symlink for files that do not exist yet in the target directory
 		if [[ ! -e $INSTANCE_DIR/$1$file ]]; then 
@@ -35,32 +57,30 @@ symlink-all-files () {
 		done
 }
 
-create-instance () {
+Core.Instance::create () {
 	cat <<-EOF
 		-------------------------------------------------------------------------------
 		               CS:GO Multi-Mode Server Manager - Instance Setup
 		-------------------------------------------------------------------------------
 		EOF
 
-	if [[ ! $INSTANCE ]]; then catinfo <<-EOF
-		$(bold INFO:)  You have selected a base installation, There is no need to create an
-		       instance here. If you want to create a new instance, set the instance
-		       name using '$THIS_COMM @name create'.
+	if Core.Instance::isBaseInstallation; then
+		catinfo <<-EOF
+			$(bold INFO:)  You have selected a base installation, There is no need to create an
+			       instance here. If you want to create a new instance, set the instance
+			       name using '$THIS_COMM @name create'.
 
 		EOF
 		return 0; fi
 
-	check-instance-dir
-	local errno=$?
-	if (( $errno == 1 )); then
+	if ! Core.Instance::isValidDir; then
 		catwarn <<-EOF
 			       This operation $(bold "WILL DELETE ALL DATA") in $(bold "$INSTANCE_DIR") ...
 
 			EOF
 		sleep 2
 		promptN || { echo; return 1; }
-	elif (( $errno )); then
-		return 1; fi
+		fi
 
 	############ INSTANCE CREATION STARTS NOW ############
 	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
