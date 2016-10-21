@@ -21,11 +21,11 @@ Core.Setup::loadConfig () {
 	}
 }
 
+
 # load msm configuration file of the given user
 Core.Setup::loadConfigOf () {
 	Core.Setup::loadConfig "$(eval echo ~$1)/msm.d/$APP/msm.conf"
 }
-
 
 
 # Check the current configuration variables for correctness and plausibility
@@ -58,111 +58,133 @@ Core.Setup::validateConfig () {
 }
 
 
+Core.Setup::writeConfig () {
+	local CFG_DIR="$USER_DIR/$APP"
+	Core.Setup::validateConfig && {
+		mkdir -p "$CFG_DIR" || error <<< "Could not create configuration directory $(bold "$CFG_DIR")!"
+	} && {
+		Core.Setup::printConfig > "$CFG_DIR/msm.conf" || error <<< "Could not write to configuration file $(bold "$CFG_DIR/msm.conf")!"
+	}
+}
 
+Core.Setup::printConfig () {
+	cat <<-EOF
+			#! /bin/bash
+			# This is a configuration file for CS:GO Multi Server Manager
+			ADMIN=$ADMIN
+			INSTALL_DIR="$INSTALL_DIR"
+			DEFAULT_INSTANCE="$DEFAULT_INSTANCE"
+		EOF
+	# Vars that are only interesting for the admin
+	if [[ $USER == $ADMIN ]]; then cat <<-EOF
+			STEAMCMD_DIR="$STEAMCMD_DIR"
+			EOF
+		fi
+}
 
 ##################################### SETUP #####################################
 
 Core.Setup::beginSetup () {
 	# First-time setup
 	cat <<-EOF
-		-------------------------------------------------------------------------------
-		                CS:GO Multi-Mode Server Manager - Initial Setup
-		-------------------------------------------------------------------------------
+			-------------------------------------------------------------------------------
+			                CS:GO Multi-Mode Server Manager - Initial Setup
+			-------------------------------------------------------------------------------
 
-		It seems like this is the first time you use this script on this machine.
-		Before advancing, be aware of a few things:
+			It seems like this is the first time you use this script on this machine.
+			Before advancing, be aware of a few things:
 
-		>>  The configuration will be saved in the directory:
-		        $(bold "$USER_DIR/$APP")
+			>>  The configuration files will be saved in the directory:
+			        $(bold "$USER_DIR/$APP")
 
-		    Make sure to backup any important data in this location.
+			    Make sure to backup any important data in this location before proceeding.
 
-		>>  For multi-user setups, this script, located at
-		        $(bold "$THIS_SCRIPT")
-		    must be readable for all users.
+			>>  For multi-user setups, this script, located at
+			        $(bold "$THIS_SCRIPT")
+			    must be readable for all users.
 
 		EOF
 	promptY || return
 
-	# TODO: Rework question to ask for an import
-	cat <<-EOF
+	if [[ ! $ADMIN ]]; then
+		cat <<-EOF
+				IMPORTING
+				=========
 
-		Please choose the user that is responsible for the game installation and
-		updates on this machine. As long as the access rights are correctly set,
-		this server will use the game data provided by that user, which makes
-		re-downloading the game for multiple users unnecessary.
+				Instead of creating a new configuration, you may also import the settings
+				from a different user on this system. This allows you to use that user's game
+				server installation as a base for your own instances, without having to
+				download the server files again.
 
-		EOF
+				If you wish to import the settings from another user, enter their name below.
+				Otherwise, hit enter to create your own configuration.
 
-	while [[ ! $ADMIN_HOME ]]; do
-		read -p "Admin's username (default: $USER) " -r ADMIN
-		
-		if [[ ! $ADMIN ]]; then ADMIN=$USER; fi
-		if [[ ! $(getent passwd $ADMIN) ]]; then
-			error <<< "User $(bold $ADMIN) does not exist! Please specify a different admin."
-			echo
-			continue
-			fi
+			EOF
 
-		ADMIN_HOME=$(eval echo ~$ADMIN)
-		if [[ ! -r $ADMIN_HOME ]]; then
-			error <<-EOF
-					That user's home directory $(bold "$ADMIN_HOME")
-					is not readable! Please specify a different admin.
+		until [[ $ADMIN ]]; do
+			echo "Please enter the user to import the configuration from."
+			echo "Leave empty to skip importing, Press CTRL-C to exit."
+			read -p "> Import configuration from? " -r ADMIN
 
-				EOF
-			unset ADMIN_HOME; fi
-		done
-	echo
+			if [[ $ADMIN ]]; then
+				if Core.Setup::importFrom $ADMIN; then
+					info <<< "The configuration was successfully imported from user $(bold $ADMIN)"
+					return
+				else error <<-EOF || ADMIN=
+						Import from user $ADMIN failed! Please specify a different user.
+					EOF
+					fi
+			else
+				ADMIN=$USER; fi
+			done; fi
 
 	# Do admin setup
-	[[ $USER == $ADMIN ]] && { admin-install; return; }
+	[[ $USER == $ADMIN ]] && admin-install
 
-	# Try client setup (copying the configuration from the selected admin user)
-	client-install && return
+	# Succeeds, if we have a valid config at the end
+	Core.Setup::loadConfig
+}
 
-	# If client installation fails (for instance, if the admin has no configuration himself)
-	# try switching to the admin and performing the admin installation there
-	warning <<-EOF
-			User $(bold $ADMIN) does not currently have a valid admin
-			configuration. You may now switch to the admin user in order
-			to create an admin configuration on his account (Ctrl-D to cancel).
+
+Core.Setup::importFrom () {
+	local IMPORT_FROM=$1
+	echo "Trying to import the configuration of user $(bold $IMPORT_FROM)"
+
+	# Check if user exists and has a configuration
+	local ADMIN_HOME="$(eval echo ~$IMPORT_FROM)"
+	[[ -r $ADMIN_HOME ]] || error <<< "User $(bold $IMPORT_FROM) does not exist or their home directory is not readable!" || return
+
+	[[ -r $ADMIN_HOME/msm.d/$APP/msm.conf ]] || {
+		warning <<-EOF
+			User $(bold $IMPORT_FROM) has no configuration that we can import settings
+			from. You may, though, switch users and create a configuration on
+			that user's account.
+
+			You will have to confirm switching users with your sudo password.
+			Press CTRL-D to cancel.
+
 		EOF
-	echo
 
-	sudo -i -u $ADMIN "$THIS_SCRIPT" admin-install
+		ADMIN=$IMPORT_FROM sudo -i -u $IMPORT_FROM "$THIS_SCRIPT" || {
+			info <<< "Cancelled creating a configuration for user $IMPORT_FROM."
+			return 1
+		}
+	}
 
-	if (( $? )); then caterr <<-EOF
-			$(bold ERROR:) Admin Installation for $(bold $ADMIN) failed!
+	# Import their configuration
+	Core.Setup::loadConfigOf $IMPORT_FROM || error <<-EOF || return
+			The configuration of user $IMPORT_FROM contains errors!
+		EOF
 
-			EOF
-		return 1; fi
+	if [[ $ADMIN != $IMPORT_FROM ]]; then
+		Core.Setup::importFrom $ADMIN;
+		return; fi
 
-	# Try client installation again!
-	if ! client-install; then caterr <<-EOF
-			$(bold ERROR:) Client Installation failed!
-
-			EOF
-		return 1; fi
+	Core.Setup::writeConfig
 }
 
-client-install () {
-	echo "Trying to import settings from $(bold $ADMIN) ..."
 
-	ADMIN_HOME=$(eval echo "~$ADMIN")
-	if [[ ! -r $ADMIN_HOME ]]; then caterr <<-EOF
-			$(bold ERROR:) The admin's home directory $(bold "$ADMIN_HOME") is not readable.
-
-			EOF
-		return 1; fi
-
-	ADMIN_CFG="$(cfgfile $ADMIN_HOME)"
-	readcfg "$ADMIN_CFG"
-	if (( $? )); then echo; return 1; fi
-	writecfg
-	return 0
-}
-
+# TODO: make this function smaller
 admin-install () {
 	cat <<-EOF
 		-------------------------------------------------------------------------------
