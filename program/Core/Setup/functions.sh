@@ -8,6 +8,58 @@
 
 
 
+
+
+################################ CONFIG HANDLING ################################
+
+Core.Setup::loadConfig () {
+	# If given, read from file $1, otherwise the user's config file
+	local CFG=${1-"$USER_DIR/$APP/msm.conf"}
+	[[ -r $CFG ]] && {
+		source $CFG && Core.Setup::validateConfig \
+					|| error <<< "One or more errors were found in the configuration file $(bold "$CFG")!"
+	}
+}
+
+# load msm configuration file of the given user
+Core.Setup::loadConfigOf () {
+	Core.Setup::loadConfig "$(eval echo ~$1)/msm.d/$APP/msm.conf"
+}
+
+
+
+# Check the current configuration variables for correctness and plausibility
+Core.Setup::validateConfig () {
+	local err=0
+	# Require admin variable
+	[[ $ADMIN ]] || error <<< "variable \$ADMIN is not defined!" || err=1
+
+	# If admin, check the SteamCMD directory
+	[[ $USER != $ADMIN ]] || { {
+		[[ $STEAMCMD_DIR ]] || \
+			error <<< "variable \$STEAMCMD_DIR is not defined!"
+	} && {
+		[[ -x $STEAMCMD_DIR/steamcmd.sh ]] || \
+			error <<< "$(bold "$STEAMCMD_DIR") does not contain a valid SteamCMD installation!"
+	} } || err=1
+
+	# Check base installation directory
+	{
+		[[ $INSTALL_DIR ]] || \
+			error <<< "variable \$INSTALL_DIR is not defined!"
+	} && {
+		[[ -r $INSTALL_DIR && -x $INSTALL_DIR ]] || \
+			error <<< "The base installation directory $(bold "$INSTALL_DIR") is not accessible!"
+	} && {
+		[[ $(cat "$INSTALL_DIR/msm.d/appname" 2>/dev/null) == $APP && -e "$INSTALL_DIR/msm.d/is-admin" ]] || \
+			error <<< "The directory $(bold "$INSTALL_DIR") is not a valid base installation for $APP!"
+	} || err=1
+	return $err
+}
+
+
+
+
 ##################################### SETUP #####################################
 
 Core.Setup::beginSetup () {
@@ -20,20 +72,19 @@ Core.Setup::beginSetup () {
 		It seems like this is the first time you use this script on this machine.
 		Before advancing, be aware of a few things:
 
-		>>  A configuration file will be created in the location:
-		        $(bold "$CFG")
+		>>  The configuration will be saved in the directory:
+		        $(bold "$USER_DIR/$APP")
 
-		    If you want to use a different location, exit and edit
-		    the \$MSM_CFG variable within this file accordingly.
+		    Make sure to backup any important data in this location.
 
 		>>  For multi-user setups, this script, located at
 		        $(bold "$THIS_SCRIPT")
 		    must be readable for all users.
 
 		EOF
-	if ! promptY; then echo; return 1; fi
+	promptY || return
 
-	# Query steam installation admin user
+	# TODO: Rework question to ask for an import
 	cat <<-EOF
 
 		Please choose the user that is responsible for the game installation and
@@ -48,54 +99,51 @@ Core.Setup::beginSetup () {
 		
 		if [[ ! $ADMIN ]]; then ADMIN=$USER; fi
 		if [[ ! $(getent passwd $ADMIN) ]]; then
-			caterr <<< "$(bold ERROR:) User $(bold $ADMIN) does not exist! Please specify a different admin."
+			error <<< "User $(bold $ADMIN) does not exist! Please specify a different admin."
 			echo
 			continue
 			fi
 
-		ADMIN_HOME=$(eval echo "~$ADMIN")
+		ADMIN_HOME=$(eval echo ~$ADMIN)
 		if [[ ! -r $ADMIN_HOME ]]; then
-			caterr <<-EOF
-				$(bold ERROR:) That user's home directory $(bold "$ADMIN_HOME")
-				       is not readable! Please specify a different admin.
+			error <<-EOF
+					That user's home directory $(bold "$ADMIN_HOME")
+					is not readable! Please specify a different admin.
 
 				EOF
 			unset ADMIN_HOME; fi
-		
 		done
-
 	echo
-	# Check if the admin has a working configuration already
-	if [[ $USER != $ADMIN ]]; then
 
-		# If client installation fails (for instance, if the admin has no configuration himself)
-		# try switching to the admin and performing the admin installation there
-		if ! client-install; then
-			catwarn <<-EOF
-				$(bold WARN:)  Additional installation steps are required on the account of $(bold $ADMIN)!
-				       Please log in to the account of $(bold $ADMIN) now!
-				EOF
+	# Do admin setup
+	[[ $USER == $ADMIN ]] && { admin-install; return; }
 
-			sudo -i -u $ADMIN "$THIS_SCRIPT" admin-install
+	# Try client setup (copying the configuration from the selected admin user)
+	client-install && return
 
-			if (( $? )); then caterr <<-EOF
-					$(bold ERROR:) Admin Installation for $(bold $ADMIN) failed!
+	# If client installation fails (for instance, if the admin has no configuration himself)
+	# try switching to the admin and performing the admin installation there
+	warning <<-EOF
+			User $(bold $ADMIN) does not currently have a valid admin
+			configuration. You may now switch to the admin user in order
+			to create an admin configuration on his account (Ctrl-D to cancel).
+		EOF
+	echo
 
-					EOF
-				return 1; fi
+	sudo -i -u $ADMIN "$THIS_SCRIPT" admin-install
 
-			# Try client installation again!
-			if ! client-install; then caterr <<-EOF
-					$(bold ERROR:) Client Installation failed!
+	if (( $? )); then caterr <<-EOF
+			$(bold ERROR:) Admin Installation for $(bold $ADMIN) failed!
 
-					EOF
-				return 1; fi
+			EOF
+		return 1; fi
 
-			fi
+	# Try client installation again!
+	if ! client-install; then caterr <<-EOF
+			$(bold ERROR:) Client Installation failed!
 
-	else
-		admin-install
-		fi
+			EOF
+		return 1; fi
 }
 
 client-install () {

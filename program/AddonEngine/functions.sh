@@ -112,7 +112,7 @@ command_not_found_handle () {
 		local funs=$(::moduleFuns $mod)
 
 		if [[ $funs ]]; then
-			caterr <<< "    Available functions from the '$mod' module:"
+			caterr <<< "    Functions currently defined in the '$mod' namespace:"
 			local fun
 			for fun in $funs; do
 				caterr <<< "        $(bold $fun)"; done

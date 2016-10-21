@@ -49,6 +49,7 @@ THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null)"
 THIS_DIR="$(dirname "$THIS_SCRIPT")"
 unset basename dirname
 
+USER=$(whoami) # just in case
 USER_DIR="$HOME/msm.d"
 
 
@@ -72,7 +73,7 @@ USER_DIR="$HOME/msm.d"
 .dir () {
 	[[ -d $1 ]] && {
 		for file in "$1"/*.sh; do
-			.file "$file" ${@:2} || return 1; done;
+			.file "$file" ${@:2} || return; done;
 		}
 }
 
@@ -80,14 +81,13 @@ USER_DIR="$HOME/msm.d"
 # Execute a file and set the context for the colon function
 # Further parameters are passed to the executed scripts
 .file () {
-	local currentSrcDir="$(dirname $1)"
 	[[ -f $1 ]] && builtin . "$1" ${@:2}
 }
 
 
 # override colon builtin: execute a file relative to the current file's base directory
 # Further parameters are passed to the executed scripts
-: () { . $currentSrcDir/$1 ${@:2}; }
+: () { . $(dirname ${BASH_SOURCE[1]})/$1 ${@:2}; }
 
 
 

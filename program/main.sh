@@ -26,8 +26,8 @@ if [[ ! -x $(which tar)  ]]; then error <<< "'tar' is not installed, but require
 
 ################################### LOAD MODULES #################################
 
-. program/Utils
-. program/AddonEngine
+: Utils
+: AddonEngine
 
 ::init
 
@@ -51,10 +51,11 @@ if ! Core.Setup::loadConfig; then
 			The configuration file for csgo-multiserver does not exist or is
 			damaged. Do you want to create a new configuration now?
 		EOF
-	promptY "Start Setup?" && Core.Setup::beginSetup; fi
+	promptY "Start Setup?" && Core.Setup::beginSetup || exit; fi
 
 
-# Move to Core.Instance init handler
+
+# Move to Core.Setup::loadConfig
 set-instance "$DEFAULT_INSTANCE"
 
 Core.CommandLine::parseArguments $@

@@ -13,7 +13,6 @@
 #  TODO: Add logging  #
 #                     #
 #######################
-# TODO: Auto-format using 'fmt -c'
 
 
 
@@ -32,7 +31,7 @@ indent () { sed 's/^/    /'; }
 trace () {
 	local i=1
 	local indent=
-	while [[ ${FUNCNAME[$i]} != main ]] && (( i <= 5 )); do
+	while [[ ${FUNCNAME[$i]} != main ]] && (( i < ${#FUNCNAME[@]} )); do
 		local func=${FUNCNAME[$i+1]}
 		local line=${BASH_LINENO[$i]}
 		case $func in
