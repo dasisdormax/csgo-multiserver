@@ -30,18 +30,23 @@ log () { false; }
 indent () { sed 's/^/    /'; }
 
 trace () {
-	local i=1;
-	local indent
-	while [[ ${FUNCNAME[$i]} != main ]]; do
-		printf "%s( from %s at %s:%s )\n" "$indent" \
-			${FUNCNAME[$i+1]} ${BASH_SOURCE[$i+1]/"$THIS_DIR/"/} ${BASH_LINENO[$i]}
-		indent="         "
-		(( i++ ))
-	done
+	local i=1
+	local indent=
+	while [[ ${FUNCNAME[$i]} != main ]] && (( i <= 5 )); do
+		local func=${FUNCNAME[$i+1]}
+		local line=${BASH_LINENO[$i]}
+		case $func in
+			( command_not_found_handle ) ;;
+			( * )
+				printf "%s   in %-40s (line %3s)\n" "$indent" \
+					$func $line
+				local indent="        " ;;
+			esac
+		(( i++ )); done
 }
 
 error () {
-	printf "\x1b[1;31mError:\x1b[22m   " >&2
+	printf "\x1b[1;31mError:\x1b[22m  " >&2
 	trace >&2
 	fmt -w67 | indent >&2
 	printf "\x1b[m" >&2
@@ -49,7 +54,7 @@ error () {
 }
 
 warning () {
-	printf "\x1b[1;33mWarning:\x1b[22m " >&2
+	printf "\x1b[1;33mWarning:\x1b[22m" >&2
 	trace >&2
 	fmt -w67 | indent >&2
 	printf "\x1b[m" >&2

@@ -49,16 +49,15 @@ if [[ ! -x $(which tar)  ]]; then error <<< "'tar' is not installed, but require
 if ! Core.Setup::loadConfig; then
 	warning <<-EOF
 			The configuration file for csgo-multiserver does not exist or is
-			damaged. Do you want to setup a new configuration now?
+			damaged. Do you want to create a new configuration now?
 		EOF
-	promptY && Core.Setup::beginSetup; fi
+	promptY "Start Setup?" && Core.Setup::beginSetup; fi
 
-# These should be executed in the Core.Setup and Core.Instance init handlers
-readcfg 2> /dev/null && set-instance "$DEFAULT_INSTANCE" || NEED_SETUP=1
+
+# Move to Core.Instance init handler
+set-instance "$DEFAULT_INSTANCE"
 
 Core.CommandLine::parseArguments $@
-
-if [[ $NEED_SETUP ]]; then unset NEED_SETUP; setup; return; fi
 
 return 0
 
