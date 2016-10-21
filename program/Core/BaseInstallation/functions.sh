@@ -8,6 +8,83 @@
 
 
 
+########################### CREATING A BASE INSTALLATION ##########################
+
+Core.BaseInstallation::isExisting () {
+	INSTANCE_DIR=$INSTALL_DIR Core.Instance::isBaseInstallation && \
+		info <<< "An existing base installation was found in $(bold "$INSTALL_DIR")"
+}
+
+
+# creates a base installation in the directory specified by $INSTALL_DIR
+Core.BaseInstallation::create () (
+
+	Core.BaseInstallation::isExisting && return
+
+	umask o+rx # make sure that other users can 'fork' this base installation
+	INSTANCE_DIR="$INSTALL_DIR"
+
+	Core.Instance::isValidDir && {
+		warning <<-EOF
+			The directory $(bold "$INSTALL_DIR") is non-empty, creating a base
+			installation here may cause $(bold "LOSS OF DATA")!
+
+			Please backup all important files before proceeding!
+
+		EOF
+		sleep 2
+		promptN || return
+	}
+
+	# Create base installation directory
+	mkdir -p "$INSTALL_DIR" && [[ -w "$INSTALL_DIR" ]] || {
+		fatal <<< "No permission to create or write the directory $(bold "$INSTALL_DIR")!"
+		return
+	}
+
+	# Make existing files readable for other users
+	chmod -R +rX "$INSTALL_DIR"
+
+	# Delete old configuration
+	rm -rf --one-file-system "$INSTALL_DIR/msm.d" 2>/dev/null
+
+	# Create new configuration
+	mkdir "$INSTALL_DIR/msm.d"
+	echo "$APPID" > "$INSTALL_DIR/msm.d/appid"
+	echo "$APP"   > "$INSTALL_DIR/msm.d/appname"
+	touch "$INSTALL_DIR/msm.d/is-admin" # Mark as base installation
+
+)
+
+
+steamcmd-scripts () {
+	################# TODO: Include these in a better way #################
+
+	cat > "$STEAMCMD_DIR/update" <<-EOF
+		login anonymous
+		force_install_dir "$INSTALL_DIR"
+		app_update $APPID
+		quit
+	EOF
+
+	cat > "$STEAMCMD_DIR/validate" <<-EOF
+		login anonymous
+		force_install_dir "$INSTALL_DIR"
+		app_update $APPID validate
+		quit
+	EOF
+
+	cat > "$STEAMCMD_DIR/update-check" <<-EOF
+		login anonymous
+		app_info_update 1
+		app_info_print 740
+		quit
+	EOF
+}
+
+
+
+
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 
 Core.BaseInstallation::requestUpdate () {
@@ -16,22 +93,20 @@ Core.BaseInstallation::requestUpdate () {
 
 	# First: Check, if the user can update the base installation, otherwise switch user
 	if [[ $USER != $ADMIN ]]; then
-		catwarn <<-EOF
+		warning <<-EOF # TODO: update text similar to Core.Setup::beginSetup
 			Only the admin $(bold $ADMIN) can $ACTION the base installation.
-			Please switch to the account of $(bold $ADMIN) now! (or CTRL-D to cancel)
-			EOF
-		sudo -i -u $ADMIN "$THIS_SCRIPT" "$ACTION"
-		if (( $? )); then caterr <<-EOF
-				$(bold ERROR:) Installation/update as $(bold $ADMIN) failed!
+			Please switch to the account of $(bold $ADMIN) now! (or CTRL-C to cancel)
+		EOF
 
-				EOF
-			return 1; fi
+		sudo -i -u $ADMIN "$THIS_SCRIPT" "$ACTION" \
+			|| error <<< "Installation/update as $(bold $ADMIN) failed!"
 
-		return 0; fi
+		return
+	fi
 
 	# Now, check if an update is available at all
 	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_$APPID.acf"
-	if [[ ! $PERFORM_UPDATE && -e $APPMANIFEST && $ACTION == "update" ]]; then
+	if [[ ! $MSM_DO_UPDATE && -e $APPMANIFEST && $ACTION == "update" ]]; then
 		echo "Checking for updates ..."
 		rm ~/Steam/appcache/appinfo.vdf 2>/dev/null # Clear cache
 		local buildid=$(
@@ -42,24 +117,20 @@ Core.BaseInstallation::requestUpdate () {
 				grep "buildid" | awk '{ print $2 }'
 			)
 
-		if (( $? )); then caterr <<-EOF
-				$(bold ERROR:) Searching for updates failed!
+		(( $? == 0 )) || error <<< "Searching for updates failed!" || return
 
-				EOF
-			return 1; fi
-		if [[ $(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }' 2>/dev/null) == $buildid ]]; then
-			# No update is necessary
-			catinfo <<< "$(bold INFO:)  The base installation is already up to date."
-			echo
-			return 0; fi
+		[[ $(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }') == $buildid ]] && {
+			info <<< "The base installation is already up to date."
+			return
+		}
 
-		catinfo <<< "$(bold INFO:)  An update for the base installation is available."
+		info <<< "An update for the base installation is available."
 		echo
-		fi
+	fi
 
 	# If not in a TMUX environment, switch into one to perform the update.
 	# This way, an SSH disconnection or closing the terminal won't interrupt it.
-	if ! [[ $TMUX && $PERFORM_UPDATE ]]; then
+	if ! [[ $TMUX && $MSM_DO_UPDATE == 1 ]]; then
 		echo "Switching into TMUX for performing the update ..."
 
 		TMPDIR="$INSTALL_DIR/msm.d/tmp"
@@ -67,15 +138,17 @@ Core.BaseInstallation::requestUpdate () {
 		local SOCKET="$TMPDIR/update.tmux-socket"
 
 		if ( tmux -S "$SOCKET" has-session > /dev/null 2>&1 ); then 
-			tmux -S "$SOCKET" attach; echo
-			return 0; fi
+			tmux -S "$SOCKET" attach
+			echo
+			return 0
+		fi
 
 		delete-tmux
 
-		export PERFORM_UPDATE=1
+		export MSM_DO_UPDATE=1
 		tmux -S "$SOCKET" -f "$THIS_DIR/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
 		local errno=$?
-		unset PERFORM_UPDATE
+		unset MSM_DO_UPDATE
 		echo
 
 		return $errno; fi

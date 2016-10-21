@@ -13,10 +13,10 @@ main () {
 ######################### INITIAL CHECKS AND CALCULATIONS ########################
 
 # Check required packages
-if [[ ! -x $(which awk)  ]]; then error <<< "'awk' is not installed, but required for this script!"; return; fi
-if [[ ! -x $(which tmux) ]]; then error <<< "'tmux' is not installed, but required for this script!"; return; fi
-if [[ ! -x $(which wget) ]]; then error <<< "'wget' is not installed, but required for this script!"; return; fi
-if [[ ! -x $(which tar)  ]]; then error <<< "'tar' is not installed, but required for this script!"; return; fi
+[[ -x $(which awk)  ]] || error <<< "'awk' is not installed, but required for this script!"  || return
+[[ -x $(which tmux) ]] || error <<< "'tmux' is not installed, but required for this script!" || return
+[[ -x $(which wget) ]] || error <<< "'wget' is not installed, but required for this script!" || return
+[[ -x $(which tar)  ]] || error <<< "'tar' is not installed, but required for this script!"  || return
 
 
 
@@ -44,17 +44,19 @@ if [[ ! -x $(which tar)  ]]; then error <<< "'tar' is not installed, but require
 ############################# LOAD CONFIGURATION FILE ############################
 
 if ! Core.Setup::loadConfig; then
-	if [[ $ADMIN_INSTALL == 1 ]]; then # Skip warning, when installing as admin
+	if [[ $MSM_DO_INSTALL == 1 ]]; then # Skip warning when installing as admin
 		ADMIN=$USER Core.Setup::beginSetup || exit;
 	else
 		warning <<-EOF
 				The configuration file for csgo-multiserver does not exist or is
 				damaged. Do you want to create a new configuration now?
 			EOF
-		promptY "Start Setup?" && Core.Setup::beginSetup || exit; fi
+		promptY "Start Setup?" && Core.Setup::beginSetup || exit
+	fi
 else
 	echo # Make some space
-	(( $# )) || Core.CommandLine::usage; fi
+	(( $# )) || Core.CommandLine::usage
+fi
 
 # Move to Core.Setup::loadConfig
 set-instance "$DEFAULT_INSTANCE"

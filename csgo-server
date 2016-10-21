@@ -35,23 +35,32 @@ EOF
 
 
 
-################################# DEFINITIONS ##################################
+############################### COMMON VARIABLES ################################
 
+# this script's filename and directory
 
-# Get script filename and directory
 basename="$(basename "${BASH_SOURCE[0]}")"
 dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ $PATH =~ (^|:)$dirname(:|$) ]]; 
-	then THIS_COMMAND="$basename";
-	else THIS_COMMAND="${BASH_SOURCE[0]}"; fi
+if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then
+	THIS_COMMAND="$basename"
+else
+	THIS_COMMAND="${BASH_SOURCE[0]}"
+fi
 
 THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null)"
 THIS_DIR="$(dirname "$THIS_SCRIPT")"
 unset basename dirname
 
+
+# current user and their custom settings directory
+
 USER=$(whoami) # just in case
 USER_DIR="$HOME/msm.d"
 
+
+
+
+############################### COMMON FUNCTIONS ################################
 
 # override dot builtin: execute a handler (either a .sh-file or .sh-files in a directory)
 # Further parameters are passed to the executed scripts
@@ -59,9 +68,11 @@ USER_DIR="$HOME/msm.d"
 	local cmd=${1%%.sh} # Strip .sh extension
 	shift               # Makes ${@:2} unnecessary
 	# Try executing file or file.sh (depending on extension) otherwise execute sh-files in directory
-	if [[ $cmd =~ \.[^/]*$ ]]
-		then .file "$cmd"    $@ && return
-		else .file "$cmd.sh" $@ && return; fi
+	if [[ $cmd =~ \.[^/]*$ ]]; then
+		.file "$cmd"    $@ && return
+	else
+		.file "$cmd.sh" $@ && return
+	fi
 	.dir "$cmd" $@
 }
 
@@ -73,16 +84,15 @@ USER_DIR="$HOME/msm.d"
 .dir () {
 	[[ -d $1 ]] && {
 		for file in "$1"/*.sh; do
-			.file "$file" ${@:2} || return; done;
-		}
+			.file "$file" ${@:2} || return
+		done
+	}
 }
 
 
 # Execute a file and set the context for the colon function
 # Further parameters are passed to the executed scripts
-.file () {
-	[[ -f $1 ]] && builtin . "$1" ${@:2}
-}
+.file () { [[ -f $1 ]] && builtin . "$1" ${@:2}; }
 
 
 # override colon builtin: execute a file relative to the current file's base directory

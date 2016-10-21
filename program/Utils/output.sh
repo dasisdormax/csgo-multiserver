@@ -17,7 +17,7 @@
 
 
 
-if [[ $DEBUG ]]; then exec 3>&1; else exec 3>/dev/null; fi
+if [[ $MSM_DEBUG ]]; then exec 3>&1; else exec 3>/dev/null; fi
 
 caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
 
@@ -40,8 +40,9 @@ trace () {
 			( * )
 				if (( i > 1 )); then printf "\n          "; fi
 				printf "in %-40s (line %3s)" $func $line ;;
-			esac
-		(( i++ )); done
+		esac
+		(( i++ ))
+	done
 }
 
 fatal () {

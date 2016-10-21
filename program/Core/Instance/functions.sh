@@ -22,7 +22,7 @@ Core.Instance::isBaseInstallation () {
 
 # true, if $INSTANCE_DIR can be used as directory for a new instance
 Core.Instance::isValidDir () {
-	[[ ! -e $INSTANCE_DIR ]] || [[ -d $INSTANCE_DIR && ! $(ls "$INSTANCE_DIR") ]]
+	[[ ! -e $INSTANCE_DIR ]] || [[ -d $INSTANCE_DIR && ! $(ls -A "$INSTANCE_DIR") ]]
 }
 
 
@@ -62,16 +62,16 @@ Core.Instance::create () {
 		-------------------------------------------------------------------------------
 		               CS:GO Multi-Mode Server Manager - Instance Setup
 		-------------------------------------------------------------------------------
-		EOF
+	EOF
 
 	if Core.Instance::isBaseInstallation; then
-		catinfo <<-EOF
+		catinfo <<-EOF; return
 			$(bold INFO:)  You have selected a base installation, There is no need to create an
 			       instance here. If you want to create a new instance, set the instance
 			       name using '$THIS_COMM @name create'.
 
 		EOF
-		return 0; fi
+	fi
 
 	if ! Core.Instance::isValidDir; then
 		catwarn <<-EOF
@@ -80,7 +80,7 @@ Core.Instance::create () {
 			EOF
 		sleep 2
 		promptN || { echo; return 1; }
-		fi
+	fi
 
 	############ INSTANCE CREATION STARTS NOW ############
 	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1

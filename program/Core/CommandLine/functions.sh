@@ -12,7 +12,7 @@
 # 
 # TODO: Allow addons to inject their usage information into this function
 Core.CommandLine::usage () { cat <<EOF
-Usage: $(bold "$THIS_COMM") < commands >
+Usage: $(bold "$THIS_COMMAND") < commands >
 
 $(printf "\x1b[1;36m%s\x1b[m"              "GENERAL COMMANDS:")
     usage    > Display this help message
@@ -111,7 +111,8 @@ Core.CommandLine::parseArguments () {
 						elif (( $errno == 2 )); then
 							echo "$SERVER_TEXT is STOPPED!"
 						else 
-							exit 1; fi
+							exit 1
+						fi
 
 						echo
 						;;
@@ -139,12 +140,12 @@ Core.CommandLine::parseArguments () {
 						exit 1
 						;;
 
-					esac ############ END INNER CASE ############
+				esac ############ END INNER CASE ############
 				;;
 
-			esac ############ END OUTER CASE ############
+		esac ############ END OUTER CASE ############
 		
-		shift
-	done ############ END LOOP ############
+	shift
+done ############ END LOOP ############
 
 }
