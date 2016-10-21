@@ -17,6 +17,8 @@
 
 
 
+if [[ $DEBUG ]]; then exec 3>&1; else exec 3>/dev/null; fi
+
 caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
 
 catwarn () { printf "\x1b[33m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
@@ -30,39 +32,60 @@ indent () { sed 's/^/    /'; }
 
 trace () {
 	local i=1
-	local indent=
 	while [[ ${FUNCNAME[$i]} != main ]] && (( i < ${#FUNCNAME[@]} )); do
 		local func=${FUNCNAME[$i+1]}
 		local line=${BASH_LINENO[$i]}
 		case $func in
 			( command_not_found_handle ) ;;
 			( * )
-				printf "%s   in %-40s (line %3s)\n" "$indent" \
-					$func $line
-				local indent="        " ;;
+				if (( i > 1 )); then printf "\n          "; fi
+				printf "in %-40s (line %3s)" $func $line ;;
 			esac
 		(( i++ )); done
 }
 
+fatal () {
+	{
+		printf "\x1b[1;35mFatal: \x1b[22m   "; trace; echo
+		fmt -w67 | indent
+		printf "\x1b[m"
+	} >&2
+	false
+}
+
 error () {
-	printf "\x1b[1;31mError:\x1b[22m  " >&2
-	trace >&2
-	fmt -w67 | indent >&2
-	printf "\x1b[m" >&2
+	{
+		printf "\x1b[1;31mError:\x1b[22m    "; trace; echo
+		fmt -w67 | indent
+		printf "\x1b[m"
+	} >&2
 	false
 }
 
 warning () {
-	printf "\x1b[1;33mWarning:\x1b[22m" >&2
-	trace >&2
-	fmt -w67 | indent >&2
-	printf "\x1b[m" >&2
+	printf "\x1b[1;33mWarning:\x1b[22m  "; trace >&3; echo
+	fmt -w67 | indent
+	printf "\x1b[m"
 }
 
 info () {
-	printf "\x1b[1;36mInfo:\x1b[22m\n"
-	fmt -w67 | indent >&2
-	printf "\x1b[m" >&2
+	printf "\x1b[1;36mInfo:\x1b[22m     "; trace >&3; echo
+	fmt -w67 | indent
+	printf "\x1b[m"
+}
+
+success () {
+	printf "\x1b[1;32mSuccess:\x1b[22m  "; trace >&3; echo
+	fmt -w67 | indent
+	printf "\x1b[m"
+}
+
+debug () {
+	{
+		printf "\x1b[1;34mDebug:\x1b[22m    "; trace; echo
+		fmt -w67 | indent
+		printf "\x1b[m"
+	} >&3
 }
 
 # Make text $1 bold
