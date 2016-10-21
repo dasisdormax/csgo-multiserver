@@ -12,9 +12,6 @@ main () {
 
 ######################### INITIAL CHECKS AND CALCULATIONS ########################
 
-echo # Make some space
-
-
 # Check required packages
 if [[ ! -x $(which awk)  ]]; then error <<< "'awk' is not installed, but required for this script!"; return; fi
 if [[ ! -x $(which tmux) ]]; then error <<< "'tmux' is not installed, but required for this script!"; return; fi
@@ -47,19 +44,21 @@ if [[ ! -x $(which tar)  ]]; then error <<< "'tar' is not installed, but require
 ############################# LOAD CONFIGURATION FILE ############################
 
 if ! Core.Setup::loadConfig; then
-	warning <<-EOF
-			The configuration file for csgo-multiserver does not exist or is
-			damaged. Do you want to create a new configuration now?
-		EOF
-	promptY "Start Setup?" && Core.Setup::beginSetup || exit; fi
-
-
+	if [[ $ADMIN_INSTALL == 1 ]]; then # Skip warning, when installing as admin
+		ADMIN=$USER Core.Setup::beginSetup || exit;
+	else
+		warning <<-EOF
+				The configuration file for csgo-multiserver does not exist or is
+				damaged. Do you want to create a new configuration now?
+			EOF
+		promptY "Start Setup?" && Core.Setup::beginSetup || exit; fi
+else
+	echo # Make some space
+	(( $# )) || Core.CommandLine::usage; fi
 
 # Move to Core.Setup::loadConfig
 set-instance "$DEFAULT_INSTANCE"
 
 Core.CommandLine::parseArguments $@
-
-return 0
 
 }

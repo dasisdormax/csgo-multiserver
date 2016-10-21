@@ -16,8 +16,8 @@ Core.Setup::loadConfig () {
 	# If given, read from file $1, otherwise the user's config file
 	local CFG=${1-"$USER_DIR/$APP/msm.conf"}
 	[[ -r $CFG ]] && {
-		source $CFG && Core.Setup::validateConfig \
-					|| error <<< "One or more errors were found in the configuration file $(bold "$CFG")!"
+		if source $CFG; then Core.Setup::validateConfig
+		else error <<< "Configuration file $(bold "$CFG") could not be executed!"; fi
 	}
 }
 
@@ -60,12 +60,15 @@ Core.Setup::validateConfig () {
 
 Core.Setup::writeConfig () {
 	local CFG_DIR="$USER_DIR/$APP"
-	Core.Setup::validateConfig && {
-		mkdir -p "$CFG_DIR" || error <<< "Could not create configuration directory $(bold "$CFG_DIR")!"
-	} && {
-		Core.Setup::printConfig > "$CFG_DIR/msm.conf" || error <<< "Could not write to configuration file $(bold "$CFG_DIR/msm.conf")!"
-	}
+	if Core.Setup::validateConfig; then
+		Core.Setup::printConfig > "$CFG_DIR/msm.conf" || fatal <<-EOF
+			The configuration file $(bold "$CFG_DIR/msm.conf") could not
+			be written to! Make sure that you have the necessary write
+			permissions and try again!
+		EOF
+	else error <<< "Invalid configuration!"; fi
 }
+
 
 Core.Setup::printConfig () {
 	cat <<-EOF
@@ -82,6 +85,9 @@ Core.Setup::printConfig () {
 		fi
 }
 
+
+
+
 ##################################### SETUP #####################################
 
 Core.Setup::beginSetup () {
@@ -97,7 +103,7 @@ Core.Setup::beginSetup () {
 			>>  The configuration files will be saved in the directory:
 			        $(bold "$USER_DIR/$APP")
 
-			    Make sure to backup any important data in this location before proceeding.
+			    Make sure to backup any important data in that location.
 
 			>>  For multi-user setups, this script, located at
 			        $(bold "$THIS_SCRIPT")
@@ -106,11 +112,29 @@ Core.Setup::beginSetup () {
 		EOF
 	promptY || return
 
-	if [[ ! $ADMIN ]]; then
-		cat <<-EOF
-				IMPORTING
-				=========
+	# Create config directory
+	local CFG_DIR="$USER_DIR/$APP"
+	mkdir -p "$CFG_DIR" && [[ -w "$CFG_DIR" ]] || fatal <<-EOF || return
+			The configuration directory $(bold "$CFG_DIR") could not be
+			created! Make sure that you have the necessary write permissions
+			and try again!
+		EOF
 
+	# Check, if config is writable
+	[[ ! -e "$CFG_DIR/msm.conf" || -w "$CFG_DIR/msm.conf" ]] || {
+		fatal <<-EOF || return
+				The configuration file in $(bold "$CFG_DIR/msm.conf") cannot be
+				written to! Make sure that you have the necessary write permissions
+				and try again!
+			EOF
+	}
+
+	# Ask the user if they wish to import a configuration
+	if [[ ! $ADMIN ]]; then
+		echo "Importing configurations"
+		echo "========================"
+		echo
+		fmt -w67 <<-EOF | indent
 				Instead of creating a new configuration, you may also import the settings
 				from a different user on this system. This allows you to use that user's game
 				server installation as a base for your own instances, without having to
@@ -120,26 +144,28 @@ Core.Setup::beginSetup () {
 				Otherwise, hit enter to create your own configuration.
 
 			EOF
+		fi
 
-		until [[ $ADMIN ]]; do
-			echo "Please enter the user to import the configuration from."
-			echo "Leave empty to skip importing, Press CTRL-C to exit."
-			read -p "> Import configuration from? " -r ADMIN
+	local SUCCESS=
+	until [[ $SUCCESS ]]; do
+		if [[ ! $ADMIN ]]; then
+			echo "Please enter the user to import the configuration from. Leave empty to"
+			echo "skip importing configurations, press CTRL-C to exit."
+			echo
+			read -p "> Import configuration from? " -r ADMIN; fi
 
-			if [[ $ADMIN ]]; then
-				if Core.Setup::importFrom $ADMIN; then
-					info <<< "The configuration was successfully imported from user $(bold $ADMIN)"
-					return
-				else error <<-EOF || ADMIN=
-						Import from user $ADMIN failed! Please specify a different user.
-					EOF
-					fi
-			else
-				ADMIN=$USER; fi
-			done; fi
+		ADMIN=${ADMIN:-$USER}
 
-	# Do admin setup
-	[[ $USER == $ADMIN ]] && admin-install
+		[[ $ADMIN == $USER ]] && { admin-install; return; }
+
+		if Core.Setup::importFrom $ADMIN; then
+			success <<< "The configuration of user $(bold $ADMIN) has been imported successfully!"
+			local SUCCESS=1
+		else
+			warning <<< "Import failed! Please specify a different user."
+			ADMIN=;	fi
+
+		echo; done
 
 	# Succeeds, if we have a valid config at the end
 	Core.Setup::loadConfig
@@ -148,7 +174,8 @@ Core.Setup::beginSetup () {
 
 Core.Setup::importFrom () {
 	local IMPORT_FROM=$1
-	echo "Trying to import the configuration of user $(bold $IMPORT_FROM)"
+	echo
+	echo "Trying to import the configuration of user $(bold $IMPORT_FROM) ..."
 
 	# Check if user exists and has a configuration
 	local ADMIN_HOME="$(eval echo ~$IMPORT_FROM)"
@@ -160,13 +187,12 @@ Core.Setup::importFrom () {
 			from. You may, though, switch users and create a configuration on
 			that user's account.
 
-			You will have to confirm switching users with your sudo password.
-			Press CTRL-D to cancel.
+			You will have to confirm switching users with your sudo password. (CTRL-C to cancel)
 
 		EOF
 
-		ADMIN=$IMPORT_FROM sudo -i -u $IMPORT_FROM "$THIS_SCRIPT" || {
-			info <<< "Cancelled creating a configuration for user $IMPORT_FROM."
+		sudo -i -u $IMPORT_FROM ADMIN_INSTALL=1 "$THIS_SCRIPT" || {
+			echo "Cancelling the import from user $IMPORT_FROM ..."
 			return 1
 		}
 	}
@@ -177,6 +203,8 @@ Core.Setup::importFrom () {
 		EOF
 
 	if [[ $ADMIN != $IMPORT_FROM ]]; then
+		echo "The configuration of user $IMPORT_FROM refers to user $ADMIN."
+		echo "We will now try to import that user's configuration instead ..."
 		Core.Setup::importFrom $ADMIN;
 		return; fi
 
