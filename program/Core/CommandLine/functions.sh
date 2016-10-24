@@ -32,9 +32,6 @@ $(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE-SPECIFIC COMMANDS:")
              > CTRL-D to detach (return to outside) without killing the server
 
 $(printf "\x1b[1;36m%s\x1b[22m %s\x1b[m"   "ADMINISTRATION COMMANDS:" "(regarding the base installation)")
-    admin-install
-             > Configure this user as his own admin, install SteamCMD,
-             > and optionally download the game
     update   > Install/Update the game server
     validate > Repair broken/missing game files
 
@@ -68,79 +65,57 @@ Core.CommandLine::parseArguments () {
 				Core.CommandLine::usage
 				;;
 
-			( setup )
-				Core.Setup::beginSetup
+			( @* )
+				set-instance ${1:1}
 				;;
 
-			( admin-install )
-				admin-install || exit 0
+			( start | launch )
+				start || exit 1
+				;;
+
+			( stop | exit )
+				stop || exit 1
+				;;
+
+			( restart )
+				stop &&	start || exit 1
+				;;
+
+			( status )
+				status
+				errno=$?
+				if (( $errno == 0 )); then
+					echo "$SERVER_TEXT is RUNNING!"
+				elif (( $errno == 1 )); then
+					echo "$SERVER_TEXT is currently LAUNCHING or UPDATING!"
+				elif (( $errno == 2 )); then
+					echo "$SERVER_TEXT is STOPPED!"
+				else
+					exit 1
+				fi
+
+				echo
+				;;
+
+			( console )
+				console
+				;;
+
+			( update | up | install )
+				Core.BaseInstallation::requestUpdate || exit 1
+				;;
+
+			( create | create-instance )
+				create-instance || exit 1
+				;;
+
+			( validate | repair )
+				Core.BaseInstallation::requestUpdate validate || exit 1
 				;;
 
 			( * )
-				# Read configuration changes and start setup if needed
-				readcfg || { echo; setup; } || exit 1
-
-				# Check other cases, but respect preconditions
-
-
-				case "$1" in ############ BEGIN INNER CASE ############
-
-					( @* )
-						set-instance ${1:1}
-						;;
-
-					( start | launch )
-						start || exit 1
-						;;
-
-					( stop | exit )
-						stop || exit 1
-						;;
-
-					( restart )
-						stop &&	start || exit 1
-						;;
-
-					( status )
-						status
-						errno=$?
-						if (( $errno == 0 )); then
-							echo "$SERVER_TEXT is RUNNING!"
-						elif (( $errno == 1 )); then
-							echo "$SERVER_TEXT is currently LAUNCHING or UPDATING!"
-						elif (( $errno == 2 )); then
-							echo "$SERVER_TEXT is STOPPED!"
-						else 
-							exit 1
-						fi
-
-						echo
-						;;
-
-					( console )
-						console
-						;;
-
-					( update | up | install )
-						Core.BaseInstallation::requestUpdate || exit 1
-						;;
-
-					( create | create-instance )
-						create-instance || exit 1
-						;;
-
-					( validate | repair )
-						Core.BaseInstallation::requestUpdate validate || exit 1
-						;;
-
-					( * )
-						caterr <<< "$(bold ERROR:) Unrecognized Option: $(bold "$1")."
-						echo       "       Try '$THIS_COMM usage' for a list of available commands."
-						echo
-						exit 1
-						;;
-
-				esac ############ END INNER CASE ############
+				error <<< "Unrecognized Option: $(bold "$1")."
+				exit 1
 				;;
 
 		esac ############ END OUTER CASE ############

@@ -38,8 +38,9 @@ trace () {
 		case $func in
 			( command_not_found_handle ) ;;
 			( * )
-				if (( i > 1 )); then printf "\n          "; fi
-				printf "in %-40s (line %3s)" $func $line ;;
+				if [[ $not_first ]]; then printf "\n          "; fi
+				printf "in %-40s (line %3s)" $func $line
+				local not_first=1;;
 		esac
 		(( i++ ))
 	done

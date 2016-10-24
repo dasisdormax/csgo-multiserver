@@ -66,10 +66,9 @@ Core.Setup::validateConfig () {
 }
 
 
-Core.Setup::writeConfig () (
+Core.Setup::writeConfig () {
 	CFG_DIR="$USER_DIR/$APP"
 	if Core.Setup::validateConfig; then
-		umask o+rx
 		Core.Setup::printConfig > "$CFG_DIR/msm.conf" || fatal <<-EOF
 				Error writing the configuration to $(bold "$CFG_DIR/msm.conf")!
 				You may lack the necessary permissions to access the file!
@@ -77,7 +76,7 @@ Core.Setup::writeConfig () (
 	else
 		error <<< "Invalid configuration!"
 	fi
-)
+}
 
 
 Core.Setup::printConfig () {
@@ -220,7 +219,7 @@ Core.Setup::beginSetup () {
 
 	# Create config directory
 	local CFG_DIR="$USER_DIR/$APP"
-	( umask o+rx; mkdir -p "$CFG_DIR" ) && [[ -w "$CFG_DIR" ]] || {
+	mkdir -p "$CFG_DIR" && [[ -w "$CFG_DIR" ]] || {
 		fatal <<< "No permission to create or write the directory $(bold "$CFG_DIR")!"
 		return
 	}
@@ -284,6 +283,19 @@ Core.Setup::beginSetup () {
 # TODO: make this function smaller
 Core.Setup::setupAsAdmin () {
 
+	cat <<-EOF
+
+		Basic Setup
+		===========
+
+	EOF
+
+	fmt -w67 <<-EOF | indent
+		Now, we will install all dependencies and prepare an initial
+		game server installation. Please follow the instructions below.
+
+	EOF
+
 	######### Install STEAMCMD
 
 	STEAMCMD_DIR="$HOME/Steam/steamcmd"
@@ -333,24 +345,21 @@ Core.Setup::setupAsAdmin () {
 	# cp -n -R "$THIS_DIR/modes-$APPID" "$INSTALL_DIR/msm.d/modes"
 	# cp -n -R "$THIS_DIR/addons-$APPID" "$INSTALL_DIR/msm.d/addons"
 
-	fix-permissions
+	################### Should not be necessary anymore ###################
+	# fix-permissions
 
 	# Create Config and make it readable
-	Core.Setup::writeConfig
+	chmod o+rx "$USER_DIR"
+	Core.Setup::writeConfig && chmod -R o+rx "$USER_DIR/$APP" && success <<-EOF
+			Basic Setup Complete!
 
-	cat <<-EOF
-		Basic Setup Complete!
+			Execute '$THIS_COMMAND install' to install or update the actual game files
+			through SteamCMD. Of course, you can also copy the files from a different
+			location.
 
-		Do you want to install/update the game right now? If you choose No, you can
-		install the game later using '$THIS_COMM install' or copy the files manually.
+			Use '$THIS_COMMAND @name create' to create a new server instance out of
+			your base installation. You may modify each instance's settings independently
+			from the others.
 
 		EOF
-
-	if promptY "Install Now?"; then
-		echo
-		update
-		return 0; fi
-
-	echo
-	return 0
 }

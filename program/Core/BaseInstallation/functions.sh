@@ -24,10 +24,10 @@ Core.BaseInstallation::create () (
 	umask o+rx # make sure that other users can 'fork' this base installation
 	INSTANCE_DIR="$INSTALL_DIR"
 
-	Core.Instance::isValidDir && {
+	Core.Instance::isValidDir || {
 		warning <<-EOF
 			The directory $(bold "$INSTALL_DIR") is non-empty, creating a base
-			installation here may cause $(bold "LOSS OF DATA")!
+			installation here may cause $(bold "LEAKAGE OR LOSS OF DATA")!
 
 			Please backup all important files before proceeding!
 
@@ -58,7 +58,7 @@ Core.BaseInstallation::create () (
 
 
 steamcmd-scripts () {
-	################# TODO: Include these in a better way #################
+	#################### TODO: Find a proper place for them #####################
 
 	cat > "$STEAMCMD_DIR/update" <<-EOF
 		login anonymous
@@ -88,8 +88,7 @@ steamcmd-scripts () {
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 
 Core.BaseInstallation::requestUpdate () {
-	local ACTION="update"
-	if [[ $1 == "validate" ]]; then local ACTION="validate"; fi
+	local ACTION=${1:-"update"}
 
 	# First: Check, if the user can update the base installation, otherwise switch user
 	if [[ $USER != $ADMIN ]]; then
@@ -106,12 +105,21 @@ Core.BaseInstallation::requestUpdate () {
 
 	# Now, check if an update is available at all
 	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_$APPID.acf"
+	local STEAMCMD_SCRIPT="$INSTALL_DIR/msm.d/tmp/steamcmd-script"
 	if [[ ! $MSM_DO_UPDATE && -e $APPMANIFEST && $ACTION == "update" ]]; then
 		echo "Checking for updates ..."
 		rm ~/Steam/appcache/appinfo.vdf 2>/dev/null # Clear cache
+
+		# Query current version through SteamCMD
+		cat <<-EOF > "$STEAMCMD_SCRIPT"
+			login anonymous
+			app_info_update 1
+			app_info_print $APPID
+			quit
+		EOF
 		local buildid=$(
 			"$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update-check" |
-				sed -n '/^"740"$/        ,/^}/       p' |
+				sed -n "/^\"$APPID\"$/        ,/^}/  p" |
 				sed -n '/^\t\t"branches"/,/^\t\t}/   p' |
 				sed -n '/^\t\t\t"public"/,/^\t\t\t}/ p' |
 				grep "buildid" | awk '{ print $2 }'
@@ -121,11 +129,13 @@ Core.BaseInstallation::requestUpdate () {
 
 		[[ $(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }') == $buildid ]] && {
 			info <<< "The base installation is already up to date."
-			return
+			echo; return
 		}
 
 		info <<< "An update for the base installation is available."
 		echo
+		echo "Do you wish to perform the update now?"
+		promptY || return
 	fi
 
 	# If not in a TMUX environment, switch into one to perform the update.
@@ -158,23 +168,39 @@ Core.BaseInstallation::requestUpdate () {
 
 # Actually perform a requested update
 # Takes the action (either update or validate) as parameter
-Core.BaseInstallation::performUpdate () {
+Core.BaseInstallation::performUpdate () (
+
 	# Tell running instances that the update is starting soon
+	umask o+rx
 	local UPDATE_TIME=$(( $(date +%s) + $UPDATE_WAITTIME ))
-	echo $UPDATE_TIME > "$INSTALL_DIR/msm.d/update" # obtain 'lock' in the future
+	echo $UPDATE_TIME > "$INSTALL_DIR/msm.d/update"
+
+	# Wait (meanwhile, prevent exiting on Ctrl-C)
+	# TODO: Allow the user to cancel the update
 	trap "" SIGINT
 	printf "Waiting $UPDATE_WAITTIME seconds for running instances to stop ... "
 	while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
 	trap SIGINT
 	echo; echo
 
-	local LOGFILE="$STEAMCMD_DIR/$ACTION.log"
+
+
+	local LOGFILE="$INSTALL_DIR/msm.d/log/steamcmd-$ACTION.log"
+	cat <<-EOF > "$STEAMCMD_SCRIPT"
+		login anonymous
+		force_install_dir "$INSTALL_DIR"
+		app_update $APPID $( [[ $ACTION == validate ]] && echo "validate" )
+		quit
+	EOF
+
+	# Done waiting and preparing, the update can be started now
+
 	echo > "$LOGFILE"
 	echo "Performing update/installation NOW. Log File: $(bold "$LOGFILE")"
 	echo
 
-	tries=5
-	try=0
+	local tries=5
+	local try=0
 	unset SUCCESS
 	until [[ $SUCCESS ]] || (( ++try > tries )); do
 		tee -a "$LOGFILE" <<-EOF | catinfo
@@ -183,30 +209,31 @@ Core.BaseInstallation::performUpdate () {
 			# $(printf "%-48s" "Trying to $ACTION the game using SteamCMD ...") #
 			####################################################
 
-			EOF
-		$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/$ACTION" | tee -a "$LOGFILE"
+		EOF
+		$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT" | tee -a "$LOGFILE"
 		echo >> "$LOGFILE" # an extra newline in the file because of the weird escape sequences that steam uses
 		echo | tee -a "$LOGFILE"
 
 		egrep "Success! App '$APPID'.*(fully installed|up to date)" "$LOGFILE" > /dev/null && local SUCCESS=1
 
-		done
+	done
 
-	fix-permissions
+	############# should not be necessary anymore because of umask ############
+	# fix-permissions
 
 	# Update timestamp on appid file, so clients know that files may have changed
 	rm "$INSTALL_DIR/msm.d/update" 2>/dev/null
 	touch "$INSTALL_DIR/msm.d/appid"
 
-	unset try tries
 	if [[ $SUCCESS ]]; then
-		catinfo <<< "$(bold INFO:)  Update completed successfully!"
+		success <<< "Your $APP server was ${ACTION}d successfully!"
 		echo
 		return 0
-	else catwarn <<-EOF
-		$(bold WARN:)  Update failed! For more information, see the log file"
-		       at $(bold "$LOGFILE")."
+	else warning <<-EOF
+			Update failed! For more information, see the log file
+			at $(bold "$LOGFILE").
 
 		EOF
-		return 1; fi
-}
+		return 1
+	fi
+)
