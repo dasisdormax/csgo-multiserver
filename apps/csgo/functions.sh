@@ -31,7 +31,7 @@ App::instanceIgnoredDirs () { cat <<-EOF; }
 EOF
 
 App::applyBaseInstallPermissions () {
-
+	false
 }
 
 App::applyInstancePermissions () {

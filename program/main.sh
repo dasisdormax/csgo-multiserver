@@ -41,28 +41,17 @@ main () {
 
 
 
-############################# LOAD CONFIGURATION FILE ############################
+# TODO: add config and instance checks to all functions that require
+#       them - arguments such as help should work independently
 
-if ! Core.Setup::loadConfig; then
-	if [[ $MSM_DO_INSTALL == 1 ]]; then # Skip warning when installing as admin
-		ADMIN=$USER Core.Setup::beginSetup || exit;
-	else
-		warning <<-EOF
-				The configuration file for csgo-multiserver does not exist or is
-				damaged. Do you want to create a new configuration now?
-			EOF
-		promptY "Start Setup?" && Core.Setup::beginSetup || exit
-	fi
-else
-	echo # Make some space
-	(( $# )) || Core.CommandLine::usage
-fi
+(( $# )) || Core.CommandLine::usage && {
+	# Move to Core.Setup::loadConfig
+	set-instance "$DEFAULT_INSTANCE"
 
-# Move to Core.Setup::loadConfig
-set-instance "$DEFAULT_INSTANCE"
-
-args=( "$@" )
-A="$1"
-Core.CommandLine::parseArguments
-
+	ARGS=( "$@" )
+	A="$1"
+	Core.CommandLine::parseArguments
 }
+
+
+} # end function main

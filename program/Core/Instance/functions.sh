@@ -61,7 +61,7 @@ Core.Instance::symlinkFiles () {
 
 # TODO:
 Core.Instance::copyFiles () {
-
+	false
 }
 
 

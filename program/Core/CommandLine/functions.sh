@@ -13,7 +13,7 @@
 # Shift the global argument list by $1 elements
 argshift () {
 	local n=${1-1}
-	ARGS=( "${ARGS[@]:$1}" )
+	ARGS=( "${ARGS[@]:$n}" )
 	A=( "${ARGS[0]}" )
 }
 
@@ -46,6 +46,7 @@ $(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE-SPECIFIC COMMANDS:")
              > CTRL-D to detach (return to outside) without killing the server
 
 $(printf "\x1b[1;36m%s\x1b[22m %s\x1b[m"   "ADMINISTRATION COMMANDS:" "(regarding the base installation)")
+    setup    > Configure this program and install dependencies
     update   > Install/Update the game server
     validate > Repair broken/missing game files
 
@@ -66,8 +67,6 @@ EOF
 Core.CommandLine::parseArguments () {
 
 	while (( ${#ARGS[@]} )); do
-		unset NEED_SETUP
-		unset NO_COMMAND
 
 		case "$A" in ############ BEGIN OUTER CASE ############
 
@@ -109,6 +108,10 @@ Core.CommandLine::parseArguments () {
 				fi
 
 				echo
+				;;
+
+			( setup )
+				Core.Setup::beginSetup
 				;;
 
 			( console )

@@ -12,6 +12,15 @@
 
 ################################ CONFIG HANDLING ################################
 
+requireConfig () {
+	Core.Setup::validateConfig || error <<-EOF
+		No valid configuration found!
+
+		Try $(bold "$THIS_COMMAND setup") to create a new
+		configuration.
+	EOF
+}
+
 Core.Setup::loadConfig () {
 	# If given, read from file $1, otherwise the user's config file
 	local CFG=${1-"$USER_DIR/$APP/msm.conf"}
