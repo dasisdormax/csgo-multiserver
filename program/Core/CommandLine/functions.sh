@@ -8,6 +8,20 @@
 
 
 
+############################### HELPER FUNCTIONS ###############################
+
+# Shift the global argument list by $1 elements
+argshift () {
+	local n=${1-1}
+	ARGS=( "${ARGS[@]:$1}" )
+	A=( "${ARGS[0]}" )
+}
+
+
+
+
+################################## USAGE INFO ##################################
+
 # usage: display all the possible commands and a short explanation of what they do
 # 
 # TODO: Allow addons to inject their usage information into this function
@@ -51,11 +65,11 @@ EOF
 # TODO: Allow addons to define their own arguments and corresponding actions
 Core.CommandLine::parseArguments () {
 
-	while [[ $1 ]]; do
+	while (( ${#ARGS[@]} )); do
 		unset NEED_SETUP
 		unset NO_COMMAND
 
-		case "$1" in ############ BEGIN OUTER CASE ############
+		case "$A" in ############ BEGIN OUTER CASE ############
 
 			( info | about | license | copyright )
 				about-this-program
@@ -66,19 +80,19 @@ Core.CommandLine::parseArguments () {
 				;;
 
 			( @* )
-				set-instance ${1:1}
+				set-instance $A
 				;;
 
 			( start | launch )
-				start || exit 1
+				start || exit
 				;;
 
 			( stop | exit )
-				stop || exit 1
+				stop || exit
 				;;
 
 			( restart )
-				stop &&	start || exit 1
+				stop &&	start || exit
 				;;
 
 			( status )
@@ -114,12 +128,12 @@ Core.CommandLine::parseArguments () {
 				;;
 
 			( * )
-				error <<< "Unrecognized Option: $(bold "$1")" || exit
+				error <<< "Unrecognized Option: $(bold "$A")" || exit
 				;;
 
 		esac ############ END OUTER CASE ############
 		
-	shift
+	argshift
 done ############ END LOOP ############
 
 }

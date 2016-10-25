@@ -183,10 +183,10 @@ Core.Setup::installSteamCMD () (
 	tar xzf steamcmd_linux.tar.gz
 	rm steamcmd_linux.tar.gz &> /dev/null
 
-	[[ -x $STEAMCMD_DIR/steamcmd.sh ]] || error <<< "SteamCMD installation failed!" || return
+	[[ -x steamcmd.sh ]] || error <<< "SteamCMD installation failed!" || return
 
 	echo "Updating SteamCMD ..."
-	$(which unbuffer) echo "quit" | "$STEAMCMD_DIR/steamcmd.sh"; echo
+	$(which unbuffer) echo "quit" | steamcmd.sh; echo
 	echo
 	success <<< "SteamCMD installed successfully!"
 )

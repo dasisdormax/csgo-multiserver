@@ -61,6 +61,8 @@ fi
 # Move to Core.Setup::loadConfig
 set-instance "$DEFAULT_INSTANCE"
 
-Core.CommandLine::parseArguments $@
+args=( "$@" )
+A="$1"
+Core.CommandLine::parseArguments
 
 }
