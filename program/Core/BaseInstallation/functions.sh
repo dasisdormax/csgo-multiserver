@@ -46,7 +46,7 @@ Core.BaseInstallation::create () (
 	chmod -R +rX "$INSTALL_DIR"
 
 	# Delete old configuration
-	rm -rf --one-file-system "$INSTALL_DIR/msm.d" 2>/dev/null
+	rm -rf "$INSTALL_DIR/msm.d" 2>/dev/null
 
 	# Create new configuration
 	mkdir "$INSTALL_DIR/msm.d"
@@ -54,33 +54,10 @@ Core.BaseInstallation::create () (
 	echo "$APP"   > "$INSTALL_DIR/msm.d/appname"
 	touch "$INSTALL_DIR/msm.d/is-admin" # Mark as base installation
 
+	# Create temporary and logging directories
+	mkdir "$INSTALL_DIR/msm.d/tmp"
+	mkdir "$INSTALL_DIR/msm.d/log"
 )
-
-
-steamcmd-scripts () {
-	#################### TODO: Find a proper place for them #####################
-
-	cat > "$STEAMCMD_DIR/update" <<-EOF
-		login anonymous
-		force_install_dir "$INSTALL_DIR"
-		app_update $APPID
-		quit
-	EOF
-
-	cat > "$STEAMCMD_DIR/validate" <<-EOF
-		login anonymous
-		force_install_dir "$INSTALL_DIR"
-		app_update $APPID validate
-		quit
-	EOF
-
-	cat > "$STEAMCMD_DIR/update-check" <<-EOF
-		login anonymous
-		app_info_update 1
-		app_info_print 740
-		quit
-	EOF
-}
 
 
 
@@ -144,25 +121,41 @@ Core.BaseInstallation::requestUpdate () {
 		echo "Switching into TMUX for performing the update ..."
 
 		TMPDIR="$INSTALL_DIR/msm.d/tmp"
-		mkdir -p "$TMPDIR"
 		local SOCKET="$TMPDIR/update.tmux-socket"
 
-		if ( tmux -S "$SOCKET" has-session > /dev/null 2>&1 ); then 
+		tmux -S "$SOCKET" has-session > /dev/null 2>&1 && {
 			tmux -S "$SOCKET" attach
-			echo
-			return 0
-		fi
+			return
+		}
 
 		delete-tmux
 
 		export MSM_DO_UPDATE=1
+		export MSM_UPDATE_LOGFILE="$INSTALL_DIR/msm.d/log/$(timestamp)-$ACTION.log"
+
+		# Execute Update within tmux
 		tmux -S "$SOCKET" -f "$THIS_DIR/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
+
 		local errno=$?
-		unset MSM_DO_UPDATE
-		echo
+		if (( $errno )); then
+			error <<-EOF
+				Update failed. See the log file $(bold "$MSM_UPDATE_LOGFILE")
+				for more information.
 
-		return $errno; fi
+			EOF
+		else
+			success <<-EOF
+				Your $APP server was ${ACTION}d successfully!
 
+			EOF
+		fi
+
+		unset MSM_DO_UPDATE MSM_UPDATE_LOGFILE
+		return $errno
+	fi
+
+
+	# Perform update
 	Core.BaseInstallation::performUpdate $ACTION
 }
 
@@ -183,9 +176,6 @@ Core.BaseInstallation::performUpdate () (
 	trap SIGINT
 	echo; echo
 
-
-
-	local LOGFILE="$INSTALL_DIR/msm.d/log/steamcmd-$ACTION.log"
 	cat <<-EOF > "$STEAMCMD_SCRIPT"
 		login anonymous
 		force_install_dir "$INSTALL_DIR"
@@ -195,8 +185,8 @@ Core.BaseInstallation::performUpdate () (
 
 	# Done waiting and preparing, the update can be started now
 
-	echo > "$LOGFILE"
-	echo "Performing update/installation NOW. Log File: $(bold "$LOGFILE")"
+	echo > "$MSM_UPDATE_LOGFILE"
+	echo "Performing update/installation NOW. Log File: $(bold "$MSM_UPDATE_LOGFILE")"
 	echo
 
 	local tries=5
@@ -218,22 +208,11 @@ Core.BaseInstallation::performUpdate () (
 
 	done
 
-	############# should not be necessary anymore because of umask ############
-	# fix-permissions
+	# App::applyInstancePermissions
 
 	# Update timestamp on appid file, so clients know that files may have changed
 	rm "$INSTALL_DIR/msm.d/update" 2>/dev/null
 	touch "$INSTALL_DIR/msm.d/appid"
 
-	if [[ $SUCCESS ]]; then
-		success <<< "Your $APP server was ${ACTION}d successfully!"
-		echo
-		return 0
-	else warning <<-EOF
-			Update failed! For more information, see the log file
-			at $(bold "$LOGFILE").
-
-		EOF
-		return 1
-	fi
+	return $SUCCESS
 )

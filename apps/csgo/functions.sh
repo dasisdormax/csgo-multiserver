@@ -7,31 +7,36 @@
 
 
 
-App::createInstanceSpecificFiles () {
-	mkdir -p "$INSTANCE_DIR/csgo"
 
-	# Directories that are fully copied, the instance owner can do whatever he wants there
-	if [[ -e "$INSTALL_DIR/csgo/addons" ]]; then
-		cp --reflink=auto -R "$INSTALL_DIR/csgo/addons" "$INSTANCE_DIR/csgo/addons"
-		fi
-	cp --reflink=auto -R "$INSTALL_DIR/csgo/cfg" "$INSTANCE_DIR/csgo/cfg"
-	cp --reflink=auto -R "$INSTALL_DIR/csgo/models" "$INSTANCE_DIR/csgo/models"
-	cp --reflink=auto -R "$INSTALL_DIR/csgo/sound" "$INSTANCE_DIR/csgo/sound"
+# files/directories to copy fully 
+App::instanceCopiedFiles () { cat <<-EOF; }
+	csgo/addons
+	csgo/cfg
+	csgo/models
+	csgo/sound
+EOF
 
-	# Signal that new files should not be symlinked
-	mkdir -p "$INSTANCE_DIR/csgo/addons"
-	touch "$INSTANCE_DIR/csgo/addons/.donotlink"
 
-	# Directories where the user can add own files in addition to the provided ones
-	mkdir -p "$INSTANCE_DIR/csgo/maps"
-	mkdir -p "$INSTANCE_DIR/csgo/maps/cfg"
-	mkdir -p "$INSTANCE_DIR/csgo/maps/soundcache"
-	mkdir -p "$INSTANCE_DIR/csgo/resource/overviews"
+# directories, in which the user can put own files in addition to the provided ones
+App::instanceMixedDirs () { cat <<-EOF; }
+	csgo/maps
+	csgo/maps/cfg
+	csgo/maps/soundcache
+	csgo/resource/overviews
+EOF
+
+# directories which are not shared between the base installation and the instances
+App::instanceIgnoredDirs () { cat <<-EOF; }
+	csgo/addons
+EOF
+
+App::applyBaseInstallPermissions () {
+
 }
 
-App::fixInstancePermissions () {
+App::applyInstancePermissions () {
 	# This script works in the given INSTANCE_DIR
-	if [[ ! -d $INSTANCE_DIR ]]; then return; exit; fi
+	Core.Instance::isInstance || return
 
 	# Remove execute bit on everything but directories
 	chmod -R o-rw,a-x,ug+rwX "$INSTANCE_DIR"

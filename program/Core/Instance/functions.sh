@@ -31,6 +31,7 @@ Core.Instance::isValidDir () {
 ###################### SERVER INSTANCE MANAGEMENT FUNCTIONS ######################
 
 # recursively symlinks all files from the base installation that do not exist yet in the instance
+# TODO: instead of checking for a donotlink file, respect App::instanceIgnoredDirs
 Core.Instance::symlinkFiles () {
 	# Return if .donotlink file exists in target.
 	# This file could be made by instance creation scripts, to indicate that new or missing files should not be linked from the base instance again
@@ -57,42 +58,41 @@ Core.Instance::symlinkFiles () {
 		done
 }
 
-Core.Instance::create () {
-	cat <<-EOF
-		-------------------------------------------------------------------------------
-		               CS:GO Multi-Mode Server Manager - Instance Setup
-		-------------------------------------------------------------------------------
-	EOF
 
-	if Core.Instance::isBaseInstallation; then
-		catinfo <<-EOF; return
-			$(bold INFO:)  You have selected a base installation, There is no need to create an
-			       instance here. If you want to create a new instance, set the instance
-			       name using '$THIS_COMM @name create'.
+# TODO:
+Core.Instance::copyFiles () {
+
+}
+
+
+# TODO: Update everything
+Core.Instance::create () {
+	Core.Instance::isInstance && catinfo <<-EOF && return
+			@$INSTANCE is already a valid instance. You can create a different
+			instance using '$THIS_COMMAND @name create'
 
 		EOF
-	fi
 
 	if ! Core.Instance::isValidDir; then
-		catwarn <<-EOF
-			       This operation $(bold "WILL DELETE ALL DATA") in $(bold "$INSTANCE_DIR") ...
+		warning <<-EOF
+			The directory $(bold "$INSTANCE_DIR") is non-empty, creating an
+			instance here may cause $(bold "LOSS OF DATA")!
 
-			EOF
+			Please backup all important files before proceeding!
+
+		EOF
 		sleep 2
-		promptN || { echo; return 1; }
+		promptN || return
 	fi
 
 	############ INSTANCE CREATION STARTS NOW ############
-	rm -rf "$INSTANCE_DIR" > /dev/null 2>&1
-
 	mkdir -p "$INSTANCE_DIR/msm.d"
 
 	# Execute Instance creation script. This will copy all files that the
 	# instance owner should be able to modify himself.
-	echo
 	echo "Copying instance-specific files ..."
 
-	source "$SUBSCRIPT_DIR/instance.sh"
+	Core.Instance::copyFiles
 
 	if (( $? )); then
 		caterr <<-EOF

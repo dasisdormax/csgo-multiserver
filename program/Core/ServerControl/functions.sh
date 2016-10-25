@@ -70,7 +70,7 @@ start () {
 
 	rm -f "$INSTANCE_DIR/msm.d/tmp/"*
 
-	TIMESTAMP="\$(date +%Y.%m.%d_%T_%z)"
+	TIMESTAMP="\$(timestamp)"
 	UNBUFFER="$(which unbuffer)"
 
 	cat > "$INSTANCE_DIR/msm.d/tmp/server-start.sh"   <<-EOF

@@ -102,20 +102,19 @@ Core.CommandLine::parseArguments () {
 				;;
 
 			( update | up | install )
-				Core.BaseInstallation::requestUpdate || exit 1
+				Core.BaseInstallation::requestUpdate || exit
 				;;
 
 			( create | create-instance )
-				create-instance || exit 1
+				create-instance || exit
 				;;
 
 			( validate | repair )
-				Core.BaseInstallation::requestUpdate validate || exit 1
+				Core.BaseInstallation::requestUpdate validate || exit
 				;;
 
 			( * )
-				error <<< "Unrecognized Option: $(bold "$1")."
-				exit 1
+				error <<< "Unrecognized Option: $(bold "$1")" || exit
 				;;
 
 		esac ############ END OUTER CASE ############
