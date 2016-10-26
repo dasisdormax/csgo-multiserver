@@ -3,6 +3,7 @@
 ####################### LICENSE AND COPYRIGHT INFORMATION ########################
 
 about-this-program () { cat <<EOF
+
 ================================================================================
 
                            CS:GO Multi Server Manager
@@ -28,7 +29,6 @@ CONDITIONS  OF ANY KIND,  either  express or  implied.  See the  License for the
 specific language governing permissions and limitations under the License.
 
 ================================================================================
-
 EOF
 }
 
@@ -110,9 +110,3 @@ USER_DIR="$HOME/msm.d"
 
 # Run the thing
 . "$THIS_DIR/program/main.sh" && main $@
-
-
-
-errno=$?
-unset -f . .file .dir :
-if [[ $0 != ${BASH_SOURCE[0]} ]]; then return $errno; else exit $errno; fi

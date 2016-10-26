@@ -44,14 +44,18 @@ main () {
 # TODO: add config and instance checks to all functions that require
 #       them - arguments such as help should work independently
 
-(( $# )) || Core.CommandLine::usage && {
-	# Move to Core.Setup::loadConfig
-	set-instance "$DEFAULT_INSTANCE"
+if ! (( $# )); then
+	Core.CommandLine::usage
+	echo
+	return
+fi
 
-	ARGS=( "$@" )
-	A="$1"
-	Core.CommandLine::parseArguments
-}
+Core.Setup::loadConfig
+INSTANCE="$DEFAULT_INSTANCE" Core.CommandLine::parseArguments $@
 
+# Insert space before ending the program
+local errno=$?
+echo
+return $?
 
 } # end function main

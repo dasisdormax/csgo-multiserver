@@ -10,11 +10,15 @@
 
 ############################### HELPER FUNCTIONS ###############################
 
-# Shift the global argument list by $1 elements
+# Shift the argument list by $1 elements
+# This allows functions to use more than one parameter
 argshift () {
 	local n=${1-1}
-	ARGS=( "${ARGS[@]:$n}" )
-	A=( "${ARGS[0]}" )
+	CURR_ARG="$NEXT_ARG"
+	ALL_ARGS=( "${ALL_ARGS[@]:$n}" )
+	NEXT_ARG="${ALL_ARGS[0]}"
+	debug <<< "Shifted by $n, Current arg is '$(bold "$CURR_ARG")'"
+	[[ $CURR_ARG ]] # Return true if an argument is available for parsing
 }
 
 
@@ -26,6 +30,7 @@ argshift () {
 # 
 # TODO: Allow addons to inject their usage information into this function
 Core.CommandLine::usage () { cat <<EOF
+
 Usage: $(bold "$THIS_COMMAND") < commands >
 
 $(printf "\x1b[1;36m%s\x1b[m"              "GENERAL COMMANDS:")
@@ -52,7 +57,6 @@ $(printf "\x1b[1;36m%s\x1b[22m %s\x1b[m"   "ADMINISTRATION COMMANDS:" "(regardin
 
 Commands will be executed in the order they are given. If a command fails,
 subsequent commands will not be executed.
-
 EOF
 }
 
@@ -64,11 +68,25 @@ EOF
 ##################################################################################
 
 # TODO: Allow addons to define their own arguments and corresponding actions
-Core.CommandLine::parseArguments () {
+Core.CommandLine::parseArguments () (
 
-	while (( ${#ARGS[@]} )); do
+	ALL_ARGS=( "$@" )
+	NEXT_ARG="$1"
 
-		case "$A" in ############ BEGIN OUTER CASE ############
+	# Core.Instance::loadInstance
+
+	while argshift; do
+
+		# $A
+		#      is the current argument we're parsing
+		# $ARGS
+		#      is an array containing the remaining parameters
+
+		# Functions can use 'argshift' to indicate that a parameter has
+		# been used up by the function itself. This prevents the argument
+		# parser to parse those parameters as commands again
+
+		case "$CURR_ARG" in ############ BEGIN OUTER CASE ############
 
 			( info | about | license | copyright )
 				about-this-program
@@ -79,7 +97,7 @@ Core.CommandLine::parseArguments () {
 				;;
 
 			( @* )
-				set-instance $A
+				set-instance ${CURR_ARG:1}
 				;;
 
 			( start | launch )
@@ -131,12 +149,9 @@ Core.CommandLine::parseArguments () {
 				;;
 
 			( * )
-				error <<< "Unrecognized Option: $(bold "$A")" || exit
+				error <<< "Unrecognized Option: $(bold "$CURR_ARG")" || exit
 				;;
 
 		esac ############ END OUTER CASE ############
-		
-	argshift
-done ############ END LOOP ############
-
-}
+	done ############ END LOOP ############
+)
