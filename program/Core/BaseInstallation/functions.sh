@@ -12,7 +12,7 @@
 
 Core.BaseInstallation::isExisting () {
 	INSTANCE_DIR=$INSTALL_DIR Core.Instance::isBaseInstallation && \
-		info <<< "An existing base installation was found in $(bold "$INSTALL_DIR")"
+		info <<< "An existing base installation was found in **$INSTALL_DIR**"
 }
 
 
@@ -26,8 +26,8 @@ Core.BaseInstallation::create () (
 
 	Core.Instance::isValidDir || {
 		warning <<-EOF
-			The directory $(bold "$INSTALL_DIR") is non-empty, creating a base
-			installation here may cause $(bold "LEAKAGE OR LOSS OF DATA")!
+			The directory **$INSTALL_DIR** is non-empty, creating a base
+			installation here may cause **LEAKAGE OR LOSS OF DATA**!
 
 			Please backup all important files before proceeding!
 
@@ -38,7 +38,7 @@ Core.BaseInstallation::create () (
 
 	# Create base installation directory
 	mkdir -p "$INSTALL_DIR" && [[ -w "$INSTALL_DIR" ]] || {
-		fatal <<< "No permission to create or write the directory $(bold "$INSTALL_DIR")!"
+		fatal <<< "No permission to create or write the directory **$INSTALL_DIR**!"
 		return
 	}
 
@@ -70,12 +70,12 @@ Core.BaseInstallation::requestUpdate () {
 	# First: Check, if the user can update the base installation, otherwise switch user
 	if [[ $USER != $ADMIN ]]; then
 		warning <<-EOF # TODO: update text similar to Core.Setup::beginSetup
-			Only the admin $(bold $ADMIN) can $ACTION the base installation.
-			Please switch to the account of $(bold $ADMIN) now! (or CTRL-C to cancel)
+			Only the admin **$ADMIN** can $ACTION the base installation.
+			Please switch to the account of **$ADMIN** now! (or CTRL-C to cancel)
 		EOF
 
 		sudo -i -u $ADMIN "$THIS_SCRIPT" "$ACTION" \
-			|| error <<< "Installation/update as $(bold $ADMIN) failed!"
+			|| error <<< "Installation/update as **$ADMIN** failed!"
 
 		return
 	fi

@@ -17,7 +17,6 @@ argshift () {
 	CURR_ARG="$NEXT_ARG"
 	ALL_ARGS=( "${ALL_ARGS[@]:$n}" )
 	NEXT_ARG="${ALL_ARGS[0]}"
-	debug <<< "Shifted by $n, Current arg is '$(bold "$CURR_ARG")'"
 	[[ $CURR_ARG ]] # Return true if an argument is available for parsing
 }
 
@@ -29,20 +28,20 @@ argshift () {
 # usage: display all the possible commands and a short explanation of what they do
 # 
 # TODO: Allow addons to inject their usage information into this function
-Core.CommandLine::usage () { cat <<EOF
+Core.CommandLine::usage () { bold <<EOF
 
-Usage: $(bold "$THIS_COMMAND") < commands >
+Usage: **$THIS_COMMAND** < commands >
 
-$(printf "\x1b[1;36m%s\x1b[m"              "GENERAL COMMANDS:")
+$(printf "\x1b[36m%s\x1b[m"   "**GENERAL COMMANDS:**")
     usage    > Display this help message
     info     > About this script / copyright and license information
 
-$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE SELECTION:")
+$(printf "\x1b[36m%s\x1b[m"   "**INSTANCE SELECTION:**")
     @...     > Select the server instance to apply the following commands on.
              > If no name is given, work on the base installation instead.
     The default instance \$DEFAULT_INSTANCE can be specified in the config file
 
-$(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE-SPECIFIC COMMANDS:")
+$(printf "\x1b[36m%s\x1b[m"   "**INSTANCE-SPECIFIC COMMANDS:**")
     create   > Create a new server instance
     start | stop | restart
              > Start/Stop/Restart given server instance (using tmux)
@@ -50,7 +49,7 @@ $(printf "\x1b[1;36m%s\x1b[m"              "INSTANCE-SPECIFIC COMMANDS:")
     console  > Attach (connect) to the server's console. While inside, press
              > CTRL-D to detach (return to outside) without killing the server
 
-$(printf "\x1b[1;36m%s\x1b[22m %s\x1b[m"   "ADMINISTRATION COMMANDS:" "(regarding the base installation)")
+$(printf "\x1b[36m%s\x1b[m"   "**ADMINISTRATION COMMANDS:** (regarding the base installation)")
     setup    > Configure this program and install dependencies
     update   > Install/Update the game server
     validate > Repair broken/missing game files
@@ -73,7 +72,7 @@ Core.CommandLine::parseArguments () (
 	ALL_ARGS=( "$@" )
 	NEXT_ARG="$1"
 
-	# Core.Instance::loadInstance
+	Core.Instance::updateVars
 
 	while argshift; do
 
@@ -85,6 +84,8 @@ Core.CommandLine::parseArguments () (
 		# Functions can use 'argshift' to indicate that a parameter has
 		# been used up by the function itself. This prevents the argument
 		# parser to parse those parameters as commands again
+
+		debug <<< "Current argument: **$CURR_ARG**"
 
 		case "$CURR_ARG" in ############ BEGIN OUTER CASE ############
 
@@ -149,7 +150,7 @@ Core.CommandLine::parseArguments () (
 				;;
 
 			( * )
-				error <<< "Unrecognized Option: $(bold "$CURR_ARG")" || exit
+				error <<< "Unrecognized Option: **$CURR_ARG**" || exit
 				;;
 
 		esac ############ END OUTER CASE ############

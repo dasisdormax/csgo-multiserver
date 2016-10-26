@@ -16,7 +16,7 @@ requireConfig () {
 	Core.Setup::validateConfig || error <<-EOF
 		No valid configuration found!
 
-		Try $(bold "$THIS_COMMAND setup") to create a new
+		Try **$THIS_COMMAND setup** to create a new
 		configuration.
 	EOF
 }
@@ -28,7 +28,7 @@ Core.Setup::loadConfig () {
 		if builtin . $CFG; then
 			Core.Setup::validateConfig
 		else
-			error <<< "Configuration file $(bold "$CFG") could not be executed!"
+			error <<< "Configuration file **$CFG** could not be executed!"
 		fi
 	}
 }
@@ -51,7 +51,7 @@ Core.Setup::validateConfig () {
 				variable \$STEAMCMD_DIR is not defined!
 			EOF
 		[[ -x $STEAMCMD_DIR/steamcmd.sh   ]] || error <<-EOF || return
-				$(bold "$STEAMCMD_DIR") does not contain a
+				**$STEAMCMD_DIR** does not contain a
 				valid SteamCMD installation!
 			EOF
 	fi
@@ -62,14 +62,14 @@ Core.Setup::validateConfig () {
 		EOF
 
 	[[ -r $INSTALL_DIR && -x $INSTALL_DIR ]] || error <<-EOF || return
-			The base installation directory $(bold "$INSTALL_DIR")
+			The base installation directory **$INSTALL_DIR**
 			is not accessible!
 		EOF
 
 	[[ $(cat "$INSTALL_DIR/msm.d/appname" 2>/dev/null) == $APP    \
 	   && -e "$INSTALL_DIR/msm.d/is-admin"                     ]] \
 											 || error <<-EOF || return
-			The directory $(bold "$INSTALL_DIR") is not a
+			The directory **$INSTALL_DIR** is not a
 			valid base installation for $APP!
 		EOF
 }
@@ -79,7 +79,7 @@ Core.Setup::writeConfig () {
 	CFG_DIR="$USER_DIR/$APP"
 	if Core.Setup::validateConfig; then
 		Core.Setup::printConfig > "$CFG_DIR/msm.conf" || fatal <<-EOF
-				Error writing the configuration to $(bold "$CFG_DIR/msm.conf")!
+				Error writing the configuration to **$CFG_DIR/msm.conf**!
 				You may lack the necessary permissions to access the file!
 			EOF
 	else
@@ -112,19 +112,19 @@ Core.Setup::printConfig () {
 Core.Setup::importFrom () {
 	local IMPORT_FROM=$1
 	echo
-	echo "Trying to import the configuration of user $(bold $IMPORT_FROM) ..."
+	echo "Trying to import the configuration of user **$IMPORT_FROM** ..."
 
 	# Check if user exists and has a configuration
 
 	local ADMIN_HOME="$(eval echo ~$IMPORT_FROM)"
 	[[ -r $ADMIN_HOME ]] || error <<-EOF || return
-			User $(bold $IMPORT_FROM) does not exist or their home
+			User **$IMPORT_FROM** does not exist or their home
 			directory is not readable!
 		EOF
 
 	[[ -r $ADMIN_HOME/msm.d/$APP/msm.conf ]] || {
 		warning <<-EOF
-			User $(bold $IMPORT_FROM) has no configuration that we can import settings
+			User **$IMPORT_FROM** has no configuration that we can import settings
 			from. You may, though, switch users and create a configuration on
 			that user's account.
 
@@ -155,7 +155,7 @@ Core.Setup::importFrom () {
 
 
 Core.Setup::isExistingSteamCMD () {
-	[[ -x $STEAMCMD_DIR/steamcmd.sh ]] && info <<< "SteamCMD was found in $(bold "$STEAMCMD_DIR")."
+	[[ -x $STEAMCMD_DIR/steamcmd.sh ]] && info <<< "SteamCMD was found in **$STEAMCMD_DIR**."
 }
 # installs SteamCMD into the directory specified by $STEAMCMD_DIR
 # runs in a subshell to not modify the outer working directory
@@ -166,7 +166,7 @@ Core.Setup::installSteamCMD () (
 
 	# Create the directory
 	mkdir -p "$STEAMCMD_DIR" && [[ -w $STEAMCMD_DIR ]] || {
-		fatal <<< "No permission to create or write the directory $(bold "$STEAMCMD_DIR")!"
+		fatal <<< "No permission to create or write the directory **$STEAMCMD_DIR**!"
 		return
 	}
 	cd "$STEAMCMD_DIR"
@@ -174,8 +174,8 @@ Core.Setup::installSteamCMD () (
 	# Warn, if the directory already contains files
 	[[ $(ls -A) ]] && {
 		warning <<-EOF
-				The directory $(bold "$STEAMCMD_DIR") is non-empty, installing
-				SteamCMD to this location may cause $(bold "LOSS OF DATA")!
+				The directory **$STEAMCMD_DIR"** is non-empty, installing
+				SteamCMD to this location may cause **LOSS OF DATA**!
 
 				Please backup all important files before proceeding!
 
@@ -184,7 +184,7 @@ Core.Setup::installSteamCMD () (
 		promptN || return
 	}
 
-	echo "Installing SteamCMD to $(bold "$STEAMCMD_DIR") ..."
+	echo "Installing SteamCMD to **$STEAMCMD_DIR** ..."
 
 	until wget "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"; do
 		echo "Download failed. Retrying ..."; sleep 5; done
@@ -214,12 +214,12 @@ Core.Setup::beginSetup () {
 		Before advancing, be aware of a few things:
 
 		>>  The configuration files will be saved in the directory:
-		        $(bold "$USER_DIR/$APP")
+		        **$USER_DIR/$APP**
 
 		    Make sure to backup any important data in that location.
 
 		>>  For multi-user setups, this script, located at
-		        $(bold "$THIS_SCRIPT")
+		        **$THIS_SCRIPT**
 		    must be readable for all users.
 
 	EOF
@@ -229,13 +229,13 @@ Core.Setup::beginSetup () {
 	# Create config directory
 	local CFG_DIR="$USER_DIR/$APP"
 	mkdir -p "$CFG_DIR" && [[ -w "$CFG_DIR" ]] || {
-		fatal <<< "No permission to create or write the directory $(bold "$CFG_DIR")!"
+		fatal <<< "No permission to create or write the directory **$CFG_DIR**!"
 		return
 	}
 
 	# Check, if config is writable
 	[[ ! -r "$CFG_DIR/msm.conf" || -w "$CFG_DIR/msm.conf" ]] || {
-		fatal <<< "No permission to write the configuration file $(bold "$CFG_DIR/msm.conf")!"
+		fatal <<< "No permission to write the configuration file **$CFG_DIR/msm.conf**!"
 		return
 	}
 
@@ -270,7 +270,7 @@ Core.Setup::beginSetup () {
 		[[ $ADMIN == $USER ]] && { Core.Setup::setupAsAdmin; return; }
 
 		if Core.Setup::importFrom $ADMIN; then
-			success <<< "The configuration of user $(bold $ADMIN) has been imported successfully!"
+			success <<< "The configuration of user **$ADMIN** has been imported successfully!"
 			local SUCCESS=1
 		else
 			warning <<< "Import failed! Please specify a different user."
@@ -362,11 +362,11 @@ Core.Setup::setupAsAdmin () {
 	Core.Setup::writeConfig && chmod -R o+rx "$USER_DIR/$APP" && success <<-EOF
 			Basic Setup Complete!
 
-			Execute '$THIS_COMMAND install' to install or update the actual game files
+			Execute **$THIS_COMMAND install** to install or update the actual game files
 			through SteamCMD. Of course, you can also copy the files from a different
 			location.
 
-			Use '$THIS_COMMAND @name create' to create a new server instance out of
+			Use **$THIS_COMMAND @name create** to create a new server instance out of
 			your base installation. You may modify each instance's settings independently
 			from the others.
 

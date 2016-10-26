@@ -104,7 +104,7 @@
 
 # override command not found message
 command_not_found_handle () {
-	error <<< "$(bold "$1") - command not found:"
+	error <<< "**$1** - command not found:"
 	local mod=$(echo $1 | grep -o '^..*::')
 	if [[ $mod ]]; then
 		caterr <<< " "
@@ -115,7 +115,7 @@ command_not_found_handle () {
 			caterr <<< "    Functions currently defined in the '$mod' namespace:"
 			local fun
 			for fun in $funs; do
-				caterr <<< "        $(bold $fun)"; done
+				caterr <<< "        **$fun**" | bold; done
 
 		else caterr <<-EOF; fi; fi
 				    The module '$mod' is not loaded
