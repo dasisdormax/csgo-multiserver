@@ -31,10 +31,11 @@ catinfo () { printf "\x1b[36m"     ; cat     ; printf "\x1b[m"     ; }
 
 # Debug mode > enable fd 3
 if [[ $MSM_DEBUG ]]; then exec 3>&1; else exec 3>/dev/null; fi
+if [[ $MSM_LOGFILE ]]; then rm $MSM_LOGFILE 2>/dev/null; fi
 
 
 # log to given MSM_LOGFILE or pass output through
-log () { tee -a $MSM_LOGFILE; }
+log () { tee -a $MSM_LOGFILE | bold; }
 
 
 # indent output by 4 characters
@@ -71,7 +72,7 @@ fatal () {
 	printf "\x1b[35m" >&2
 
 	{	printf "**FATAL:**   "; trace; echo
-		fmt -w67 | indent;						} | log | bold >&2
+		fmt -w67 | indent;						} | log >&2
 
 	printf "\x1b[m" >&2
 	false
@@ -81,7 +82,7 @@ error () {
 	printf "\x1b[31m" >&2
 
 	{	printf "**ERROR:**   "; trace; echo
-		fmt -w67 | indent;						} | log | bold >&2
+		fmt -w67 | indent;						} | log >&2
 
 	printf "\x1b[m" >&2
 	false
@@ -90,8 +91,9 @@ error () {
 warning () {
 	printf "\x1b[33m"
 
-	{	printf "**WARNING:** "; trace >&3; echo
-		fmt -w67 | indent;						} | log | bold
+	printf "**WARNING:** "       | log
+	trace                        | log >&3
+	{ echo;	fmt -w67 | indent; } | log
 
 	printf "\x1b[m"
 }
@@ -99,8 +101,9 @@ warning () {
 info () {
 	printf "\x1b[36m"
 
-	{	printf "**INFO:**    "; trace >&3; echo
-		fmt -w67 | indent;						} | log | bold
+	printf "**INFO:**    "       | log
+	trace                        | log >&3
+	{ echo;	fmt -w67 | indent; } | log
 
 	printf "\x1b[m"
 }
@@ -108,8 +111,9 @@ info () {
 success () {
 	printf "\x1b[32m"
 
-	{	printf "**SUCCESS:** "; trace >&3; echo
-		fmt -w67 | indent;						} | log | bold
+	printf "**SUCCESS:** "       | log
+	trace                        | log >&3
+	{ echo;	fmt -w67 | indent; } | log
 
 	printf "\x1b[m"
 }
