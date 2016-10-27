@@ -39,7 +39,9 @@ $(printf "\x1b[36m%s\x1b[m"   "**GENERAL COMMANDS:**")
 $(printf "\x1b[36m%s\x1b[m"   "**INSTANCE SELECTION:**")
     @...     > Select the server instance to apply the following commands on.
              > If no name is given, work on the base installation instead.
-    The default instance \$DEFAULT_INSTANCE can be specified in the config file
+
+    By default, the base installation is used. You may specify a different
+    default \$INSTANCE in your config file.
 
 $(printf "\x1b[36m%s\x1b[m"   "**INSTANCE-SPECIFIC COMMANDS:**")
     create   > Create a new server instance
@@ -49,7 +51,7 @@ $(printf "\x1b[36m%s\x1b[m"   "**INSTANCE-SPECIFIC COMMANDS:**")
     console  > Attach (connect) to the server's console. While inside, press
              > CTRL-D to detach (return to outside) without killing the server
 
-$(printf "\x1b[36m%s\x1b[m"   "**ADMINISTRATION COMMANDS:** (regarding the base installation)")
+$(printf "\x1b[36m%s\x1b[m"   "**ADMINISTRATION COMMANDS:** working on the base installation")
     setup    > Configure this program and install dependencies
     update   > Install/Update the game server
     validate > Repair broken/missing game files
@@ -72,7 +74,7 @@ Core.CommandLine::parseArguments () (
 	ALL_ARGS=( "$@" )
 	NEXT_ARG="$1"
 
-	Core.Instance::updateVars
+	Core.Instance::select
 
 	while argshift; do
 

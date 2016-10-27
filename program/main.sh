@@ -50,12 +50,15 @@ if ! (( $# )); then
 	return
 fi
 
-Core.Setup::loadConfig
-INSTANCE="$DEFAULT_INSTANCE" Core.CommandLine::parseArguments $@
+# The default instance will be taken from the $INSTANCE variable in the config
+# Otherwise, the default instance is the base installation
 
-# Insert space before ending the program
+Core.Setup::loadConfig
+Core.CommandLine::parseArguments $@
+
 local errno=$?
-echo
+# Insert space before ending the program (if it is not a remote command)
+[[ $MSM_REMOTE ]] || echo
 return $?
 
 } # end function main

@@ -65,4 +65,4 @@ set-instance () {
 }
 
 
-timestamp () { date +%Y.%m.%d_%T_%z; }
+timestamp () { date +%y%m%d_%T; }

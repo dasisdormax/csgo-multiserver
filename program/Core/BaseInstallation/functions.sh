@@ -66,25 +66,26 @@ Core.BaseInstallation::create () (
 
 Core.BaseInstallation::requestUpdate () {
 	local ACTION=${1:-"update"}
+	log <<< ""
 
 	# First: Check, if the user can update the base installation, otherwise switch user
+
 	if [[ $USER != $ADMIN ]]; then
 		warning <<-EOF # TODO: update text similar to Core.Setup::beginSetup
 			Only the admin **$ADMIN** can $ACTION the base installation.
 			Please switch to the account of **$ADMIN** now! (or CTRL-C to cancel)
 		EOF
 
-		sudo -i -u $ADMIN "$THIS_SCRIPT" "$ACTION" \
-			|| error <<< "Installation/update as **$ADMIN** failed!"
-
+		sudo -i -u $ADMIN "$THIS_SCRIPT" "$ACTION"
 		return
 	fi
 
 	# Now, check if an update is available at all
+
 	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_$APPID.acf"
-	local STEAMCMD_SCRIPT="$INSTALL_DIR/msm.d/tmp/steamcmd-script"
+	local STEAMCMD_SCRIPT="$TMPDIR/steamcmd-script"
 	if [[ ! $MSM_DO_UPDATE && -e $APPMANIFEST && $ACTION == "update" ]]; then
-		echo "Checking for updates ..."
+		out <<< "Checking for updates ..."
 		rm ~/Steam/appcache/appinfo.vdf 2>/dev/null # Clear cache
 
 		# Query current version through SteamCMD
@@ -106,21 +107,20 @@ Core.BaseInstallation::requestUpdate () {
 
 		[[ $(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }') == $buildid ]] && {
 			info <<< "The base installation is already up to date."
-			echo; return
+			return
 		}
 
 		info <<< "An update for the base installation is available."
-		echo
-		echo "Do you wish to perform the update now?"
+		out  <<< "Do you wish to perform the update now?"
 		promptY || return
 	fi
 
 	# If not in a TMUX environment, switch into one to perform the update.
 	# This way, an SSH disconnection or closing the terminal won't interrupt it.
-	if ! [[ $TMUX && $MSM_DO_UPDATE == 1 ]]; then
-		echo "Switching into TMUX for performing the update ..."
 
-		TMPDIR="$INSTALL_DIR/msm.d/tmp"
+	if ! [[ $TMUX && $MSM_DO_UPDATE == 1 ]]; then
+		out  <<< "Switching into TMUX for performing the update ..."
+
 		local SOCKET="$TMPDIR/update.tmux-socket"
 
 		tmux -S "$SOCKET" has-session > /dev/null 2>&1 && {
@@ -130,27 +130,28 @@ Core.BaseInstallation::requestUpdate () {
 
 		delete-tmux
 
+		local OLD_LOGFILE="$MSM_LOGFILE"
+		local UPDATE_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
+		export MSM_LOGFILE="$UPDATE_LOGFILE"
 		export MSM_DO_UPDATE=1
-		export MSM_UPDATE_LOGFILE="$INSTALL_DIR/msm.d/log/$(timestamp)-$ACTION.log"
 
 		# Execute Update within tmux
 		tmux -S "$SOCKET" -f "$THIS_DIR/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
 
 		local errno=$?
+
+		unset MSM_DO_UPDATE MSM_LOGFILE
+		MSM_LOGFILE="$OLD_LOGFILE"
+
 		if (( $errno )); then
 			error <<-EOF
-				Update failed. See the log file $(bold "$MSM_UPDATE_LOGFILE")
+				Update failed. See the log file **$UPDATE_LOGFILE**
 				for more information.
-
 			EOF
 		else
-			success <<-EOF
-				Your $APP server was ${ACTION}d successfully!
-
-			EOF
+			success <<< "Your $APP server was ${ACTION}d successfully!"
 		fi
 
-		unset MSM_DO_UPDATE MSM_UPDATE_LOGFILE
 		return $errno
 	fi
 
@@ -171,10 +172,9 @@ Core.BaseInstallation::performUpdate () (
 	# Wait (meanwhile, prevent exiting on Ctrl-C)
 	# TODO: Allow the user to cancel the update
 	trap "" SIGINT
-	printf "Waiting $UPDATE_WAITTIME seconds for running instances to stop ... "
+	log <<< "Waiting $UPDATE_WAITTIME seconds for running instances to stop ..."
 	while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
 	trap SIGINT
-	echo; echo
 
 	cat <<-EOF > "$STEAMCMD_SCRIPT"
 		login anonymous
@@ -185,26 +185,29 @@ Core.BaseInstallation::performUpdate () (
 
 	# Done waiting and preparing, the update can be started now
 
-	echo > "$MSM_UPDATE_LOGFILE"
-	echo "Performing update/installation NOW. Log File: $(bold "$MSM_UPDATE_LOGFILE")"
-	echo
+	log <<< ""
+	log <<< "Performing update/installation NOW."
 
 	local tries=5
 	local try=0
-	unset SUCCESS
-	until [[ $SUCCESS ]] || (( ++try > tries )); do
-		tee -a "$LOGFILE" <<-EOF | catinfo
+	local code=1
+	while (( $code && ++try <= tries )); do
+		log <<-EOF | catinfo
+
 			####################################################
 			# $(printf "[%2d/%2d] %40s" $try $tries "$(date)") #
 			# $(printf "%-48s" "Trying to $ACTION the game using SteamCMD ...") #
 			####################################################
 
 		EOF
-		$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT" | tee -a "$LOGFILE"
-		echo >> "$LOGFILE" # an extra newline in the file because of the weird escape sequences that steam uses
-		echo | tee -a "$LOGFILE"
 
-		egrep "Success! App '$APPID'.*(fully installed|up to date)" "$LOGFILE" > /dev/null && local SUCCESS=1
+		{
+			$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT"
+			echo; # An additional newline, as SteamCMD is weird
+		} | log
+
+		egrep "Success! App '$APPID'.*(fully installed|up to date)" \
+		      "$MSM_LOGFILE" > /dev/null                   && local code=0
 
 	done
 
@@ -214,5 +217,5 @@ Core.BaseInstallation::performUpdate () (
 	rm "$INSTALL_DIR/msm.d/update" 2>/dev/null
 	touch "$INSTALL_DIR/msm.d/appid"
 
-	return $SUCCESS
+	return $code
 )

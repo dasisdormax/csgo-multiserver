@@ -29,13 +29,18 @@ Core.Instance::isValidDir () {
 
 
 # update instance-related variables
-Core.Instance::updateVars () {
-	[[ $INSTANCE ]] || {
+Core.Instance::select () {
+	if [[ $INSTANCE ]]; then
+		INSTANCE_DIR="$HOME/$APP@$INSTANCE"
+		INSTANCE_TEXT="Instance **@$INSTANCE**"
+	else
 		INSTANCE_DIR="$INSTALL_DIR"
 		INSTANCE_TEXT="**Base Installation**"
-	}
-	INSTANCE_DIR="$HOME/$APP@$INSTANCE"
-	INSTANCE_TEXT="Instance **@$INSTANCE**"
+	fi
+	TMPDIR="$INSTANCE_DIR/msm.d/tmp"
+	LOGDIR="$INSTANCE_DIR/msm.d/log"
+
+	debug <<< "Selected $INSTANCE_TEXT."
 }
 
 
