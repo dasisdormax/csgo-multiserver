@@ -9,7 +9,7 @@ Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
 This is a complete rewrite of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be primarily designed for rented root servers). Intention is to make server management easier in both shared server and LAN environments.
 
-The core features of this script are finally working enough for this script to be somewhat useful. The first release is not too far anymore, only a softer server stop needs to be implemented. 
+The core features of this script are finally working enough for this script to be somewhat useful. A huge amount of changes (primarily helper functions, logging and code restructuring) is on the way and worked on in the develop branch. 
 
 Anyway, I haven't had many opportunities for testing yet, so I'd appreciate every bit of feedback. This script is nowhere near complete, there is still _a lot_ more to do (addons, etc). 
 
@@ -100,7 +100,7 @@ It is, though, not required to create a separate instance if you do not intend t
 
 1. If this is the first time the script is used on the current account, type `csgo-server` and follow the instructions to import the configuration from the admin.
 2. (If applicable) Create your own instance (a fork of the base installation) named _myinstance_ using `csgo-server @myinstance create`.
-3. Manage mods/addons using `csgo-server @myinstance manage`
+3. Manage mods/addons using `csgo-server @myinstance manage` (not implemented yet)
 
 
 
@@ -119,8 +119,6 @@ Other commands are sufficiently explained in the installation section above, I s
 
 ## License
 
-Apache License 2.0. I chose it because I specifically want to allow others to build services upon this script. However, I would still appreciate if improvements and fixes could make it back here.
+Apache License 2.0. I chose it because I specifically want to allow others to build services based on this script. However, I would still appreciate if improvements and fixes could make it back here.
 
-__Be aware that this only applies since MARCH 29, 2016__ (to be exact, since commit [20645aa](https://github.com/dasisdormax/csgo-multiserver/commit/20645aa13a654226fc08312411f6462bdb9c877f))
-
-For earlier states of this repository (or up to the top of branch [crazy](https://github.com/dasisdormax/csgo-multiserver/tree/crazy)), the LGPLv3 still applies. The LGPLv3 was used by the original csgo-server-launcher by crazy. At this point, no original code is being used anymore. 
+__Be aware that the original csgo-server-launcher by crazy is licensed under the LGPLv3__, which still applies to earlier states of this repository. The license change has been marked with the tags __lgpl-until-here__ and __apache2-from-here__. Since the license change, crazy's code has been fully replaced by own code.
