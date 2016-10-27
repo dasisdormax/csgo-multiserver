@@ -47,10 +47,10 @@ start () {
 		return 0; fi
 
 	# Symlink new files
-	if [[ $INSTALL_DIR/msm.d/appid -nt $INSTANCE_DIR/msm.d/appid ]]; then
+	if [[ $INSTALL_DIR/msm.d/app -nt $INSTANCE_DIR/msm.d/app ]]; then
 		echo "Syncing to latest update of base installation ..."
 		symlink-all-files
-		touch "$INSTANCE_DIR/msm.d/appid"
+		touch "$INSTANCE_DIR/msm.d/app"
 		fi
 
 	# Load instance configuration

@@ -12,7 +12,7 @@
 
 # true, if an instance exists in directory $INSTANCE_DIR
 Core.Instance::isInstance () {
-	[[ $(cat "$INSTANCE_DIR/msm.d/appname" 2>/dev/null) == $APP ]]
+	[[ $(cat "$INSTANCE_DIR/msm.d/app" 2>/dev/null) == $APP ]]
 }
 
 
@@ -136,8 +136,7 @@ Core.Instance::create () {
 	echo
 	echo "Performing final steps ..."
 
-	cp "$INSTALL_DIR/msm.d/appid" "$INSTANCE_DIR/msm.d/appid"
-	cp "$INSTALL_DIR/msm.d/appname" "$INSTANCE_DIR/msm.d/appname"
+	cp "$INSTALL_DIR/msm.d/app" "$INSTANCE_DIR/msm.d/app"
 	cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/msm.d/server.conf"
 
 	# Copy gamemodes and addons from the base installation
