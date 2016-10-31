@@ -10,7 +10,8 @@
 
 # Check, if an update to the CS:GO Base Installation is available
 # returns 0, if the most current version is installed
-#         1, if an update is available or the game is not installed yed
+#         1, if an update is available
+#         2, if the game is not installed yet
 #         9, if checking for the update failed
 App::isUpToDate () {
 
@@ -18,12 +19,13 @@ App::isUpToDate () {
 	local APPMANIFEST="$INSTALL_DIR/steamapps/appmanifest_740.acf"
 
 	# If game is not installed yet, skip checking
-	[[ -e $APPMANIFEST ]] || return
+	[[ -e $APPMANIFEST ]] || return 2
 
 	# Clear cache
 	rm ~/Steam/appcache/appinfo.vdf 2>/dev/null
 
 	local STEAMCMD_SCRIPT="$TMPDIR/steamcmd-script"
+	local STEAMCMD_OUT="$TMPDIR/steamcmd-out"
 	cat <<-EOF > "$STEAMCMD_SCRIPT"
 		login anonymous
 		app_info_update 1
@@ -31,50 +33,39 @@ App::isUpToDate () {
 		quit
 	EOF
 
+	rm "$STEAMCMD_OUT" 2>/dev/null
 	# Get current build id through SteamCMD
-	local buildid=$(
-		"$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_DIR/update-check" |
+	unbuffer "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT" | MSM_LOGFILE="$STEAMCMD_OUT" log >&3
+
+	local oldbuildid=$(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }')
+	local newbuildid=$(
+			cat "$STEAMCMD_OUT" |
 			sed -n "/^\"740\"$/        ,/^}/     p" |
 			sed -n '/^\t\t"branches"/,/^\t\t}/   p' |
 			sed -n '/^\t\t\t"public"/,/^\t\t\t}/ p' |
 			grep "buildid" | awk '{ print $2 }'
 		)
 
-	(( $? == 0 )) || error <<< "Searching for updates failed!" || return 9
+	(( $? == 0 )) || error <<< "Could not search for updates!" || return 9
 
-	[[ $(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }') == $buildid ]]
+	debug <<< "Installed build is $oldbuildid, most recent build is $newbuildid."
+
+	[[ $oldbuildid == $newbuildid ]]
 }
 
 
 # Actually perform a requested update
 # Takes the action (either update or validate) as parameter
-App::performUpdate () (
+App::performUpdate () {
 
-	# Tell running instances that the update is starting soon
-	umask o+rx
-	local UPDATE_TIME=$(( $(date +%s) + $UPDATE_WAITTIME ))
-	echo $UPDATE_TIME > "$INSTALL_DIR/msm.d/update"
-
-	# Wait (meanwhile, prevent exiting on Ctrl-C)
-	# TODO: Allow the user to cancel the update
-	trap "" SIGINT
-	log <<< ""
-	log <<< "Waiting $UPDATE_WAITTIME seconds for running instances to stop ..."
-	while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
-	trap SIGINT
-
+	# Prepare SteamCMD script
 	local STEAMCMD_SCRIPT="$TMPDIR/steamcmd-script"
 	cat <<-EOF > "$STEAMCMD_SCRIPT"
 		login anonymous
 		force_install_dir "$INSTALL_DIR"
-		app_update $APPID $( [[ $ACTION == validate ]] && echo "validate" )
+		app_update 740 $( [[ $ACTION == validate ]] && echo "validate" )
 		quit
 	EOF
-
-	# Done waiting and preparing, the update can be started now
-
-	log <<< ""
-	log <<< "Performing update/installation NOW."
 
 	local tries=5
 	local try=0
@@ -90,20 +81,16 @@ App::performUpdate () (
 		EOF
 
 		{
-			$(which unbuffer) "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT"
+			unbuffer "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT"
 			echo; # An additional newline, as SteamCMD is weird
 		} | log
 
-		egrep "Success! App '$APPID'.*(fully installed|up to date)" \
+		egrep "Success! App '740'.*(fully installed|up to date)" \
 		      "$MSM_LOGFILE" > /dev/null                   && local code=0
 
 	done
 
 	# App::applyInstancePermissions
 
-	# Update timestamp on appid file, so clients know that files may have changed
-	rm "$INSTALL_DIR/msm.d/update" 2>/dev/null
-	touch "$INSTALL_DIR/msm.d/appid"
-
 	return $code
-)
+}

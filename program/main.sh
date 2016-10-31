@@ -10,20 +10,43 @@
 
 main () {
 
-######################### INITIAL CHECKS AND CALCULATIONS ########################
+: Utils # Enable output functions and logging
 
-# Check required packages
-[[ -x $(which awk)  ]] || error <<< "'awk' is not installed, but required for this script!"  || return
-[[ -x $(which tmux) ]] || error <<< "'tmux' is not installed, but required for this script!" || return
-[[ -x $(which wget) ]] || error <<< "'wget' is not installed, but required for this script!" || return
-[[ -x $(which tar)  ]] || error <<< "'tar' is not installed, but required for this script!"  || return
+out <<-EOF >&3
 
 
 
+	====================================================================
 
-################################### LOAD MODULES #################################
+	                   **CS:GO Multi Server Manager**
+	                   ------------------------------
 
-: Utils
+	Current time:   $(date)
+	Log file:       $MSM_LOGFILE
+	Commands:       $@
+
+	====================================================================
+
+EOF
+
+
+
+
+############################### CHECK DEPENDENCIES ###############################
+
+# Check required programs
+local programs="sed awk tmux wget tar unbuffer"
+local program
+for program in $programs; do
+	[[ -x $(which $program) ]] ||
+		fatal <<< "The program **$program** could not be found on your system!" || return
+done
+
+
+
+
+################################## LOAD MODULES ##################################
+
 : AddonEngine
 
 ::init
@@ -50,11 +73,14 @@ if ! (( $# )); then
 	return
 fi
 
-# The default instance will be taken from the $INSTANCE variable in the config
-# Otherwise, the default instance is the base installation
+
+
+
+# Use $DEFAULT_INSTANCE variable from configuration file
+# if unset, the default instance is the base installation
 
 Core.Setup::loadConfig
-Core.CommandLine::parseArguments $@
+INSTANCE="$DEFAULT_INSTANCE" Core.CommandLine::parseArguments "$@"
 
 local errno=$?
 # Insert space before ending the program (if it is not a remote command)

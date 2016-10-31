@@ -8,16 +8,27 @@
 
 
 
-#######################
-#                     #
-#  TODO: Add logging  #
-#                     #
-#######################
+# Debug mode > enable fd 3
+if [[ $MSM_DEBUG ]]; then exec 3>&1; else exec 3>/dev/null; fi
+
+
+# Logfile: read absolute path and remove old log, if existing
+if [[ $MSM_LOGFILE && ! $MSM_LOGFILE =~ ^/ ]]; then
+	logdir=$(dirname "$MSM_LOGFILE")
+	logdir=$(cd "$logdir" 2>/dev/null && pwd)
+	if [[ -w $logdir ]]; then
+		MSM_LOGFILE="$logdir/$(basename "$MSM_LOGFILE")"
+	else
+		MSM_LOGFILE=
+	fi
+fi
 
 
 
 
+################################### HELPERS ###################################
 
+# Colored output, here for compatibility reasons
 caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
 
 catwarn () { printf "\x1b[33m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
@@ -25,17 +36,8 @@ catwarn () { printf "\x1b[33m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
 catinfo () { printf "\x1b[36m"     ; cat     ; printf "\x1b[m"     ; }
 
 
-
-
-################################### HELPERS ###################################
-
-# Debug mode > enable fd 3
-if [[ $MSM_DEBUG ]]; then exec 3>&1; else exec 3>/dev/null; fi
-if [[ $MSM_LOGFILE ]]; then rm $MSM_LOGFILE 2>/dev/null; fi
-
-
 # log to given MSM_LOGFILE or pass output through
-log () { tee -a $MSM_LOGFILE | bold; }
+log () { tee -a "$MSM_LOGFILE" 2>/dev/null; }
 
 
 # indent output by 4 characters
@@ -45,7 +47,10 @@ indent () { sed 's/^/    /'; }
 # print a 'stack trace'
 trace () {
 	local i=1
-	while [[ ${FUNCNAME[$i]} != main ]] && (( i < ${#FUNCNAME[@]} )); do
+	while [[ ${FUNCNAME[$i]} != main &&
+	         ${FUNCNAME[$i]} != Core.CommandLine::parseArguments ]] &&
+	      (( i < ${#FUNCNAME[@]} ))
+	do
 		local func=${FUNCNAME[$i+1]}
 		local line=${BASH_LINENO[$i]}
 		case $func in
@@ -72,7 +77,7 @@ fatal () {
 	printf "\x1b[35m" >&2
 
 	{	printf "**FATAL:**   "; trace; echo
-		fmt -w67 | indent;						} | log >&2
+		fmt -w67 | indent;						} | log | bold >&2
 
 	printf "\x1b[m" >&2
 	false
@@ -82,7 +87,7 @@ error () {
 	printf "\x1b[31m" >&2
 
 	{	printf "**ERROR:**   "; trace; echo
-		fmt -w67 | indent;						} | log >&2
+		fmt -w67 | indent;						} | log | bold >&2
 
 	printf "\x1b[m" >&2
 	false
@@ -91,9 +96,9 @@ error () {
 warning () {
 	printf "\x1b[33m"
 
-	printf "**WARNING:** "       | log
-	trace                        | log >&3
-	{ echo;	fmt -w67 | indent; } | log
+	printf "**WARNING:** "       | log | bold
+	trace                        | log | bold >&3
+	{ echo;	fmt -w67 | indent; } | log | bold
 
 	printf "\x1b[m"
 }
@@ -101,9 +106,9 @@ warning () {
 info () {
 	printf "\x1b[36m"
 
-	printf "**INFO:**    "       | log
-	trace                        | log >&3
-	{ echo;	fmt -w67 | indent; } | log
+	printf "**INFO:**    "       | log | bold
+	trace                        | log | bold >&3
+	{ echo;	fmt -w67 | indent; } | log | bold
 
 	printf "\x1b[m"
 }
@@ -111,9 +116,9 @@ info () {
 success () {
 	printf "\x1b[32m"
 
-	printf "**SUCCESS:** "       | log
-	trace                        | log >&3
-	{ echo;	fmt -w67 | indent; } | log
+	printf "**SUCCESS:** "       | log | bold
+	trace                        | log | bold >&3
+	{ echo;	fmt -w67 | indent; } | log | bold
 
 	printf "\x1b[m"
 }

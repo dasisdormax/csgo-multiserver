@@ -37,8 +37,10 @@ Core.Instance::select () {
 		INSTANCE_DIR="$INSTALL_DIR"
 		INSTANCE_TEXT="**Base Installation**"
 	fi
+	# Other locations
 	TMPDIR="$INSTANCE_DIR/msm.d/tmp"
 	LOGDIR="$INSTANCE_DIR/msm.d/log"
+	SOCKET="$TMPDIR/server.tmux-socket"
 
 	debug <<< "Selected $INSTANCE_TEXT."
 }

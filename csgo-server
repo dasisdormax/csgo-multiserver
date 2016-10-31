@@ -65,26 +65,28 @@ USER_DIR="$HOME/msm.d"
 # override dot builtin: execute a handler (either a .sh-file or .sh-files in a directory)
 # Further parameters are passed to the executed scripts
 . () {
-	local cmd=${1%%.sh} # Strip .sh extension
-	shift               # Makes ${@:2} unnecessary
+	local cmd="${1%%.sh}" # Strip .sh extension
 	# Try executing file or file.sh (depending on extension) otherwise execute sh-files in directory
 	if [[ $cmd =~ \.[^/]*$ ]]; then
-		.file "$cmd"    $@ && return
+		.file "$cmd"    "${@:2}" && return
 	else
-		.file "$cmd.sh" $@ && return
+		.file "$cmd.sh" "${@:2}" && return
 	fi
-	.dir "$cmd" $@
+	.dir "$cmd" "${@:2}"
 }
 
 
 # Execute all .sh-files inside a given directory
 # Further parameters are passed to the executed scripts
 #
-# Fails and exits if any file is faulty or no files exist in the directory
+# Returns
+#   true,  if all files in the directory $1 could be executed
+#   false, - if $1 is no directory or contains no .sh files
+#          - if errors occured during the execution of any file
 .dir () {
 	[[ -d $1 ]] && {
 		for file in "$1"/*.sh; do
-			.file "$file" ${@:2} || return
+			.file "$file" "${@:2}" || return
 		done
 	}
 }
@@ -92,12 +94,15 @@ USER_DIR="$HOME/msm.d"
 
 # Execute a file and set the context for the colon function
 # Further parameters are passed to the executed scripts
-.file () { [[ -f $1 ]] && builtin . "$1" ${@:2}; }
+.file () { [[ -f $1 ]] && builtin . "$1" "${@:2}"; }
 
 
 # override colon builtin: execute a file relative to the current file's base directory
 # Further parameters are passed to the executed scripts
-: () { . $(dirname ${BASH_SOURCE[1]})/$1 ${@:2}; }
+: () { . "$(dirname ${BASH_SOURCE[1]})/$1" "${@:2}"; }
+
+# ? function: execute a config file, preferring user config over global config
+? () { . "$USER_DIR/$@" || . "$THIS_DIR/$@"; }
 
 
 
@@ -106,7 +111,7 @@ USER_DIR="$HOME/msm.d"
 
 
 # This sets the default parameters such as $APP, if not given through the environment
-. "$USER_DIR/defaults.conf" || . "$THIS_DIR/defaults.conf"
+? "cfg/defaults.conf"
 
 # Run the thing
-. "$THIS_DIR/program/main.sh" && main $@
+. "$THIS_DIR/program/main" && main "$@"

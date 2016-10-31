@@ -22,21 +22,13 @@ requireConfig () {
 }
 
 Core.Setup::loadConfig () {
-	# If given, read from file $1, otherwise the user's config file
-	local CFG=${1-"$USER_DIR/$APP/msm.conf"}
-	[[ -r $CFG ]] && {
-		if builtin . $CFG; then
-			Core.Setup::validateConfig
-		else
-			error <<< "Configuration file **$CFG** could not be executed!"
-		fi
-	}
+	? "cfg/app-$APP.conf" && Core.Setup::validateConfig
 }
 
 
 # load msm configuration file of the given user
 Core.Setup::loadConfigOf () {
-	Core.Setup::loadConfig "$(eval echo ~$1)/msm.d/$APP/msm.conf"
+	USER_DIR="$(eval echo ~$1)/msm.d" Core.Setup::loadConfig
 }
 
 
@@ -66,8 +58,8 @@ Core.Setup::validateConfig () {
 			is not accessible!
 		EOF
 
-	[[ $(cat "$INSTALL_DIR/msm.d/appname" 2>/dev/null) == $APP    \
-	   && -e "$INSTALL_DIR/msm.d/is-admin"                     ]] \
+	[[ $(cat "$INSTALL_DIR/msm.d/app" 2>/dev/null) == $APP &&
+	   -e "$INSTALL_DIR/msm.d/is-admin"                        ]] \
 											 || error <<-EOF || return
 			The directory **$INSTALL_DIR** is not a
 			valid base installation for $APP!
@@ -76,10 +68,10 @@ Core.Setup::validateConfig () {
 
 
 Core.Setup::writeConfig () {
-	CFG_DIR="$USER_DIR/$APP"
+	CFG="$USER_DIR/cfg/app-$APP.conf"
 	if Core.Setup::validateConfig; then
-		Core.Setup::printConfig > "$CFG_DIR/msm.conf" || fatal <<-EOF
-				Error writing the configuration to **$CFG_DIR/msm.conf**!
+		Core.Setup::printConfig > "$CFG" || fatal <<-EOF
+				Error writing the configuration to **$CFG**!
 				You may lack the necessary permissions to access the file!
 			EOF
 	else
@@ -111,8 +103,8 @@ Core.Setup::printConfig () {
 
 Core.Setup::importFrom () {
 	local IMPORT_FROM=$1
-	echo
-	echo "Trying to import the configuration of user **$IMPORT_FROM** ..."
+	out <<< ""
+	out <<< "Trying to import the configuration of user **$IMPORT_FROM** ..."
 
 	# Check if user exists and has a configuration
 
@@ -122,7 +114,7 @@ Core.Setup::importFrom () {
 			directory is not readable!
 		EOF
 
-	[[ -r $ADMIN_HOME/msm.d/$APP/msm.conf ]] || {
+	[[ -r $ADMIN_HOME/msm.d/cfg/app-$APP.conf ]] || {
 		warning <<-EOF
 			User **$IMPORT_FROM** has no configuration that we can import settings
 			from. You may, though, switch users and create a configuration on
@@ -132,8 +124,11 @@ Core.Setup::importFrom () {
 
 		EOF
 
-		sudo -i -u $IMPORT_FROM MSM_DO_INSTALL=1 "$THIS_SCRIPT" || {
-			echo "Cancelling the import from user $IMPORT_FROM ..."
+		sudo -iu $IMPORT_FROM \
+			MSM_LOGFILE="$MSM_LOGFILE" MSM_DEBUG=$MSM_DEBUG ADMIN=$ADMIN \
+			"$THIS_SCRIPT" setup ||
+		{
+			out <<< "Cancelled the import from user $IMPORT_FROM ..."
 			return 1
 		}
 	}
@@ -144,8 +139,10 @@ Core.Setup::importFrom () {
 		EOF
 
 	if [[ $ADMIN != $IMPORT_FROM ]]; then
-		echo "The configuration of user $IMPORT_FROM refers to user $ADMIN."
-		echo "We will now try to import that user's configuration instead ..."
+		info <<-EOF
+			The configuration of user $IMPORT_FROM refers to user $ADMIN.
+			We will now try to import that user's configuration instead ...
+		EOF
 		Core.Setup::importFrom $ADMIN;
 		return
 	fi
@@ -178,7 +175,6 @@ Core.Setup::installSteamCMD () (
 				SteamCMD to this location may cause **LOSS OF DATA**!
 
 				Please backup all important files before proceeding!
-
 			EOF
 		sleep 2
 		promptN || return
@@ -195,7 +191,8 @@ Core.Setup::installSteamCMD () (
 	[[ -x steamcmd.sh ]] || error <<< "SteamCMD installation failed!" || return
 
 	echo "Updating SteamCMD ..."
-	$(which unbuffer) echo "quit" | steamcmd.sh; echo
+
+	unbuffer ./steamcmd.sh +quit | log; echo
 	echo
 	success <<< "SteamCMD installed successfully!"
 )
@@ -205,7 +202,8 @@ Core.Setup::installSteamCMD () (
 ################################# INITIAL SETUP #################################
 
 Core.Setup::beginSetup () {
-	cat <<-EOF
+	out <<-EOF
+
 		-------------------------------------------------------------------------------
 		                CS:GO Multi-Mode Server Manager - Initial Setup
 		-------------------------------------------------------------------------------
@@ -214,37 +212,40 @@ Core.Setup::beginSetup () {
 		Before advancing, be aware of a few things:
 
 		>>  The configuration files will be saved in the directory:
-		        **$USER_DIR/$APP**
+		        **$USER_DIR/cfg**
 
 		    Make sure to backup any important data in that location.
 
 		>>  For multi-user setups, this script, located at
 		        **$THIS_SCRIPT**
 		    must be readable for all users.
-
 	EOF
 
 	promptY || return
 
 	# Create config directory
-	local CFG_DIR="$USER_DIR/$APP"
+	local CFG_DIR="$USER_DIR/cfg"
+	local CFG="$CFG_DIR/app-$APP.conf"
 	mkdir -p "$CFG_DIR" && [[ -w "$CFG_DIR" ]] || {
 		fatal <<< "No permission to create or write the directory **$CFG_DIR**!"
 		return
 	}
 
 	# Check, if config is writable
-	[[ ! -r "$CFG_DIR/msm.conf" || -w "$CFG_DIR/msm.conf" ]] || {
-		fatal <<< "No permission to write the configuration file **$CFG_DIR/msm.conf**!"
+	[[ ! -e "$CFG" || -w "$CFG" ]] || {
+		fatal <<< "No permission to write the configuration file **$CFG**!"
 		return
 	}
 
 	# Ask the user if they wish to import a configuration
 	if [[ ! $ADMIN ]]; then
-		echo "Importing configurations"
-		echo "========================"
-		echo
+		log <<-EOF
+
+			Importing configurations
+			========================
+		EOF
 		fmt -w67 <<-EOF | indent
+
 			Instead of creating a new configuration, you may also import the settings
 			from a different user on this system. This allows you to use that user's game
 			server installation as a base for your own instances, without having to
@@ -252,20 +253,25 @@ Core.Setup::beginSetup () {
 
 			If you wish to import the settings from another user, enter their name below.
 			Otherwise, hit enter to create your own configuration.
-
 		EOF
 	fi
 
 	local SUCCESS=
 	until [[ $SUCCESS ]]; do
 		if [[ ! $ADMIN ]]; then
+			echo
 			echo "Please enter the user to import the configuration from. Leave empty to"
 			echo "skip importing configurations, press CTRL-C to exit."
 			echo
 			read -p "> Import configuration from? " -r ADMIN
-		fi
 
-		ADMIN=${ADMIN:-$USER}
+			if [[ $ADMIN ]]; then
+				debug <<< "Selected to import from user **$ADMIN**."
+			else
+				ADMIN=$USER
+				debug <<< "Skipping import and starting admin setup."
+			fi
+		fi
 
 		[[ $ADMIN == $USER ]] && { Core.Setup::setupAsAdmin; return; }
 
@@ -276,8 +282,6 @@ Core.Setup::beginSetup () {
 			warning <<< "Import failed! Please specify a different user."
 			ADMIN=
 		fi
-
-		echo
 	done
 
 	# Succeeds, if we have a valid config at the end
@@ -292,17 +296,16 @@ Core.Setup::beginSetup () {
 # TODO: make this function smaller
 Core.Setup::setupAsAdmin () {
 
-	cat <<-EOF
+	log <<-EOF
 
 		Basic Setup
 		===========
-
 	EOF
 
 	fmt -w67 <<-EOF | indent
+
 		Now, we will install all dependencies and prepare an initial
 		game server installation. Please follow the instructions below.
-
 	EOF
 
 	######### Install STEAMCMD
@@ -311,6 +314,7 @@ Core.Setup::setupAsAdmin () {
 	until Core.Setup::isExistingSteamCMD; do
 		# Ask for the SteamCMD directory
 		cat <<-EOF
+
 			SteamCMD is required to install the game server and its updates. Please
 			select a directory (absolute or relative to your home directory)
 			for SteamCMD to be installed in.
@@ -322,7 +326,7 @@ Core.Setup::setupAsAdmin () {
 		STEAMCMD_DIR=${STEAMCMD_DIR:-"Steam/steamcmd"}
 		[[ $STEAMCMD_DIR =~ ^/ ]] || STEAMCMD_DIR="$HOME/$STEAMCMD_DIR"
 
-		Core.Setup::installSteamCMD && echo && break
+		Core.Setup::installSteamCMD && break
 	done
 
 	######### Create base installation
@@ -333,6 +337,7 @@ Core.Setup::setupAsAdmin () {
 	INSTALL_DIR="$HOME/$APP"
 	until Core.BaseInstallation::isExisting; do
 		cat <<-EOF
+
 			Now, please select the base installation directory. This is the directory the
 			server will be downloaded to, make sure that there is plenty of free space on
 			the disk. Be aware that this directory will be made public readable, so other
@@ -358,8 +363,8 @@ Core.Setup::setupAsAdmin () {
 	# fix-permissions
 
 	# Create Config and make it readable
-	chmod o+rx "$USER_DIR"
-	Core.Setup::writeConfig && chmod -R o+rx "$USER_DIR/$APP" && success <<-EOF
+	chmod o+rx "$USER_DIR" "$CFG_DIR"
+	Core.Setup::writeConfig && chmod o+rX "$CFG" && success <<-EOF
 			Basic Setup Complete!
 
 			Execute **$THIS_COMMAND install** to install or update the actual game files
@@ -369,6 +374,5 @@ Core.Setup::setupAsAdmin () {
 			Use **$THIS_COMMAND @name create** to create a new server instance out of
 			your base installation. You may modify each instance's settings independently
 			from the others.
-
 		EOF
 }

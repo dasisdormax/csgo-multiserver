@@ -30,7 +30,6 @@ Core.BaseInstallation::create () (
 			installation here may cause **LEAKAGE OR LOSS OF DATA**!
 
 			Please backup all important files before proceeding!
-
 		EOF
 		sleep 2
 		promptN || return
@@ -54,8 +53,8 @@ Core.BaseInstallation::create () (
 	touch "$INSTALL_DIR/msm.d/is-admin" # Mark as base installation
 
 	# Create temporary and logging directories
-	mkdir "$INSTALL_DIR/msm.d/tmp"
-	mkdir "$INSTALL_DIR/msm.d/log"
+	mkdir -m o-rwx "$INSTALL_DIR/msm.d/tmp"
+	mkdir -m o-rwx "$INSTALL_DIR/msm.d/log"
 )
 
 
@@ -65,11 +64,11 @@ Core.BaseInstallation::create () (
 
 Core.BaseInstallation::requestUpdate () {
 	local ACTION=${1:-"update"}
-	log <<< ""
 
-	# First: Check, if the user can update the base installation, otherwise switch user
+	########## First: Switch user to base installation admin, if necessary
 
 	if [[ $USER != $ADMIN ]]; then
+		log <<< ""
 		warning <<-EOF # TODO: update text similar to Core.Setup::beginSetup
 			Only the admin **$ADMIN** can $ACTION the base installation.
 			Please switch to the account of **$ADMIN** now! (or CTRL-C to cancel)
@@ -80,27 +79,41 @@ Core.BaseInstallation::requestUpdate () {
 		return
 	fi
 
-	# Now, check if an update is available at all
+	########## Now, check if an update is available at all
 
 	if [[ ! $MSM_DO_UPDATE && $ACTION == "update" ]]; then
-		out <<< "Checking for updates ..."
+		log <<< ""
+		log <<< "Checking for updates ..."
 
 		App::isUpToDate && {
 			info <<< "The base installation is already up to date."
 			return
 		}
-		(( $? > 1 )) && return
-
-		info <<< "An update for the base installation is available."
-		out  <<< "Do you wish to perform the update now?"
-		promptY || return
+		local code=$?
+		if (( code  > 2 )); then return 1; fi
+		#  if code == 2, the game server is not installed yet. Asking the user
+		#                if they wish to update is unnecessary
+		if (( code == 1 )); then
+			info <<< "An update for the base installation is available."
+			echo "Do you wish to perform the update now?"
+			promptY || return
+		fi
 	fi
 
-	# If not in a TMUX environment, switch into one to perform the update.
+	########## If not in a TMUX environment, switch into one to perform the update.
 	# This way, an SSH disconnection or closing the terminal won't interrupt it.
 
 	if ! [[ $TMUX && $MSM_DO_UPDATE == 1 ]]; then
-		out  <<< "Switching into TMUX for performing the update ..."
+		local UPDATE_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
+
+		out <<-EOF
+
+			Switching into a TMUX environment to install or update the
+			base installation ...
+
+			For more status information, see the log file
+			**$UPDATE_LOGFILE**.
+		EOF
 
 		local SOCKET="$TMPDIR/update.tmux-socket"
 
@@ -112,31 +125,64 @@ Core.BaseInstallation::requestUpdate () {
 		delete-tmux
 
 		local OLD_LOGFILE="$MSM_LOGFILE"
-		local UPDATE_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
 		export MSM_LOGFILE="$UPDATE_LOGFILE"
 		export MSM_DO_UPDATE=1
 
 		# Execute Update within tmux
 		tmux -S "$SOCKET" -f "$THIS_DIR/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
 
-		local errno=$?
-
 		unset MSM_DO_UPDATE MSM_LOGFILE
 		MSM_LOGFILE="$OLD_LOGFILE"
 
-		if (( $errno )); then
-			error <<-EOF
-				Update failed. See the log file **$UPDATE_LOGFILE**
-				for more information.
-			EOF
-		else
-			success <<< "Your $APP server was ${ACTION}d successfully!"
-		fi
-
-		return $errno
+		return
 	fi
 
+	########## Start the actual update procedure
 
-	# Perform update
-	App::performUpdate $ACTION
+	Core.BaseInstallation::startUpdate $ACTION
 }
+
+
+Core.BaseInstallation::startUpdate () (
+
+	########## Tell running instances that the update is starting soon
+
+	umask o+rx
+	local UPDATE_TIME=$(( $(date +%s) + $UPDATE_WAITTIME ))
+	echo $UPDATE_TIME > "$INSTALL_DIR/msm.d/update"
+
+	########## Wait (meanwhile, prevent exiting on Ctrl-C)
+	# TODO: Allow the user to cancel the update
+
+	trap "" SIGINT
+	log <<< ""
+	log <<< "Waiting $UPDATE_WAITTIME seconds for running instances to stop ..."
+	while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
+	trap SIGINT
+
+	########## Done waiting, perform the update now.
+
+	log <<< ""
+	log <<< "Performing update/installation NOW."
+
+	App::performUpdate
+	local errno=$?
+
+	if (( $errno )); then
+		error <<-EOF
+			Update failed. See the log file **$UPDATE_LOGFILE**
+			for more information.
+		EOF
+	else
+		success <<< "Your $APP server was ${ACTION}d successfully!"
+	fi
+
+	########## Update timestamp on app file, so clients know that files may have changed
+
+	rm "$INSTALL_DIR/msm.d/update" 2>/dev/null
+	touch "$INSTALL_DIR/msm.d/app"
+
+	sleep 5
+
+	return $errno
+)
