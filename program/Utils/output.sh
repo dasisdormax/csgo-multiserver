@@ -11,8 +11,7 @@
 # Debug mode > enable fd 3
 if [[ $MSM_DEBUG ]]; then exec 3>&1; else exec 3>/dev/null; fi
 
-
-# Logfile: read absolute path and remove old log, if existing
+# read absolute logfile path
 if [[ $MSM_LOGFILE && ! $MSM_LOGFILE =~ ^/ ]]; then
 	logdir=$(dirname "$MSM_LOGFILE")
 	logdir=$(cd "$logdir" 2>/dev/null && pwd)
@@ -36,8 +35,14 @@ catwarn () { printf "\x1b[33m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
 catinfo () { printf "\x1b[36m"     ; cat     ; printf "\x1b[m"     ; }
 
 
-# log to given MSM_LOGFILE or pass output through
-log () { tee -a "$MSM_LOGFILE" 2>/dev/null; }
+# pass output through and, if specified, write to $MSM_LOGFILE
+log () {
+	if [[ $MSM_LOGFILE ]]; then
+		tee -a "$MSM_LOGFILE"
+	else
+		cat
+	fi
+}
 
 
 # indent output by 4 characters

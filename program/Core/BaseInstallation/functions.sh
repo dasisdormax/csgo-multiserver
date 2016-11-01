@@ -8,6 +8,18 @@
 
 
 
+Core.BaseInstallation::applyPermissions() {
+	App::applyInstancePermissions
+
+	chmod -R a+r "$INSTANCE_DIR"
+
+	chmod -R o-r "$TMPDIR"
+	chmod -R o-r "$LOGDIR"
+}
+
+
+
+
 ########################### CREATING A BASE INSTALLATION ##########################
 
 Core.BaseInstallation::isExisting () {
@@ -22,7 +34,7 @@ Core.BaseInstallation::create () (
 	Core.BaseInstallation::isExisting && return
 
 	umask o+rx # make sure that other users can 'fork' this base installation
-	INSTANCE_DIR="$INSTALL_DIR"
+	Core.Instance::select
 
 	Core.Instance::isValidDir || {
 		warning <<-EOF
@@ -53,8 +65,8 @@ Core.BaseInstallation::create () (
 	touch "$INSTALL_DIR/msm.d/is-admin" # Mark as base installation
 
 	# Create temporary and logging directories
-	mkdir -m o-rwx "$INSTALL_DIR/msm.d/tmp"
-	mkdir -m o-rwx "$INSTALL_DIR/msm.d/log"
+	mkdir -m o-rwx "$TMPDIR"
+	mkdir -m o-rwx "$LOGDIR"
 )
 
 
@@ -63,6 +75,9 @@ Core.BaseInstallation::create () (
 ########################### ADMIN MANAGEMENT FUNCTIONS ###########################
 
 Core.BaseInstallation::requestUpdate () {
+
+	requireConfig || return
+
 	local ACTION=${1:-"update"}
 
 	########## First: Switch user to base installation admin, if necessary
@@ -70,8 +85,11 @@ Core.BaseInstallation::requestUpdate () {
 	if [[ $USER != $ADMIN ]]; then
 		log <<< ""
 		warning <<-EOF # TODO: update text similar to Core.Setup::beginSetup
-			Only the admin **$ADMIN** can $ACTION the base installation.
-			Please switch to the account of **$ADMIN** now! (or CTRL-C to cancel)
+			The user **$ADMIN** is controlling your base installation exclusively.
+			You may, though, switch users to perform the update on their account.
+
+			You will have to confirm this action with your sudo password. (CTRL-C to cancel)
+
 		EOF
 
 		sudo -iu $ADMIN \
@@ -168,6 +186,14 @@ Core.BaseInstallation::startUpdate () (
 	App::performUpdate
 	local errno=$?
 
+	########## Update timestamp on app file, so clients know that files may have changed
+
+	log <<< ""
+	log <<< "Finalizing and applying permissions ..."
+	rm "$INSTALL_DIR/msm.d/update" 2>/dev/null
+	touch "$INSTALL_DIR/msm.d/app"
+	Core.BaseInstallation::applyPermissions
+
 	if (( $errno )); then
 		error <<-EOF
 			Update failed. See the log file **$UPDATE_LOGFILE**
@@ -176,11 +202,6 @@ Core.BaseInstallation::startUpdate () (
 	else
 		success <<< "Your $APP server was ${ACTION}d successfully!"
 	fi
-
-	########## Update timestamp on app file, so clients know that files may have changed
-
-	rm "$INSTALL_DIR/msm.d/update" 2>/dev/null
-	touch "$INSTALL_DIR/msm.d/app"
 
 	sleep 5
 

@@ -100,7 +100,16 @@ Core.CommandLine::parseArguments () (
 				;;
 
 			( @* )
-				set-instance ${CURR_ARG:1}
+				NEW_INSTANCE=${CURR_ARG:1}
+				INSTANCE_ARGS=( )
+				while [[ ! $NEXT_ARG =~ ^@ ]] && argshift; do
+					INSTANCE_ARGS=( "${INSTANCE_ARGS[@]}" "$CURR_ARG" )
+				done
+				debug <<-EOF
+					On **Instance @$NEW_INSTANCE**, execute the
+					commands **${INSTANCE_ARGS[@]}**.
+				EOF
+				INSTANCE="$NEW_INSTANCE" Core.CommandLine::parseArguments "${INSTANCE_ARGS[@]}"
 				;;
 
 			( start | launch )
@@ -144,7 +153,7 @@ Core.CommandLine::parseArguments () (
 				;;
 
 			( create | create-instance )
-				create-instance || exit
+				Core.Instance::create || exit
 				;;
 
 			( validate | repair )

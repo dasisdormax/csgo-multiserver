@@ -8,8 +8,6 @@
 
 
 
-
-
 ################################ CONFIG HANDLING ################################
 
 requireConfig () {
@@ -58,8 +56,7 @@ Core.Setup::validateConfig () {
 			is not accessible!
 		EOF
 
-	[[ $(cat "$INSTALL_DIR/msm.d/app" 2>/dev/null) == $APP &&
-	   -e "$INSTALL_DIR/msm.d/is-admin"                        ]] \
+	INSTANCE_DIR="$INSTALL_DIR" Core.Instance::isBaseInstallation \
 											 || error <<-EOF || return
 			The directory **$INSTALL_DIR** is not a
 			valid base installation for $APP!
