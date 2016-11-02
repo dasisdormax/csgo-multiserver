@@ -60,6 +60,7 @@ trace () {
 		local line=${BASH_LINENO[$i]}
 		case $func in
 			( command_not_found_handle ) ;;
+			( require* ) ;;
 			( * )
 				if [[ $not_first ]]; then printf "\n             "; fi
 				printf "in %-40s (line %3s)" $func $line

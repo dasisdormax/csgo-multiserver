@@ -14,8 +14,7 @@ requireConfig () {
 	Core.Setup::validateConfig || error <<-EOF
 		No valid configuration found!
 
-		Try **$THIS_COMMAND setup** to create a new
-		configuration.
+		Create a new configuration using **$THIS_COMMAND setup**.
 	EOF
 }
 
@@ -34,17 +33,6 @@ Core.Setup::loadConfigOf () {
 Core.Setup::validateConfig () {
 	# Require admin variable
 	[[ $ADMIN ]] || error <<< "variable \$ADMIN is not defined!" || return
-
-	# If admin, check the SteamCMD directory
-	if [[ $USER == $ADMIN ]]; then
-		[[ $STEAMCMD_DIR                  ]] || error <<-EOF || return
-				variable \$STEAMCMD_DIR is not defined!
-			EOF
-		[[ -x $STEAMCMD_DIR/steamcmd.sh   ]] || error <<-EOF || return
-				**$STEAMCMD_DIR** does not contain a
-				valid SteamCMD installation!
-			EOF
-	fi
 
 	# Check base installation directory
 	[[ $INSTALL_DIR                       ]] || error <<-EOF || return
@@ -86,11 +74,7 @@ Core.Setup::printConfig () {
 		DEFAULT_INSTANCE="$DEFAULT_INSTANCE"
 	EOF
 
-	# Vars that are only interesting for the admin
-	if [[ $USER == $ADMIN ]]; then cat <<-EOF
-			STEAMCMD_DIR="$STEAMCMD_DIR"
-		EOF
-	fi
+	App::printAdditionalConfig
 }
 
 
@@ -147,52 +131,6 @@ Core.Setup::importFrom () {
 	Core.Setup::writeConfig
 }
 
-
-Core.Setup::isExistingSteamCMD () {
-	[[ -x $STEAMCMD_DIR/steamcmd.sh ]] && info <<< "SteamCMD was found in **$STEAMCMD_DIR**."
-}
-# installs SteamCMD into the directory specified by $STEAMCMD_DIR
-# runs in a subshell to not modify the outer working directory
-Core.Setup::installSteamCMD () (
-
-	# if SteamCMD already exists, we have nothing to do
-	Core.Setup::isExistingSteamCMD && return
-
-	# Create the directory
-	mkdir -p "$STEAMCMD_DIR" && [[ -w $STEAMCMD_DIR ]] || {
-		fatal <<< "No permission to create or write the directory **$STEAMCMD_DIR**!"
-		return
-	}
-	cd "$STEAMCMD_DIR"
-
-	# Warn, if the directory already contains files
-	[[ $(ls -A) ]] && {
-		warning <<-EOF
-				The directory **$STEAMCMD_DIR"** is non-empty, installing
-				SteamCMD to this location may cause **LOSS OF DATA**!
-
-				Please backup all important files before proceeding!
-			EOF
-		sleep 2
-		promptN || return
-	}
-
-	echo "Installing SteamCMD to **$STEAMCMD_DIR** ..."
-
-	until wget "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"; do
-		echo "Download failed. Retrying ..."; sleep 5; done
-
-	tar xzf steamcmd_linux.tar.gz
-	rm steamcmd_linux.tar.gz &> /dev/null
-
-	[[ -x steamcmd.sh ]] || error <<< "SteamCMD installation failed!" || return
-
-	echo "Updating SteamCMD ..."
-
-	unbuffer ./steamcmd.sh +quit | log; echo
-	echo
-	success <<< "SteamCMD installed successfully!"
-)
 
 
 
@@ -297,57 +235,36 @@ Core.Setup::setupAsAdmin () {
 
 		Basic Setup
 		===========
+
+		This assistant will install all remaining dependencies for your
+		$APP server and create a basic configuration. Please follow the
+		instructions below.
 	EOF
 
-	fmt -w67 <<-EOF | indent
+	######### Install App Downloader/Updater
 
-		Now, we will install all dependencies and prepare an initial
-		game server installation. Please follow the instructions below.
-	EOF
-
-	######### Install STEAMCMD
-
-	STEAMCMD_DIR="$HOME/Steam/steamcmd"
-	until Core.Setup::isExistingSteamCMD; do
-		# Ask for the SteamCMD directory
-		cat <<-EOF
-
-			SteamCMD is required to install the game server and its updates. Please
-			select a directory (absolute or relative to your home directory)
-			for SteamCMD to be installed in.
-
-		EOF
-
-		read -r -p "SteamCMD install directory (default: Steam/steamcmd) " STEAMCMD_DIR
-
-		STEAMCMD_DIR=${STEAMCMD_DIR:-"Steam/steamcmd"}
-		[[ $STEAMCMD_DIR =~ ^/ ]] || STEAMCMD_DIR="$HOME/$STEAMCMD_DIR"
-
-		Core.Setup::installSteamCMD && break
-	done
+	App::installUpdater || return
 
 	######### Create base installation
-
-	############ GAME INSTALL DIRECTORY ############
-	# check for an existing game installation
 
 	INSTALL_DIR="$HOME/$APP"
 	until Core.BaseInstallation::isExisting; do
 		cat <<-EOF
 
-			Now, please select the base installation directory. This is the directory the
-			server will be downloaded to, make sure that there is plenty of free space on
-			the disk. Be aware that this directory will be made public readable, so other
-			users on the system can create server instances based on it.
+			Now, please select the base installation directory.  This is the
+			directory the server will be downloaded to, make sure that there is
+			plenty of free space on the disk.  Be aware that this directory will be
+			made public readable, so other users on the system can create server
+			instances based on it.
 
 		EOF
 
-		read -r -p "Game Server Installation Directory (default: $APP) " INSTALL_DIR
+		read -r -p "Game Server Installation Directory (default: ~/$APP) " INSTALL_DIR
 
 		INSTALL_DIR=${INSTALL_DIR:-"$APP"}
 		[[ $INSTALL_DIR =~ ^/ ]] ||	INSTALL_DIR="$HOME/$INSTALL_DIR"
 
-		Core.BaseInstallation::create && echo && break
+		Core.BaseInstallation::create
 	done
 
 
@@ -359,17 +276,21 @@ Core.Setup::setupAsAdmin () {
 	################### Should not be necessary anymore ###################
 	# fix-permissions
 
+
 	# Create Config and make it readable
 	chmod o+rx "$USER_DIR" "$CFG_DIR"
-	Core.Setup::writeConfig && chmod o+rX "$CFG" && success <<-EOF
+	Core.Setup::writeConfig && {
+		log <<< ""
+		success <<-EOF
 			Basic Setup Complete!
 
-			Execute **$THIS_COMMAND install** to install or update the actual game files
-			through SteamCMD. Of course, you can also copy the files from a different
-			location.
+			Execute **$THIS_COMMAND install** to install or update the actual game files.
+			Of course, you can also copy the files from a different location.
 
 			Use **$THIS_COMMAND @name create** to create a new server instance out of
 			your base installation. You may modify each instance's settings independently
 			from the others.
 		EOF
+	}
+	chmod o+rX "$CFG"
 }

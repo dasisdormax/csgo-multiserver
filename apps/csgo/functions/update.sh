@@ -8,6 +8,65 @@
 
 
 
+############################ STEAMCMD INSTALLATION ############################
+
+App::isUpdaterInstalled () [[ -x $HOME/Steam/steamcmd/steamcmd.sh ]]
+
+
+App::installUpdater () (
+
+	# Skip installation if SteamCMD is already installed
+	App::isUpdaterInstalled && return
+
+	STEAMCMD_DIR="$HOME/Steam/steamcmd"
+	out <<-EOF
+
+		Installing **SteamCMD**, which is required to install and update
+		the game server, to directory **$STEAMCMD_DIR** ...
+	EOF
+
+	# Create the directory
+	mkdir -p "$STEAMCMD_DIR" && [[ -w $STEAMCMD_DIR ]] || {
+		fatal <<< "No permission to create or write the directory **$STEAMCMD_DIR**!"
+		return
+	}
+	cd "$STEAMCMD_DIR"
+
+	# Warn, if the directory already contains files
+	[[ $(ls -A) ]] && {
+		warning <<-EOF
+				The directory **$STEAMCMD_DIR** is non-empty, installing
+				SteamCMD to this location may cause **LOSS OF DATA**!
+
+				Please backup all important files before proceeding!
+			EOF
+		sleep 2
+		promptN || return
+	}
+
+	log <<< ""
+	log <<< "Downloading SteamCMD ..."
+	until wget "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"; do
+		log <<< "  - Download failed. Retrying ..."; sleep 5; done
+
+	log <<< "Extracting Archive ..."
+	tar xzf steamcmd_linux.tar.gz
+	rm steamcmd_linux.tar.gz &> /dev/null
+
+	[[ -x steamcmd.sh ]] || error <<< "SteamCMD installation failed!" || return
+
+	log <<< "Self-updating ..."
+	unbuffer ./steamcmd.sh +quit | log;
+	log <<< ""
+	success <<< "SteamCMD installed successfully!"
+)
+
+
+App::printAdditionalConfig () {
+	true
+}
+
+
 # Check, if an update to the CS:GO Base Installation is available
 # returns 0, if the most current version is installed
 #         1, if an update is available
@@ -35,7 +94,7 @@ App::isUpToDate () {
 
 	rm "$STEAMCMD_OUT" 2>/dev/null
 	# Get current build id through SteamCMD
-	unbuffer "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT" | MSM_LOGFILE="$STEAMCMD_OUT" log >&3
+	unbuffer "$HOME/Steam/steamcmd/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT" | MSM_LOGFILE="$STEAMCMD_OUT" log >&3
 
 	local oldbuildid=$(cat "$APPMANIFEST" | grep "buildid" | awk '{ print $2 }')
 	local newbuildid=$(
@@ -81,7 +140,7 @@ App::performUpdate () {
 		EOF
 
 		{
-			unbuffer "$STEAMCMD_DIR/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT"
+			unbuffer "$HOME/Steam/steamcmd/steamcmd.sh" +runscript "$STEAMCMD_SCRIPT"
 			echo; # An additional newline, as SteamCMD is weird
 		} | log
 

@@ -11,10 +11,10 @@
 Core.BaseInstallation::applyPermissions() {
 	App::applyInstancePermissions
 
-	chmod -R a+r "$INSTANCE_DIR"
+	chmod -R a+rX "$INSTALL_DIR"
 
-	chmod -R o-r "$TMPDIR"
-	chmod -R o-r "$LOGDIR"
+	chmod -R o-r "$INSTALL_DIR/msm.d/tmp"
+	chmod -R o-r "$INSTALL_DIR/msm.d/log"
 }
 
 
@@ -23,8 +23,7 @@ Core.BaseInstallation::applyPermissions() {
 ########################### CREATING A BASE INSTALLATION ##########################
 
 Core.BaseInstallation::isExisting () {
-	INSTANCE_DIR=$INSTALL_DIR Core.Instance::isBaseInstallation && \
-		info <<< "An existing base installation was found in **$INSTALL_DIR**"
+	INSTANCE_DIR=$INSTALL_DIR Core.Instance::isBaseInstallation
 }
 
 
@@ -72,11 +71,20 @@ Core.BaseInstallation::create () (
 
 
 
-########################### ADMIN MANAGEMENT FUNCTIONS ###########################
+####################### UPDATE AND INSTALLATION HANDLING #######################
+
+requireUpdater () {
+	App::isUpdaterInstalled || error <<-EOF
+		The updater for $APP is not installed!
+
+		Install the updater using **$THIS_COMMAND setup**.
+	EOF
+}
+
 
 Core.BaseInstallation::requestUpdate () {
 
-	requireConfig || return
+	requireConfig && requireUpdater || return
 
 	local ACTION=${1:-"update"}
 
