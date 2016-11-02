@@ -28,11 +28,11 @@ fi
 ################################### HELPERS ###################################
 
 # Colored output, here for compatibility reasons
-caterr  () { printf "\x1b[31m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
+caterr  () { printf "\x1b[31m"; cat; printf "\x1b[m"; } >&2
 
-catwarn () { printf "\x1b[33m" 1>&2; cat 1>&2; printf "\x1b[m" 1>&2; }
+catwarn () { printf "\x1b[33m"; cat; printf "\x1b[m"; } >&2
 
-catinfo () { printf "\x1b[36m"     ; cat     ; printf "\x1b[m"     ; }
+catinfo () { printf "\x1b[36m"; cat; printf "\x1b[m"; }
 
 
 # pass output through and, if specified, write to $MSM_LOGFILE
@@ -80,24 +80,24 @@ bold () { perl -0777 -pe 's/\*\*(.*?)\*\*/\*\*\x1b[1m$1\x1b[22m\*\*/gs'; }
 ############################### OUTPUT FUNCTIONS ###############################
 
 fatal () {
-	printf "\x1b[35m" >&2
+	printf "\x1b[35m"
 
 	{	printf "**FATAL:**   "; trace; echo
-		fmt -w67 | indent;						} | log | bold >&2
+		fmt -w67 | indent;						} | log | bold
 
-	printf "\x1b[m" >&2
+	printf "\x1b[m"
 	false
-}
+} >&2
 
 error () {
-	printf "\x1b[31m" >&2
+	printf "\x1b[31m"
 
 	{	printf "**ERROR:**   "; trace; echo
-		fmt -w67 | indent;						} | log | bold >&2
+		fmt -w67 | indent;						} | log | bold
 
-	printf "\x1b[m" >&2
+	printf "\x1b[m"
 	false
-}
+} >&2
 
 warning () {
 	printf "\x1b[33m"
@@ -130,13 +130,13 @@ success () {
 }
 
 debug () {
-	printf "\x1b[34m" >&3
+	printf "\x1b[34m"
 
 	{	printf "**DEBUG:**   "; trace; echo
-		fmt -w67 | indent;						} | log | bold >&3
+		fmt -w67 | indent;						} | log | bold
 
-	printf "\x1b[m" >&3
-}
+	printf "\x1b[m"
+} >&3
 
 
 # Regular output with logging and formatting

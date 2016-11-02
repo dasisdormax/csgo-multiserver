@@ -46,12 +46,11 @@ list-reverse () {
 }
 
 
-# kills and deletes the tmux-session at location $SOCKET
-delete-tmux () {
-	tmux -S "$SOCKET" kill-server > /dev/null 2>&1
-	rm $SOCKET > /dev/null 2>&1
-	return 0
-}
+# kills and deletes the tmux server with socket $SOCKET
+kill-tmux () {
+	tmux -S "$SOCKET" kill-server
+	rm "$SOCKET"
+} > /dev/null 2>&1
 
 
 timestamp () { date +%y%m%d_%T; }

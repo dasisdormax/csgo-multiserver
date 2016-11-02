@@ -26,7 +26,7 @@ update-check () {
 
 start-server () {
 	rm "$TMPDIR/server.exit-code" 2>/dev/null
-	tmux new-window -n "$APPNAME-server" /bin/bash "$TMPDIR/server-start.sh"
+	tmux new-window -n "$APP-server" /bin/bash "$TMPDIR/server-start.sh"
 }
 
 echo () {
@@ -39,7 +39,7 @@ echo () {
 
 # Initialization
 . "$THIS_DIR/helpers.sh"
-APPNAME=$(cat "$INSTANCE_DIR/msm.d/appname")
+APP=$(cat "$INSTANCE_DIR/msm.d/app")
 
 cat <<-EOF
 		                           server-control.sh
@@ -47,9 +47,9 @@ cat <<-EOF
 
 	EOF
 
-catinfo <<-EOF; builtin echo
-		$(bold INFO:)  This program will control the $(bold $APPNAME) server and react to events
-		       such as server crashes, pending updates and user commands.
+catinfo <<-EOF
+	INFO:  This program will control the **$APP** server and react to events
+	       such as server crashes, pending updates and user commands.
 EOF
 
 ############ STATES ############
@@ -83,7 +83,7 @@ while [[ $STATE != "STOPPED" ]]; do
 
 		( LAUNCHING )
 			# TODO: symlink_all_files here
-			echo "Launching $APPNAME server ..."
+			echo "Launching $APP server ..."
 			start-server
 			STATE="RUNNING"
 			;;
@@ -112,21 +112,21 @@ while [[ $STATE != "STOPPED" ]]; do
 			;;
 
 		( "STOPPING FOR UPDATE" )
-			if ( tmux list-windows | grep "$APPNAME-server" > /dev/null ); then # server still running
+			if [[ $(tmux list-windows) =~ $APP-server ]]; then # server still running
 				# TODO: try it the soft way
 
 				# Do it the hard way
-				tmux kill-window -t ":$APPNAME-server"
+				tmux kill-window -t ":$APP-server"
 				continue
 			else STATE="UPDATING"; fi
 			;;
 
 		( STOPPING )
-			if ( tmux list-windows | grep "$APPNAME-server" > /dev/null ); then # server still running
+			if [[ $(tmux list-windows) =~ $APP-server ]]; then # server still running
 				# TODO: try it the soft way
 
 				# Do it the hard way
-				tmux kill-window -t ":$APPNAME-server"
+				tmux kill-window -t ":$APP-server"
 				continue
 			else STATE="STOPPED"; fi
 			;;

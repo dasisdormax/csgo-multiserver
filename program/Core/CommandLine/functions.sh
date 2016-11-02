@@ -76,9 +76,9 @@ Core.CommandLine::parseArguments () (
 
 	Core.Instance::select
 
-	while argshift; do
+	while argshift; do ################ BEGIN LOOP ################
 
-		# $A
+		# $CURR_ARG
 		#      is the current argument we're parsing
 		# $ARGS
 		#      is an array containing the remaining parameters
@@ -87,9 +87,15 @@ Core.CommandLine::parseArguments () (
 		# been used up by the function itself. This prevents the argument
 		# parser to parse those parameters as commands again
 
-		debug <<< "Current argument: **$CURR_ARG**"
+		out <<-EOF >&3
 
-		case "$CURR_ARG" in ############ BEGIN OUTER CASE ############
+
+			>>>>>>> Currently parsing argument: **$CURR_ARG**
+		EOF
+
+		case "$CURR_ARG" in ################ BEGIN CASE ################
+
+			########## Display information ###########
 
 			( info | about | license | copyright )
 				about-this-program
@@ -99,71 +105,68 @@ Core.CommandLine::parseArguments () (
 				Core.CommandLine::usage
 				;;
 
+			########## Select an instance ###########
+
 			( @* )
 				NEW_INSTANCE=${CURR_ARG:1}
 				INSTANCE_ARGS=( )
 				while [[ ! $NEXT_ARG =~ ^@ ]] && argshift; do
 					INSTANCE_ARGS=( "${INSTANCE_ARGS[@]}" "$CURR_ARG" )
 				done
-				debug <<-EOF
-					On **Instance @$NEW_INSTANCE**, execute the
-					commands **${INSTANCE_ARGS[@]}**.
-				EOF
 				INSTANCE="$NEW_INSTANCE" Core.CommandLine::parseArguments "${INSTANCE_ARGS[@]}"
 				;;
 
-			( start | launch )
-				start || exit
-				;;
-
-			( stop | exit )
-				stop || exit
-				;;
-
-			( restart )
-				stop &&	start || exit
-				;;
-
-			( status )
-				status
-				errno=$?
-				if (( $errno == 0 )); then
-					echo "$SERVER_TEXT is RUNNING!"
-				elif (( $errno == 1 )); then
-					echo "$SERVER_TEXT is currently LAUNCHING or UPDATING!"
-				elif (( $errno == 2 )); then
-					echo "$SERVER_TEXT is STOPPED!"
-				else
-					exit 1
-				fi
-
-				echo
-				;;
+			########## Initial Setup ###########
 
 			( setup )
 				Core.Setup::beginSetup
 				;;
 
-			( console )
-				console
-				;;
+			########## Server installation / updates ##########
 
 			( update | up | install )
 				Core.BaseInstallation::requestUpdate || exit
-				;;
-
-			( create | create-instance )
-				Core.Instance::create || exit
 				;;
 
 			( validate | repair )
 				Core.BaseInstallation::requestUpdate validate || exit
 				;;
 
+			########## Instance Operations ###########
+
+			( create | create-instance )
+				Core.Instance::create || exit
+				;;
+
+			########## Server Control ###########
+
+			( start | launch )
+				Core.Server::requestStart || exit
+				;;
+
+			( stop | exit )
+				Core.Server::requestStop
+				;;
+
+			( restart )
+				Core.Server::requestStop && Core.Server::requestStart || exit
+				;;
+
+			( status )
+				Core.Server::printStatus
+				;;
+
+			( console | attach )
+				Core.Server::attachToConsole
+				;;
+
+			########## Unrecognized argument ##########
+
 			( * )
+				log <<< ""
 				error <<< "Unrecognized Option: **$CURR_ARG**" || exit
 				;;
 
-		esac ############ END OUTER CASE ############
-	done ############ END LOOP ############
+		esac ################ END CASE ################
+	done ################ END LOOP ################
 )

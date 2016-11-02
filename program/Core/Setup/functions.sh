@@ -247,6 +247,7 @@ Core.Setup::setupAsAdmin () {
 
 	######### Create base installation
 
+	INSTANCE=
 	INSTALL_DIR="$HOME/$APP"
 	until Core.BaseInstallation::isExisting; do
 		cat <<-EOF
@@ -267,15 +268,11 @@ Core.Setup::setupAsAdmin () {
 		Core.BaseInstallation::create
 	done
 
+	Core.Instance::select
 
-	############# TODO: Let app provide and copy those scripts ############
-	# cp -n "$SUBSCRIPT_DIR/server.conf" "$INSTALL_DIR/msm.d/server.conf"
-	# cp -n -R "$THIS_DIR/modes-$APPID" "$INSTALL_DIR/msm.d/modes"
-	# cp -n -R "$THIS_DIR/addons-$APPID" "$INSTALL_DIR/msm.d/addons"
-
-	################### Should not be necessary anymore ###################
-	# fix-permissions
-
+	# Final Steps
+	App::finalizeBaseInstallation
+	Core.BaseInstallation::applyPermissions
 
 	# Create Config and make it readable
 	chmod o+rx "$USER_DIR" "$CFG_DIR"

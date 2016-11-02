@@ -55,7 +55,7 @@ done
 ::add Core.Setup
 ::add Core.BaseInstallation
 ::add Core.Instance
-::add Core.ServerControl
+::add Core.Server
 ::add Core.Wrapper
 
 ::loadApp

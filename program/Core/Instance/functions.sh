@@ -10,9 +10,9 @@
 
 ################################ INSTANCE HELPERS ################################
 
-requireOwnInstance () {
-	Core.Instance::isOwnInstance || error <<-EOF
-		Unable to access or write **$INSTANCE_TEXT**.
+requireRunnableInstance () {
+	Core.Instance::isRunnableInstance || error <<-EOF
+		Cannot access or run **$INSTANCE_TEXT**!
 
 		Create an own instance using **$THIS_COMMAND @name create**.
 	EOF
@@ -24,8 +24,8 @@ Core.Instance::isInstance () [[
 ]]
 
 
-Core.Instance::isOwnInstance () {
-	Core.Instance::isInstance && [[ -w "$INSTANCE_DIR" ]]
+Core.Instance::isRunnableInstance () {
+	Core.Instance::isInstance && [[ -w "$INSTANCE_DIR" ]] && App::isRunnableInstance
 }
 
 
@@ -175,11 +175,6 @@ Core.Instance::create () (
 
 
 	log <<< "Finishing instance creation ..."
-
-	# TODO: Move to App::finalizeInstance
-	# cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/msm.d/server.conf"
-	# cp -R "$INSTALL_DIR/msm.d/modes" "$INSTANCE_DIR/msm.d/modes"
-	# cp -R "$INSTALL_DIR/msm.d/addons" "$INSTANCE_DIR/msm.d/addons"
 
 	App::finalizeInstance
 	App::applyInstancePermissions

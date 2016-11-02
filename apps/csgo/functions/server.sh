@@ -8,7 +8,7 @@
 
 
 
-APP_DIR=$(dirname "${BASH_SOURCE[0]}")
-
-# SERVER_EXEC: The executable file of the server, within INSTANCE_DIR
-SERVER_EXEC="srcds_run"
+App::calculateLaunchArgs () {
+	# TODO: put those files in a proper location
+	. "$APP_DIR/scripts/server.conf"
+}

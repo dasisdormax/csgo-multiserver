@@ -33,7 +33,7 @@ Core.BaseInstallation::create () (
 	Core.BaseInstallation::isExisting && return
 
 	umask o+rx # make sure that other users can 'fork' this base installation
-	Core.Instance::select
+	INSTANCE_DIR="$INSTALL_DIR"
 
 	Core.Instance::isValidDir || {
 		warning <<-EOF
@@ -148,14 +148,14 @@ Core.BaseInstallation::requestUpdate () {
 			return
 		}
 
-		delete-tmux
+		kill-tmux
 
 		local OLD_LOGFILE="$MSM_LOGFILE"
 		export MSM_LOGFILE="$UPDATE_LOGFILE"
 		export MSM_DO_UPDATE=1
 
 		# Execute Update within tmux
-		tmux -S "$SOCKET" -f "$THIS_DIR/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
+		tmux -S "$SOCKET" -f "$THIS_DIR/cfg/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
 
 		unset MSM_DO_UPDATE MSM_LOGFILE
 		MSM_LOGFILE="$OLD_LOGFILE"
