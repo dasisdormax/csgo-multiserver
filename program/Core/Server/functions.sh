@@ -47,6 +47,8 @@ Core.Server::requestStart () {
 		EOF
 		cd "$INSTANCE_DIR"
 		Core.Instance::symlinkFiles
+		App::finalizeInstance
+		App::applyInstancePermissions
 		touch "msm.d/app"
 	)
 
@@ -71,9 +73,9 @@ Core.Server::requestStart () {
 			INSTANCE_DIR="$INSTANCE_DIR"
 			INSTALL_DIR="$INSTALL_DIR"
 			TMPDIR="$TMPDIR"
-			LOGFILE="$INSTANCE_DIR/msm.d/log/\$(timestamp)-controller.log"
+			MSM_LOGFILE="$INSTANCE_DIR/msm.d/log/\$(timestamp)-controller.log"
 			echo "\$LOGFILE" > "$TMPDIR/server-control.logfile"
-			. "\$THIS_DIR/server-control.sh" | tee "\$LOGFILE"
+			. "\$THIS_DIR/server-control.sh"
 		EOF
 
 	# LAUNCH! (in tmux)

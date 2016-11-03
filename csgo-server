@@ -35,83 +35,28 @@ EOF
 
 
 
-############################### COMMON VARIABLES ################################
+#################### GET LOCATION OF CSGO-MSM ON THE SYSTEM ####################
 
 # this script's filename and directory
+get-location () {
+	local dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-basename="$(basename "${BASH_SOURCE[0]}")"
-dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then
-	THIS_COMMAND="$basename"
-else
 	THIS_COMMAND="${BASH_SOURCE[0]}"
-fi
-
-THIS_SCRIPT="$(readlink -f "$dirname/$basename" 2> /dev/null)"
-THIS_DIR="$(dirname "$THIS_SCRIPT")"
-unset basename dirname
-
-
-# current user and their custom settings directory
-
-USER=$(whoami) # just in case
-USER_DIR="$HOME/msm.d"
-
-
-
-
-############################### COMMON FUNCTIONS ################################
-
-# override dot builtin: execute a handler (either a .sh-file or .sh-files in a directory)
-# Further parameters are passed to the executed scripts
-. () {
-	local cmd="${1%%.sh}" # Strip .sh extension
-	# Try executing file or file.sh (depending on extension) otherwise execute sh-files in directory
-	if [[ $cmd =~ \.[^/]*$ ]]; then
-		.file "$cmd"    "${@:2}" && return
-	else
-		.file "$cmd.sh" "${@:2}" && return
+	if [[ $PATH =~ (^|:)$dirname(:|$) ]]; then
+		THIS_COMMAND="$(basename "$THIS_COMMAND")"
 	fi
-	.dir "$cmd" "${@:2}"
+
+	THIS_SCRIPT="$(readlink -e "${BASH_SOURCE[0]}")"
+	THIS_DIR="$(dirname "$THIS_SCRIPT")"
 }
 
-
-# Execute all .sh-files inside a given directory
-# Further parameters are passed to the executed scripts
-#
-# Returns
-#   true,  if all files in the directory $1 could be executed
-#   false, - if $1 is no directory or contains no .sh files
-#          - if errors occured during the execution of any file
-.dir () {
-	[[ -d $1 ]] && {
-		for file in "$1"/*.sh; do
-			.file "$file" "${@:2}" || return
-		done
-	}
-}
-
-
-# Execute a file and set the context for the colon function
-# Further parameters are passed to the executed scripts
-.file () { [[ -f $1 ]] && builtin . "$1" "${@:2}"; }
-
-
-# override colon builtin: execute a file relative to the current file's base directory
-# Further parameters are passed to the executed scripts
-: () { . "$(dirname ${BASH_SOURCE[1]})/$1" "${@:2}"; }
-
-# ? function: execute a config file, preferring user config over global config
-? () { . "$USER_DIR/$@" || . "$THIS_DIR/$@"; }
+get-location
 
 
 
 
-################################### PROGRAM ####################################
+############################# ACTUALLY GET STARTED #############################
 
+. "$THIS_DIR/common.sh" # Load common functions, variables and configuration
 
-# This sets the default parameters such as $APP, if not given through the environment
-? "cfg/defaults.conf"
-
-# Run the thing
-. "$THIS_DIR/program/main" && main "$@"
+: "program/main" && main "$@"

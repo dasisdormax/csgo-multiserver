@@ -35,27 +35,19 @@ App::instanceIgnoredDirs () { cat <<-EOF; }
 EOF
 
 
-App::finalizeBaseInstallation () {
-	true
-	# cp -n "$SUBSCRIPT_DIR/server.conf" "$INSTALL_DIR/msm.d/server.conf"
-	# cp -n -R "$THIS_DIR/modes-$APPID" "$INSTALL_DIR/msm.d/modes"
-	# cp -n -R "$THIS_DIR/addons-$APPID" "$INSTALL_DIR/msm.d/addons"
-}
-
-
-App::finalizeInstance () {
-	true
-	# cp "$SUBSCRIPT_DIR/server.conf" "$INSTANCE_DIR/msm.d/server.conf"
-	# cp -R "$INSTALL_DIR/msm.d/modes" "$INSTANCE_DIR/msm.d/modes"
-	# cp -R "$INSTALL_DIR/msm.d/addons" "$INSTANCE_DIR/msm.d/addons"
-}
+App::finalizeInstance () (
+	cd $INSTANCE_DIR/msm.d
+	mkdir -p cfg
+	cp -n "$APP_DIR/scripts/server.conf" "cfg/server.conf"
+	cp -n -R "$APP_DIR/scripts/modes" "cfg/modes"
+)
 
 
 App::applyInstancePermissions () {
 	# Remove read privileges for files that may contain sensitive data
 	# (such as passwords, IP addresses, etc)
 	
-	chmod o-r "$INSTANCE_DIR/msm.d/server.conf"
+	chmod -R o-r "$INSTANCE_DIR/msm.d/cfg"
 	chmod o-r "$INSTANCE_DIR/csgo/cfg/autoexec.cfg"
 	chmod o-r "$INSTANCE_DIR/csgo/cfg/server.cfg"
 }

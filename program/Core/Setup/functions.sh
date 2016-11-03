@@ -19,7 +19,7 @@ requireConfig () {
 }
 
 Core.Setup::loadConfig () {
-	? "cfg/app-$APP.conf" && Core.Setup::validateConfig
+	.conf "cfg/app-$APP.conf" && Core.Setup::validateConfig
 }
 
 
@@ -107,7 +107,7 @@ Core.Setup::importFrom () {
 
 		sudo -iu $IMPORT_FROM \
 			MSM_LOGFILE="$MSM_LOGFILE" MSM_DEBUG=$MSM_DEBUG ADMIN=$ADMIN \
-			"$THIS_SCRIPT" setup ||
+			"$THIS_COMMAND" setup ||
 		{
 			out <<< "Cancelled the import from user $IMPORT_FROM ..."
 			return 1
@@ -182,9 +182,9 @@ Core.Setup::beginSetup () {
 		fmt -w67 <<-EOF | indent
 
 			Instead of creating a new configuration, you may also import the settings
-			from a different user on this system. This allows you to use that user's game
-			server installation as a base for your own instances, without having to
-			download the server files again.
+			from a different user on this system.  This allows you to use that user's
+			game server installation as a base for your own instances, without having
+			to download the server files again.
 
 			If you wish to import the settings from another user, enter their name below.
 			Otherwise, hit enter to create your own configuration.
@@ -195,8 +195,8 @@ Core.Setup::beginSetup () {
 	until [[ $SUCCESS ]]; do
 		if [[ ! $ADMIN ]]; then
 			echo
-			echo "Please enter the user to import the configuration from. Leave empty to"
-			echo "skip importing configurations, press CTRL-C to exit."
+			echo "Please enter the user to import the configuration from.  Leave empty"
+			echo "to skip importing configurations, press CTRL-C to exit."
 			echo
 			read -p "> Import configuration from? " -r ADMIN
 
@@ -237,7 +237,7 @@ Core.Setup::setupAsAdmin () {
 		===========
 
 		This assistant will install all remaining dependencies for your
-		$APP server and create a basic configuration. Please follow the
+		$APP server and create a basic configuration.  Please follow the
 		instructions below.
 	EOF
 
@@ -250,13 +250,13 @@ Core.Setup::setupAsAdmin () {
 	INSTANCE=
 	INSTALL_DIR="$HOME/$APP"
 	until Core.BaseInstallation::isExisting; do
-		cat <<-EOF
+		bold <<-EOF
 
-			Now, please select the base installation directory.  This is the
+			Now, please select the **base installation directory**.  This is the
 			directory the server will be downloaded to, make sure that there is
-			plenty of free space on the disk.  Be aware that this directory will be
-			made public readable, so other users on the system can create server
-			instances based on it.
+			plenty of free space on the disk.  Be aware that this directory will
+			be made **public readable**, so other users on the system can create
+			server instances based on it.
 
 		EOF
 
@@ -271,7 +271,7 @@ Core.Setup::setupAsAdmin () {
 	Core.Instance::select
 
 	# Final Steps
-	App::finalizeBaseInstallation
+	App::finalizeInstance
 	Core.BaseInstallation::applyPermissions
 
 	# Create Config and make it readable
@@ -285,8 +285,8 @@ Core.Setup::setupAsAdmin () {
 			Of course, you can also copy the files from a different location.
 
 			Use **$THIS_COMMAND @name create** to create a new server instance out of
-			your base installation. You may modify each instance's settings independently
-			from the others.
+			your base installation.  Each instance can be configured independently and
+			multiple instances can run simultaneously.
 		EOF
 	}
 	chmod o+rX "$CFG"

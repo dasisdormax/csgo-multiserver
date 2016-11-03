@@ -9,12 +9,12 @@
 
 
 Core.BaseInstallation::applyPermissions() {
-	App::applyInstancePermissions
+	App::applyInstancePermissions 2>/dev/null
 
 	chmod -R a+rX "$INSTALL_DIR"
 
-	chmod -R o-r "$INSTALL_DIR/msm.d/tmp"
-	chmod -R o-r "$INSTALL_DIR/msm.d/log"
+	chmod -R o-rx "$INSTALL_DIR/msm.d/tmp"
+	chmod -R o-rx "$INSTALL_DIR/msm.d/log"
 }
 
 
@@ -33,12 +33,11 @@ Core.BaseInstallation::create () (
 	Core.BaseInstallation::isExisting && return
 
 	umask o+rx # make sure that other users can 'fork' this base installation
-	INSTANCE_DIR="$INSTALL_DIR"
 
-	Core.Instance::isValidDir || {
+	INSTANCE_DIR="$INSTALL_DIR" Core.Instance::isValidDir || {
 		warning <<-EOF
 			The directory **$INSTALL_DIR** is non-empty, creating a base
-			installation here may cause **LEAKAGE OR LOSS OF DATA**!
+			installation here may cause data to be **LOST or LEAKED**!
 
 			Please backup all important files before proceeding!
 		EOF
@@ -84,7 +83,7 @@ requireUpdater () {
 
 Core.BaseInstallation::requestUpdate () {
 
-	requireConfig && requireUpdater || return
+	requireConfig || return
 
 	local ACTION=${1:-"update"}
 
@@ -101,11 +100,13 @@ Core.BaseInstallation::requestUpdate () {
 		EOF
 
 		sudo -iu $ADMIN \
-			MSM_REMOTE=1 "$THIS_SCRIPT" "$ACTION"
+			MSM_REMOTE=1 "$THIS_COMMAND" "$ACTION"
 		return
 	fi
 
 	########## Now, check if an update is available at all
+
+	requireUpdater || return
 
 	if [[ ! $MSM_DO_UPDATE && $ACTION == "update" ]]; then
 		log <<< ""
