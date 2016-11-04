@@ -122,8 +122,7 @@ Core.BaseInstallation::requestUpdate () {
 		#                if they wish to update is unnecessary
 		if (( code == 1 )); then
 			info <<< "An update for the base installation is available."
-			echo "Do you wish to perform the update now?"
-			promptY || return
+			sleep 5
 		fi
 	fi
 

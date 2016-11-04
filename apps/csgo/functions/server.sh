@@ -12,3 +12,18 @@ App::calculateLaunchArgs () {
 	# TODO: put those files in a proper location
 	. "$APP_DIR/scripts/server.conf"
 }
+
+
+# Announces an update which will cause the server to shut down
+App::announceUpdate () {
+	tmux-send -t ":$APP-server" <<-EOF
+		say "This server is shutting down for an update soon. See you later!"
+	EOF
+}
+
+# Ask the server to shut down
+App::shutdownServer () {
+	tmux-send -t ":$APP-server" <<-EOF
+		exit
+	EOF
+}

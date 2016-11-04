@@ -53,4 +53,11 @@ kill-tmux () {
 } > /dev/null 2>&1
 
 
+# Syntax: echo "Hello" | tmux-send -t target
+tmux-send () {
+	tmux send-keys $@ -l "$(cat)"
+	tmux send-keys $@ enter
+}
+
+
 timestamp () { date +%y%m%d_%T; }

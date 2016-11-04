@@ -39,19 +39,6 @@ Core.Server::requestStart () {
 
 	out <<< "Starting **$INSTANCE_TEXT** ..."
 
-	# Symlink new files
-	[[ $INSTALL_DIR/msm.d/app -nt $INSTANCE_DIR/msm.d/app ]] && (
-		info <<-EOF
-			The base installation has been updated since the last launch.
-			Synchronizing ...
-		EOF
-		cd "$INSTANCE_DIR"
-		Core.Instance::symlinkFiles
-		App::finalizeInstance
-		App::applyInstancePermissions
-		touch "msm.d/app"
-	)
-
 	# Load instance configuration
 	App::calculateLaunchArgs || return
 
@@ -67,15 +54,11 @@ Core.Server::requestStart () {
 
 	cat > "$TMPDIR/server-control.sh" <<-EOF
 			#! /bin/bash
-			$(declare -f timestamp)
-			. "$HOME/$MSM_CFG"
+			APP="$APP"
 			THIS_DIR="$THIS_DIR"
-			INSTANCE_DIR="$INSTANCE_DIR"
-			INSTALL_DIR="$INSTALL_DIR"
-			TMPDIR="$TMPDIR"
-			MSM_LOGFILE="$INSTANCE_DIR/msm.d/log/\$(timestamp)-controller.log"
-			echo "\$LOGFILE" > "$TMPDIR/server-control.logfile"
-			. "\$THIS_DIR/server-control.sh"
+			INSTANCE="$INSTANCE"
+			MSM_LOGFILE="$INSTANCE_DIR/msm.d/log/$(timestamp)-controller.log"
+			. "\$THIS_DIR/program/server-control.sh" && main
 		EOF
 
 	# LAUNCH! (in tmux)
@@ -97,9 +80,12 @@ Core.Server::requestStop () {
 	if Core.Server::isRunning; then
 		out <<< "Stopping $INSTANCE_TEXT ..."
 
-		touch "$TMPDIR/stop"
-		# Give 45 seconds to stop 'softly'
-		inotifywait -qq -t 45 -e close_write "$(cat "$TMPDIR/server-control.logfile")"
+		DEADLINE="$(( $(date +%s) + 30 ))"
+		echo "$DEADLINE" > "$TMPDIR/stop"
+		# Give 30 seconds to stop 'softly'
+		while Core.Server::isRunning && (( $(date +%s) < DEADLINE )); do
+			sleep 1
+		done
 
 		rm "$TMPDIR/stop"
 
@@ -150,7 +136,3 @@ Core.Server::attachToConsole () {
 		EOF
 	fi
 }
-
-
-
-
