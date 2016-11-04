@@ -53,7 +53,7 @@ indent () { sed 's/^/    /'; }
 trace () {
 	local i=1
 	while [[ ${FUNCNAME[$i]} != main &&
-	         ${FUNCNAME[$i]} != Core.CommandLine::parseArguments ]] &&
+	         ${FUNCNAME[$i]} != Core.CommandLine::runOnInstance ]] &&
 	      (( i < ${#FUNCNAME[@]} ))
 	do
 		local func=${FUNCNAME[$i+1]}
@@ -63,7 +63,10 @@ trace () {
 			( require* ) ;;
 			( * )
 				if [[ $not_first ]]; then printf "\n             "; fi
-				printf "in %-40s (line %3s)" $func $line
+				if [[ $func == Core.CommandLine::runOnInstance ]]; then
+					func="runOnInstance **@$INSTANCE**"
+				fi
+				printf "in %-40s (line %3s)" "$func" "$line"
 				local not_first=1;;
 		esac
 		(( i++ ))

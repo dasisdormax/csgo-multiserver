@@ -54,8 +54,6 @@ Core.Instance::select () {
 	TMPDIR="$INSTANCE_DIR/msm.d/tmp"
 	LOGDIR="$INSTANCE_DIR/msm.d/log"
 	SOCKET="$TMPDIR/server.tmux-socket"
-
-	debug <<< "Selected **$INSTANCE_TEXT**."
 }
 
 

@@ -8,21 +8,6 @@
 
 
 
-############################### HELPER FUNCTIONS ###############################
-
-# Shift the argument list by $1 elements
-# This allows functions to use more than one parameter
-argshift () {
-	local n=${1-1}
-	CURR_ARG="$NEXT_ARG"
-	ALL_ARGS=( "${ALL_ARGS[@]:$n}" )
-	NEXT_ARG="${ALL_ARGS[0]}"
-	[[ $CURR_ARG ]] # Return true if an argument is available for parsing
-}
-
-
-
-
 ################################## USAGE INFO ##################################
 
 # usage: display all the possible commands and a short explanation of what they do
@@ -63,37 +48,54 @@ EOF
 
 
 
+Core.CommandLine::parseArguments () {
+	unset INSTANCE
+	local ARGS=( )
+	while [[ $1 ]]; do
+		if [[ $1 =~ ^@ ]]; then
+			Core.CommandLine::runOnInstance "${ARGS[@]}"
+			INSTANCE="${1:1}"
+			ARGS=( )
+		else
+			ARGS+=( $1 )
+		fi
+		shift
+	done
+	Core.CommandLine::runOnInstance "${ARGS[@]}"
+}
+
 
 ##################################################################################
 ########################### LOOP THROUGH ALL PARAMETERS ##########################
 ##################################################################################
 
 # TODO: Allow addons to define their own arguments and corresponding actions
-Core.CommandLine::parseArguments () (
+Core.CommandLine::runOnInstance () (
 
-	ALL_ARGS=( "$@" )
-	NEXT_ARG="$1"
+	[[ $@ ]] || return
 
+	INSTANCE=${INSTANCE-"$DEFAULT_INSTANCE"}
 	Core.Instance::select
 
-	while argshift; do ################ BEGIN LOOP ################
+	out <<-EOF >&3
 
-		# $CURR_ARG
-		#      is the current argument we're parsing
-		# $ARGS
-		#      is an array containing the remaining parameters
 
-		# Functions can use 'argshift' to indicate that a parameter has
-		# been used up by the function itself. This prevents the argument
-		# parser to parse those parameters as commands again
+
+		==~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==
+
+		    Executing the following commands on **$INSTANCE_TEXT**:
+		        $@
+	EOF
+
+	while [[ $1 ]]; do ################ BEGIN LOOP ################
 
 		out <<-EOF >&3
 
 
-			>>>>>>> Currently parsing argument: **$CURR_ARG**
+			>>>>> Currently parsing argument: **$1**
 		EOF
 
-		case "$CURR_ARG" in ################ BEGIN CASE ################
+		case "$1" in ################ BEGIN CASE ################
 
 			########## Display information ###########
 
@@ -103,17 +105,6 @@ Core.CommandLine::parseArguments () (
 
 			( help | --help | usage )
 				Core.CommandLine::usage
-				;;
-
-			########## Select an instance ###########
-
-			( @* )
-				NEW_INSTANCE=${CURR_ARG:1}
-				INSTANCE_ARGS=( )
-				while [[ ! $NEXT_ARG =~ ^@ ]] && argshift; do
-					INSTANCE_ARGS=( "${INSTANCE_ARGS[@]}" "$CURR_ARG" )
-				done
-				INSTANCE="$NEW_INSTANCE" Core.CommandLine::parseArguments "${INSTANCE_ARGS[@]}"
 				;;
 
 			########## Initial Setup ###########
@@ -164,9 +155,11 @@ Core.CommandLine::parseArguments () (
 
 			( * )
 				log <<< ""
-				error <<< "Unrecognized Option: **$CURR_ARG**" || exit
+				error <<< "Unrecognized Option: **$1**" || exit
 				;;
 
 		esac ################ END CASE ################
+
+		shift
 	done ################ END LOOP ################
 )
