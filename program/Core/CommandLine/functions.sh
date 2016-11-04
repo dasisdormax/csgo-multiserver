@@ -48,12 +48,15 @@ EOF
 
 
 
+
+######################### ACTUAL COMMAND LINE PARSING ##########################
+
 Core.CommandLine::parseArguments () {
 	unset INSTANCE
 	local ARGS=( )
 	while [[ $1 ]]; do
 		if [[ $1 =~ ^@ ]]; then
-			Core.CommandLine::runOnInstance "${ARGS[@]}"
+			Core.CommandLine::exec "${ARGS[@]}"
 			INSTANCE="${1:1}"
 			ARGS=( )
 		else
@@ -61,16 +64,12 @@ Core.CommandLine::parseArguments () {
 		fi
 		shift
 	done
-	Core.CommandLine::runOnInstance "${ARGS[@]}"
+	Core.CommandLine::exec "${ARGS[@]}"
 }
 
 
-##################################################################################
-########################### LOOP THROUGH ALL PARAMETERS ##########################
-##################################################################################
-
 # TODO: Allow addons to define their own arguments and corresponding actions
-Core.CommandLine::runOnInstance () (
+Core.CommandLine::exec () (
 
 	[[ $@ ]] || return
 
@@ -110,13 +109,13 @@ Core.CommandLine::runOnInstance () (
 			########## Initial Setup ###########
 
 			( setup )
-				Core.Setup::beginSetup
+				Core.Setup::beginSetup || exit
 				;;
 
 			########## Server installation / updates ##########
 
 			( update | up | install )
-				Core.BaseInstallation::requestUpdate || exit
+				Core.BaseInstallation::requestUpdate
 				;;
 
 			( validate | repair )
@@ -127,6 +126,10 @@ Core.CommandLine::runOnInstance () (
 
 			( create | create-instance )
 				Core.Instance::create || exit
+				;;
+
+			( set-default )
+				Core.Instance::setDefault
 				;;
 
 			########## Server Control ###########

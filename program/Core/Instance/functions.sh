@@ -181,10 +181,21 @@ Core.Instance::create () (
 	echo "$APP" > "msm.d/app"
 
 	success <<-EOF
-		Instance created successfully in **$INSTANCE_DIR**!
+		Instance created successfully! Use **$THIS_COMMAND
+		@$INSTANCE set-default** to make this your default
+		instance.
 
-		Now, edit your instance's configuration file, located in
-		**$INSTANCE_DIR/msm.d/server.conf**, in order to set IP,
-		port, passwords and other game settings of your instance.
+		Now, edit your instance's configuration file, located
+		in **$INSTANCE_DIR/msm.d/server.conf**, to set IP, port,
+		passwords and other game settings of your instance.
 	EOF
 )
+
+
+Core.Instance::setDefault () {
+	log <<< ""
+	DEFAULT_INSTANCE="$INSTANCE"
+	Core.Setup::writeConfig && {
+		success <<< "Your default instance now is: **$INSTANCE_TEXT**"
+	}
+}
