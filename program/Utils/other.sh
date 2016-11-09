@@ -64,3 +64,18 @@ timestamp () { date +%y%m%d_%T; }
 
 
 try () { declare -f -F "$1" >/dev/null && "$@"; }
+
+
+# Output an array of arguments as a shell-quoted string
+quote () {
+	local args=( )
+	local a
+	while (( $# )); do
+		a=${1//\"/'\"'}
+		a=${a//\$/'\$'}
+		[[ ! $a || "$a" =~ [[:space:]] ]] && a="\"$a\""
+		args+=( "$a" )
+		shift
+	done
+	echo "${args[@]}"
+}

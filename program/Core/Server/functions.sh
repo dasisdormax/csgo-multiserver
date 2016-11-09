@@ -53,15 +53,15 @@ Core.Server::requestStart () {
 	out <<< "Starting **$INSTANCE_TEXT** ..."
 
 	# Load instance configuration
-	App::calculateLaunchArgs || return
+	App::buildLaunchCommand || return
 
 	info <<< "The launch command is:"
-	fmt -w67 <<< "$SERVER_EXEC ${LAUNCH_ARGS[@]}" | indent | indent | catinfo
+	fmt -w67 <<< "$LAUNCH_CMD" | sed 's/^/        /' | catinfo
 
 	cat > "$TMPDIR/server-start.sh"   <<-EOF
 			#! /bin/bash
 			$(declare -f timestamp)
-			unbuffer -p "$INSTANCE_DIR/$SERVER_EXEC" ${LAUNCH_ARGS[@]} | tee "$LOGDIR/\$(timestamp)-server.log"
+			unbuffer -p $LAUNCH_CMD | tee "$LOGDIR/\$(timestamp)-server.log"
 			echo \$? > "$TMPDIR/server.exit-code"
 		EOF
 
@@ -81,7 +81,7 @@ Core.Server::requestStart () {
 	success <<-EOF
 		**$INSTANCE_TEXT** started successfully!
 
-		Use '$THIS_COMMAND @$INSTANCE console** to enter the game's console.
+		Use **$THIS_COMMAND @$INSTANCE console** to enter the game's console.
 	EOF
 }
 
@@ -166,9 +166,10 @@ Core.Server::sendCommand () {
 			return
 		}
 
-		echo "$@" | tmux-send -t ":$APP-server"
+		local args="$(quote "$@")"
+		echo "$args" | tmux-send -t ":$APP-server"
 
 		out <<< "Sent the following command to **$INSTANCE_TEXT**:"
-		out <<< "    $@"
+		out <<< "    $args"
 	fi
 }

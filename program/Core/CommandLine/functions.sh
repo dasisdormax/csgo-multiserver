@@ -112,7 +112,7 @@ Core.CommandLine::parseArguments () {
 			[[ $1 != @@ ]] && INSTANCE="${1:1}"
 			ARGS=( )
 		else
-			ARGS+=( $1 )
+			ARGS+=( "$1" )
 		fi
 		shift
 	done
