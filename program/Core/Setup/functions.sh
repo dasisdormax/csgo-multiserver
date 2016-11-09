@@ -8,6 +8,13 @@
 
 
 
+Core.Setup::registerCommands () {
+	simpleCommand "Core.Setup::beginSetup" setup
+}
+
+
+
+
 ################################ CONFIG HANDLING ################################
 
 requireConfig () {
@@ -17,6 +24,15 @@ requireConfig () {
 		Create a new configuration using **$THIS_COMMAND setup**.
 	EOF
 }
+
+
+requireAdmin () {
+	[[ $USER == $ADMIN ]] || error <<-EOF
+		The user **$ADMIN** controls the base installation exclusively
+		and is the only one who can perform actions on it!
+	EOF
+}
+
 
 Core.Setup::loadConfig () {
 	.conf "cfg/app-$APP.conf" && Core.Setup::validateConfig

@@ -8,6 +8,14 @@
 
 
 
+Core.Instance::registerCommands () {
+	simpleCommand "Core.Instance::create" create create-instance
+	simpleCommand "Core.Instance::setDefault" set-default
+}
+
+
+
+
 ################################ INSTANCE HELPERS ################################
 
 requireRunnableInstance () {

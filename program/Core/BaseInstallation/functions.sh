@@ -8,6 +8,12 @@
 
 
 
+Core.BaseInstallation::registerCommands () {
+	simpleCommand "Core.BaseInstallation::requestUpdate" update install
+	simpleCommand "Core.BaseInstallation::requestRepair" repair validate
+}
+
+
 Core.BaseInstallation::applyPermissions() {
 	App::applyInstancePermissions 2>/dev/null
 
@@ -81,34 +87,20 @@ requireUpdater () {
 }
 
 
+Core.BaseInstallation::requestRepair () {
+	requireConfig && requireAdmin && requireUpdater || return
+
+	ACTION="validate" Core.BaseInstallation::startUpdate
+}
+
+
 Core.BaseInstallation::requestUpdate () {
 
-	requireConfig || return
+	requireConfig && requireAdmin && requireUpdater || return
 
-	local ACTION=${1:-"update"}
+	########## Check if an update is available at all
 
-	########## First: Switch user to base installation admin, if necessary
-
-	if [[ $USER != $ADMIN ]]; then
-		log <<< ""
-		warning <<-EOF # TODO: update text similar to Core.Setup::beginSetup
-			The user **$ADMIN** is controlling your base installation exclusively.
-			You may, though, switch users to perform the update on their account.
-
-			You will have to confirm this action with your sudo password. (CTRL-C to cancel)
-
-		EOF
-
-		sudo -iu $ADMIN \
-			MSM_REMOTE=1 "$THIS_COMMAND" "$ACTION"
-		return
-	fi
-
-	########## Now, check if an update is available at all
-
-	requireUpdater || return
-
-	if [[ ! $MSM_DO_UPDATE && $ACTION == "update" ]]; then
+	if [[ ! $MSM_DO_UPDATE ]]; then
 		log <<< ""
 		log <<< "Checking for updates ..."
 
@@ -126,10 +118,16 @@ Core.BaseInstallation::requestUpdate () {
 		fi
 	fi
 
+	ACTION="update" Core.BaseInstallation::startUpdate
+}
+
+
+Core.BaseInstallation::startUpdate () (
+
 	########## If not in a TMUX environment, switch into one to perform the update.
 	# This way, an SSH disconnection or closing the terminal won't interrupt it.
 
-	if ! [[ $TMUX && $MSM_DO_UPDATE == 1 ]]; then
+	if [[ ! $TMUX ]]; then
 		local UPDATE_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
 
 		out <<-EOF
@@ -162,14 +160,6 @@ Core.BaseInstallation::requestUpdate () {
 
 		return
 	fi
-
-	########## Start the actual update procedure
-
-	Core.BaseInstallation::startUpdate $ACTION
-}
-
-
-Core.BaseInstallation::startUpdate () (
 
 	########## Tell running instances that the update is starting soon
 

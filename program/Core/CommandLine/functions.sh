@@ -8,6 +8,14 @@
 
 
 
+Core.CommandLine::registerCommands () {
+	simpleCommand "Core.CommandLine::usage" help --help usage
+	simpleCommand "about-this-program" info about license
+}
+
+
+
+
 ################################## USAGE INFO ##################################
 
 # usage: display all the possible commands and a short explanation of what they do
@@ -49,6 +57,50 @@ EOF
 
 
 
+############################# COMMAND LIST HELPERS #############################
+
+Core.CommandLine::loadModuleCommands () {
+	unset       SIMPLE_COMMANDS  ONEARG_COMMANDS  GREEDY_COMMANDS
+	declare -gA SIMPLE_COMMANDS  ONEARG_COMMANDS  GREEDY_COMMANDS
+
+	local m
+	for m in $Modules; do
+		try $m::registerCommands
+	done
+}
+
+
+# Add a simple command (takes no arguments)
+# Assign function $1 to commands $...
+simpleCommand () {
+	local c
+	for c in ${@:2}; do
+		SIMPLE_COMMANDS[$c]="$1"
+	done
+}
+
+
+# Adds a command that takes exactly one argument
+oneArgCommand () {
+	local c
+	for c in ${@:2}; do
+		ONEARG_COMMANDS[$c]="$1"
+	done
+}
+
+
+# Adds a greedy command that takes all remaining arguments, until
+# the next instance is selected (use @@ to stay on the same instance)
+greedyCommand () {
+	local c
+	for c in ${@:2}; do
+		GREEDY_COMMANDS[$c]="$1"
+	done
+}
+
+
+
+
 ######################### ACTUAL COMMAND LINE PARSING ##########################
 
 Core.CommandLine::parseArguments () {
@@ -57,7 +109,7 @@ Core.CommandLine::parseArguments () {
 	while [[ $1 ]]; do
 		if [[ $1 =~ ^@ ]]; then
 			Core.CommandLine::exec "${ARGS[@]}"
-			INSTANCE="${1:1}"
+			[[ $1 != @@ ]] && INSTANCE="${1:1}"
 			ARGS=( )
 		else
 			ARGS+=( $1 )
@@ -75,6 +127,8 @@ Core.CommandLine::exec () (
 
 	INSTANCE=${INSTANCE-"$DEFAULT_INSTANCE"}
 	Core.Instance::select
+
+	Core.CommandLine::loadModuleCommands
 
 	out <<-EOF >&3
 
@@ -94,74 +148,29 @@ Core.CommandLine::exec () (
 			>>>>> Currently parsing argument: **$1**
 		EOF
 
-		case "$1" in ################ BEGIN CASE ################
+		if   [[ ${SIMPLE_COMMANDS[$1]} ]]; then
+			debug <<< "Executing ${SIMPLE_COMMANDS[$1]}"
+			"${SIMPLE_COMMANDS[$1]}"
 
-			########## Display information ###########
+		elif [[ ${ONEARG_COMMANDS[$1]} ]]; then
+			local fun=${ONEARG_COMMANDS[$1]}
+			shift
+			debug <<< "Executing $fun $1"
+			"$fun" "$1"
 
-			( info | about | license | copyright )
-				about-this-program
-				;;
+		elif [[ ${GREEDY_COMMANDS[$1]} ]]; then
+			local fun=${GREEDY_COMMANDS[$1]}
+			local args=( )
+			while shift; do
+				[[ $1 ]] && args+=( "$1" )
+			done
+			debug <<< "Executing $fun ${args[@]}"
+			"$fun" "${args[@]}"
 
-			( help | --help | usage )
-				Core.CommandLine::usage
-				;;
-
-			########## Initial Setup ###########
-
-			( setup )
-				Core.Setup::beginSetup || exit
-				;;
-
-			########## Server installation / updates ##########
-
-			( update | up | install )
-				Core.BaseInstallation::requestUpdate
-				;;
-
-			( validate | repair )
-				Core.BaseInstallation::requestUpdate validate || exit
-				;;
-
-			########## Instance Operations ###########
-
-			( create | create-instance )
-				Core.Instance::create || exit
-				;;
-
-			( set-default )
-				Core.Instance::setDefault
-				;;
-
-			########## Server Control ###########
-
-			( start | launch )
-				Core.Server::requestStart || exit
-				;;
-
-			( stop | exit )
-				Core.Server::requestStop
-				;;
-
-			( restart )
-				Core.Server::requestStop && Core.Server::requestStart || exit
-				;;
-
-			( status )
-				Core.Server::printStatus
-				;;
-
-			( console | attach )
-				Core.Server::attachToConsole
-				;;
-
-			########## Unrecognized argument ##########
-
-			( * )
-				log <<< ""
-				error <<< "Unrecognized Option: **$1**" || exit
-				;;
-
-		esac ################ END CASE ################
+		else
+			log <<< ""
+			error <<< "Unknown command: **$1**"
+		fi
 
 		shift
 	done ################ END LOOP ################

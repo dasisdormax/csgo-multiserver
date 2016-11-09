@@ -8,6 +8,19 @@
 
 
 
+Core.Server::registerCommands () {
+	simpleCommand "Core.Server::requestStart" start launch
+	simpleCommand "Core.Server::requestStop" stop
+	simpleCommand "Core.Server::requestRestart" restart
+	simpleCommand "Core.Server::printStatus" status
+	simpleCommand "Core.Server::attachToConsole" console attach
+
+	greedyCommand "Core.Server::sendCommand" send exec execute
+}
+
+
+
+
 ################################# STATUS QUERY #################################
 
 # Returns true, if the server wrapper is running
@@ -99,6 +112,11 @@ Core.Server::requestStop () {
 }
 
 
+Core.Server::requestRestart () {
+	Core.Server::requestStop
+	Core.Server::requestStart
+}
+
 Core.Server::printStatus () {
 
 	log <<< ""
@@ -117,6 +135,7 @@ Core.Server::printStatus () {
 	info <<< "**$INSTANCE_TEXT** is RUNNING."
 }
 
+
 # Switch to the game's console running in tmux
 Core.Server::attachToConsole () {
 
@@ -128,11 +147,28 @@ Core.Server::attachToConsole () {
 	if    Core.Server::isUpdating; then
 		tmux -S "$SOCKET" attach
 	elif  Core.Server::isRunning;  then
-		tmux -S "$SOCKET" attach -t ":$APPNAME-server"
+		tmux -S "$SOCKET" attach -t ":$APP-server"
 	else
 		error <<-EOF
 			**$INSTANCE_TEXT** is not running! Start your server using
 			**$THIS_COMMAND @$INSTANCE start** and try again.
 		EOF
+	fi
+}
+
+
+Core.Server::sendCommand () {
+	if [[ $@ ]]; then
+		log <<< ""
+		requireRunnableInstance || return
+		Core.Server::isRunning && ! Core.Server::isUpdating || {
+			error <<< "**$INSTANCE_TEXT** is not running!"
+			return
+		}
+
+		echo "$@" | tmux-send -t ":$APP-server"
+
+		out <<< "Sent the following command to **$INSTANCE_TEXT**:"
+		out <<< "    $@"
 	fi
 }
