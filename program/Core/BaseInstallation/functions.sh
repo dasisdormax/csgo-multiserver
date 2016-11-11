@@ -11,6 +11,7 @@
 Core.BaseInstallation::registerCommands () {
 	simpleCommand "Core.BaseInstallation::requestUpdate" update install
 	simpleCommand "Core.BaseInstallation::requestRepair" repair validate
+	oneArgCommand "Core.BaseInstallation::cloneFrom" clone
 }
 
 
@@ -74,6 +75,51 @@ Core.BaseInstallation::create () (
 )
 
 
+# Clone the base installation from a different machine
+# Takes the remote user to copy from in ssh format (user@host)
+#
+# TODO: test this!!!
+Core.BaseInstallation::cloneFrom () {
+
+	[[ $1 ]] || return
+	requireConfig && requireAdmin || return
+
+	log <<< ""
+	log <<< "Loading $APP server settings from $1 ..."
+
+	# Get remote install dir
+	REMOTE_DIR="$(
+		unset INSTALL_DIR
+		eval "$(ssh $1 MSM_REMOTE=1 APP="$APP" "$THIS_COMMAND" print-config | 
+				grep ^INSTALL_DIR= )"
+		echo "$INSTALL_DIR"
+	)"
+
+	[[ $REMOTE_DIR ]] || error <<-EOF || return
+			Could not load the configuration of $1! Please make
+			sure that your base installation is set up properly on
+			that machine!
+		EOF
+
+	# Save host to base installation configuration
+	echo "$REMOTE_DIR" > "$INSTALL_DIR/msm.d/cloned-from"
+
+	Core.BaseInstallation::updateFromClone
+}
+
+
+Core.BaseInstallation::updateFromClone () {
+	local REMOTE_DIR="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
+	# Rsync from the remote install dir into this install dir
+	log <<< "Cloning Base Installation (this may take a while) ..."
+	if rsync -az "$1:$REMOTE_DIR/" "$INSTALL_DIR"; then
+		success <<< "The server files have been cloned successfully."
+	else
+		error <<< "Error cloning the server files! (rsync exited with code $?)"
+	fi
+}
+
+
 
 
 ####################### UPDATE AND INSTALLATION HANDLING #######################
@@ -90,7 +136,7 @@ requireUpdater () {
 Core.BaseInstallation::requestRepair () {
 	requireConfig && requireAdmin && requireUpdater || return
 
-	ACTION="validate" Core.BaseInstallation::startUpdate
+	ACTION="repair" Core.BaseInstallation::startUpdate
 }
 
 
@@ -100,66 +146,34 @@ Core.BaseInstallation::requestUpdate () {
 
 	########## Check if an update is available at all
 
-	if [[ ! $MSM_DO_UPDATE ]]; then
-		log <<< ""
-		log <<< "Checking for updates ..."
+	log <<< ""
+	log <<< "Checking for updates ..."
 
-		App::isUpToDate && {
-			info <<< "The base installation is already up to date."
-			return
-		}
-		local code=$?
-		if (( code  > 2 )); then return 1; fi
-		#  if code == 2, the game server is not installed yet. Asking the user
-		#                if they wish to update is unnecessary
-		if (( code == 1 )); then
-			info <<< "An update for the base installation is available."
-			sleep 5
-		fi
-	fi
+	Core.BaseInstallation::isUpToDate && {
+		info <<< "The base installation is already up to date."
+		return
+	}
+
+	info <<< "The base installation needs to be updated!"
 
 	ACTION="update" Core.BaseInstallation::startUpdate
 }
 
 
-Core.BaseInstallation::startUpdate () (
-
-	########## If not in a TMUX environment, switch into one to perform the update.
-	# This way, an SSH disconnection or closing the terminal won't interrupt it.
-
-	if [[ ! $TMUX ]]; then
-		local UPDATE_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
-
-		out <<-EOF
-
-			Switching into a TMUX environment to install or update the
-			base installation ...
-
-			For more status information, see the log file
-			**$UPDATE_LOGFILE**.
-		EOF
-
-		local SOCKET="$TMPDIR/update.tmux-socket"
-
-		tmux -S "$SOCKET" has-session > /dev/null 2>&1 && {
-			tmux -S "$SOCKET" attach
-			return
-		}
-
-		kill-tmux
-
-		local OLD_LOGFILE="$MSM_LOGFILE"
-		export MSM_LOGFILE="$UPDATE_LOGFILE"
-		export MSM_DO_UPDATE=1
-
-		# Execute Update within tmux
-		tmux -S "$SOCKET" -f "$THIS_DIR/cfg/tmux.conf" new-session "$THIS_SCRIPT" "$ACTION"
-
-		unset MSM_DO_UPDATE MSM_LOGFILE
-		MSM_LOGFILE="$OLD_LOGFILE"
-
-		return
+Core.BaseInstallation::isUpToDate () {
+	if [[ -e "$INSTALL_DIR/msm.d/cloned-from" ]]; then
+		# get timestamp of msm.d/app over ssh
+		local REMOTE_DIR="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
+		local REMOTE_HOST="${REMOTE_DIR%%:*}"
+		local REMOTE_TIME="$(ssh "$REMOTE_HOST" date -r "$REMOTE_DIR/msm.d/app" +%s)"
+		local LOCAL_TIME="$(date -r "$INSTALL_DIR/msm.d/app" +%s)"
+		(( LOCAL_TIME > REMOTE_TIME ))
+	else
+		App::isUpToDate
 	fi
+}
+
+Core.BaseInstallation::startUpdate () (
 
 	########## Tell running instances that the update is starting soon
 
@@ -181,7 +195,11 @@ Core.BaseInstallation::startUpdate () (
 	log <<< ""
 	log <<< "Performing update/installation NOW."
 
-	App::performUpdate
+	if [[ -e "$INSTALL_DIR/msm.d/cloned-from" ]]; then
+		Core.BaseInstallation::updateFromClone
+	else
+		App::performUpdate
+	fi
 	local errno=$?
 
 	########## Update timestamp on app file, so clients know that files may have changed
@@ -194,14 +212,12 @@ Core.BaseInstallation::startUpdate () (
 
 	if (( $errno )); then
 		error <<-EOF
-			Update failed. See the log file **$UPDATE_LOGFILE**
+			${ACTION^} failed. See the log file **$UPDATE_LOGFILE**
 			for more information.
 		EOF
 	else
-		success <<< "Your $APP server was ${ACTION}d successfully!"
+		success <<< "${ACTION^} of your $APP server completed successfully!"
 	fi
-
-	sleep 5
 
 	return $errno
 )

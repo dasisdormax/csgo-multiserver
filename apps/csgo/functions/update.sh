@@ -114,15 +114,16 @@ App::isUpToDate () {
 
 
 # Actually perform a requested update
-# Takes the action (either update or validate) as parameter
+# Takes the action (either update or repair) as parameter
 App::performUpdate () {
 
 	# Prepare SteamCMD script
 	local STEAMCMD_SCRIPT="$TMPDIR/steamcmd-script"
+	local MSM_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
 	cat <<-EOF > "$STEAMCMD_SCRIPT"
 		login anonymous
 		force_install_dir "$INSTALL_DIR"
-		app_update 740 $( [[ $ACTION == validate ]] && echo "validate" )
+		app_update 740 $( [[ $ACTION == repair ]] && echo "validate" )
 		quit
 	EOF
 
@@ -148,6 +149,11 @@ App::performUpdate () {
 		      "$MSM_LOGFILE" > /dev/null                   && local code=0
 
 	done
+
+	out <<-EOF
+
+		Logs have been written to **$MSM_LOGFILE**"
+	EOF
 
 	# App::applyInstancePermissions
 

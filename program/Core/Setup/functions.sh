@@ -10,6 +10,7 @@
 
 Core.Setup::registerCommands () {
 	simpleCommand "Core.Setup::beginSetup" setup
+	simpleCommand "Core.Setup::printConfig" print-config
 }
 
 
