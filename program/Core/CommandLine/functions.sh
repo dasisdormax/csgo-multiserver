@@ -193,7 +193,7 @@ Core.CommandLine::execRemotely () {
 		host of remote instance **$INSTANCE** ...
 	EOF
 
-	ssh "$HOST" \
+	ssh -t "$HOST" \
 		MSM_DEBUG=$MSM_DEBUG MSM_REMOTE=1 APP=$APP \
 		"$THIS_COMMAND" @$INSTANCE "$@"
 
