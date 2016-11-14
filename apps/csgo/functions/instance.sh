@@ -25,12 +25,13 @@ App::instanceMixedDirs () { cat <<-EOF; }
 	csgo/maps
 	csgo/maps/cfg
 	csgo/maps/soundcache
+	csgo/logs
 	csgo/resource/overviews
 EOF
 
 
-# directories which are not shared between the base installation and the instances
-App::instanceIgnoredDirs () { cat <<-EOF; }
+# files/directories which are not shared between the base installation and the instances
+App::instanceIgnoredFiles () { cat <<-EOF; }
 	csgo/addons
 EOF
 
@@ -50,4 +51,4 @@ App::applyInstancePermissions () {
 	chmod -R o-r "$INSTANCE_DIR/msm.d/cfg"
 	chmod o-r "$INSTANCE_DIR/csgo/cfg/autoexec.cfg"
 	chmod o-r "$INSTANCE_DIR/csgo/cfg/server.cfg"
-}
+} 2>/dev/null
