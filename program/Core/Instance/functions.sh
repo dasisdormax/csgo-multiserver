@@ -24,7 +24,8 @@ requireRunnableInstance () {
 	Core.Instance::isRunnableInstance || error <<-EOF
 		Cannot access or run **$INSTANCE_TEXT**!
 
-		Create an own instance using **$THIS_COMMAND @name create**.
+		Make sure that a) the server is properly installed and b) that
+		you have the necessary privileges for that instance's directory.
 	EOF
 }
 
