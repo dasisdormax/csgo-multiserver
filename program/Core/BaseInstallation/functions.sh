@@ -188,11 +188,13 @@ Core.BaseInstallation::startUpdate () (
 	########## Wait (meanwhile, prevent exiting on Ctrl-C)
 	# TODO: Allow the user to cancel the update
 
-	trap "" SIGINT
-	log <<< ""
-	log <<< "Waiting $UPDATE_WAITTIME seconds for running instances to stop ..."
-	while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
-	trap SIGINT
+	if Core.Instance::isRunnableInstance; then
+		trap "" SIGINT
+		log <<< ""
+		log <<< "Waiting $UPDATE_WAITTIME seconds for running instances to stop ..."
+		while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
+		trap SIGINT
+	fi
 
 	########## Done waiting, perform the update now.
 
