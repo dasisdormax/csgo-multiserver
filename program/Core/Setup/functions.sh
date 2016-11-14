@@ -265,7 +265,7 @@ Core.Setup::setupAsAdmin () {
 	######### Create base installation
 
 	INSTANCE=
-	INSTALL_DIR="$HOME/$APP"
+	INSTALL_DIR="$HOME/msm.d/server/$APP"
 	until Core.BaseInstallation::isExisting; do
 		bold <<-EOF
 
@@ -277,15 +277,14 @@ Core.Setup::setupAsAdmin () {
 
 		EOF
 
-		read -r -p "Game Server Installation Directory (default: ~/$APP) " INSTALL_DIR
+		read -r -p "Game Server Installation Directory (default: ~/msm.d/server/$APP) " INSTALL_DIR
 
-		INSTALL_DIR=${INSTALL_DIR:-"$APP"}
-		[[ $INSTALL_DIR =~ ^/ ]] ||	INSTALL_DIR="$HOME/$INSTALL_DIR"
+		INSTALL_DIR=${INSTALL_DIR:-"~/msm.d/server/$APP"}
+		INSTALL_DIR="$(eval echo "$INSTALL_DIR")"   # expand tilde and stuff
+		INSTALL_DIR="$(readlink -m "$INSTALL_DIR")" # get absolute directory
 
 		Core.BaseInstallation::create
 	done
-
-	Core.Instance::select
 
 	# Final Steps
 	App::finalizeInstance

@@ -35,7 +35,7 @@ EOF
 ############################### CHECK DEPENDENCIES ###############################
 
 # Check required programs
-local programs="sed awk tmux wget tar unbuffer"
+local programs="sed awk tmux wget tar unbuffer readlink inotifywait"
 local program
 for program in $programs; do
 	[[ -x $(which $program) ]] ||

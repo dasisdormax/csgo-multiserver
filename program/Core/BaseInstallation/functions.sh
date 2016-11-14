@@ -30,7 +30,8 @@ Core.BaseInstallation::applyPermissions() {
 ########################### CREATING A BASE INSTALLATION ##########################
 
 Core.BaseInstallation::isExisting () {
-	INSTANCE_DIR=$INSTALL_DIR Core.Instance::isBaseInstallation
+	Core.Instance::select
+	Core.Instance::isBaseInstallation
 }
 
 
@@ -41,7 +42,7 @@ Core.BaseInstallation::create () (
 
 	umask o+rx # make sure that other users can 'fork' this base installation
 
-	INSTANCE_DIR="$INSTALL_DIR" Core.Instance::isValidDir || {
+	Core.Instance::isValidDir || {
 		warning <<-EOF
 			The directory **$INSTALL_DIR** is non-empty, creating a base
 			installation here may cause data to be **LOST or LEAKED**!
