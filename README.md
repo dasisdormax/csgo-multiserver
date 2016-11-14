@@ -100,7 +100,7 @@ The server settings themselves are instance-specific and can be configured in `$
 
 Note that individual servers are called _instances_. These share most of the files (like maps, textures, etc.) with the base installation, but can have their own configurations. The special command `@instance-name` selects the instance to run the future commands on. The command `@` without an instance name selects the base installation.
 
-It is, though, not required to create a separate instance if you do not intend to run more than one server on the machine. You can also
+It is, though, not required to create a separate instance if you do not intend to run more than one server on the machine. You can simply run the base installation if you want to.
 
 1. If this is the first time the script is used on the current account, type `csgo-server setup` and follow the instructions to import the configuration from the admin.
 2. (If applicable) Create your own instance (a fork of the base installation) named _myinstance_ using `csgo-server @... create`.

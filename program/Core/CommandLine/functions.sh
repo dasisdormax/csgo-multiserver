@@ -109,7 +109,7 @@ Core.CommandLine::parseArguments () {
 	while [[ $1 ]]; do
 		if [[ $1 =~ ^@ ]]; then
 			Core.CommandLine::exec "${ARGS[@]}"
-			[[ $1 != @@ ]] && INSTANCE="${1:1}"
+			[[ ! ${1:1} =~ @ ]] && INSTANCE="${1:1}"
 			ARGS=( )
 		else
 			ARGS+=( "$1" )
@@ -128,8 +128,6 @@ Core.CommandLine::exec () (
 	INSTANCE=${INSTANCE-"$DEFAULT_INSTANCE"}
 	Core.Instance::select
 
-	Core.CommandLine::loadModuleCommands
-
 	out <<-EOF >&3
 
 
@@ -137,8 +135,12 @@ Core.CommandLine::exec () (
 		==~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~==
 
 		    Executing the following commands on **$INSTANCE_TEXT**:
-		        $@
+		        $(quote "$@")
 	EOF
+
+	Core.CommandLine::execRemotely "$@" && return
+
+	Core.CommandLine::loadModuleCommands
 
 	while [[ $1 ]]; do ################ BEGIN LOOP ################
 
@@ -164,7 +166,7 @@ Core.CommandLine::exec () (
 			while shift; do
 				[[ $1 ]] && args+=( "$1" )
 			done
-			debug <<< "Executing $fun ${args[@]}"
+			debug <<< "Executing $fun $(quote "${args[@]}")"
 			"$fun" "${args[@]}"
 
 		else
@@ -175,3 +177,25 @@ Core.CommandLine::exec () (
 		shift
 	done ################ END LOOP ################
 )
+
+
+# Try executing the commands on a remote machine
+# fails (exit code 1) if it is a local instance
+#
+# TODO: test this!
+Core.CommandLine::execRemotely () {
+	[[ $INSTANCE && -e "$INSTANCE_DIR/msm.d/host" ]] || return 1
+
+	local HOST="$(cat "$INSTANCE_DIR/msm.d/host")"
+
+	debug <<-EOF
+		Switching to machine **$HOST**, which is the
+		host of remote instance **$INSTANCE** ...
+	EOF
+
+	ssh "$HOST" \
+		MSM_DEBUG=$MSM_DEBUG MSM_REMOTE=1 APP=$APP \
+		"$THIS_COMMAND" @$INSTANCE "$@"
+
+	return 0
+}

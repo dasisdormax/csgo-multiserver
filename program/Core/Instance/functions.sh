@@ -11,6 +11,8 @@
 Core.Instance::registerCommands () {
 	simpleCommand "Core.Instance::create" create create-instance
 	simpleCommand "Core.Instance::setDefault" set-default
+	simpleCommand "Core.Instance::listInstances" list-instances
+	oneArgCommand "Core.Instance::importFrom" import-from
 }
 
 
@@ -25,6 +27,7 @@ requireRunnableInstance () {
 		Create an own instance using **$THIS_COMMAND @name create**.
 	EOF
 }
+
 
 # true, if an instance exists in directory $INSTANCE_DIR
 Core.Instance::isInstance () [[
@@ -63,6 +66,17 @@ Core.Instance::select () {
 	LOGDIR="$INSTANCE_DIR/msm.d/log"
 	SOCKET="$TMPDIR/server.tmux-socket"
 }
+
+
+Core.Instance::listInstances () (
+	for file in ~/*; do
+		if [[ $file =~ ~/$APP@ ]]; then
+			INSTANCE="${file#~/$APP@}"
+			Core.Instance::select
+			Core.Instance::isInstance && echo "$INSTANCE"
+		fi
+	done
+)
 
 
 
@@ -107,7 +121,6 @@ Core.Instance::symlinkFiles () {
 }
 
 
-# TODO:
 Core.Instance::copyFiles () {
 	local file
 	for file in $(App::instanceCopiedFiles); do
@@ -116,6 +129,7 @@ Core.Instance::copyFiles () {
 		[[ -e $INSTALL_DIR/$file ]] && cp -R "$INSTALL_DIR/$file" "$file"
 	done
 }
+
 
 Core.Instance::makeDirectories () {
 	local dir
@@ -131,7 +145,6 @@ Core.Instance::makeDirectories () {
 }
 
 
-# TODO: Update everything
 Core.Instance::create () (
 
 	log <<< ""
@@ -186,7 +199,7 @@ Core.Instance::create () (
 	App::applyInstancePermissions
 
 	mkdir -m o-rwx "$TMPDIR" "$LOGDIR"
-	echo "$APP" > "msm.d/app"
+	echo $APP > "msm.d/app"
 
 	success <<-EOF
 		Instance created successfully! Use **$THIS_COMMAND
@@ -207,3 +220,36 @@ Core.Instance::setDefault () {
 		success <<< "Your default instance now is: **$INSTANCE_TEXT**"
 	}
 }
+
+
+Core.Instance::importFrom () (
+	[[ $1 ]] || return
+	log <<< ""
+	log <<< "Trying to import instances from $1 ..."
+	i=0
+
+	INSTANCES="$(
+		ssh "$1" \
+			MSM_REMOTE=1 APP=$APP \
+			"$THIS_COMMAND" list-instances 2>/dev/null
+	)"
+
+	[[ $INSTANCES ]] || error <<-EOF || return
+		Host $1 has no instances to import!
+	EOF
+
+	for INSTANCE in $INSTANCES; do
+		Core.Instance::select
+		if Core.Instance::isValidDir; then
+			out <<< "    Importing $INSTANCE_TEXT ..."
+			mkdir -p "$INSTANCE_DIR/msm.d"
+			echo $APP > "$INSTANCE_DIR/msm.d/app"
+			echo "$1" > "$INSTANCE_DIR/msm.d/host"
+			(( i++ ))
+		else
+			out <<< "    $INSTANCE_TEXT already exists locally."
+		fi
+	done
+
+	success <<< "Imported $i new instances from $1."
+)

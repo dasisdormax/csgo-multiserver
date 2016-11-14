@@ -66,7 +66,7 @@ Core.BaseInstallation::create () (
 
 	# Create new configuration
 	mkdir "$INSTALL_DIR/msm.d"
-	echo "$APP" > "$INSTALL_DIR/msm.d/app"
+	echo $APP > "$INSTALL_DIR/msm.d/app"
 	touch "$INSTALL_DIR/msm.d/is-admin" # Mark as base installation
 
 	# Create temporary and logging directories
@@ -90,7 +90,7 @@ Core.BaseInstallation::cloneFrom () {
 	# Get remote install dir
 	REMOTE_DIR="$(
 		unset INSTALL_DIR
-		eval "$(ssh $1 MSM_REMOTE=1 APP="$APP" "$THIS_COMMAND" print-config | 
+		eval "$(ssh $1 MSM_REMOTE=1 APP=$APP "$THIS_COMMAND" print-config |
 				grep ^INSTALL_DIR= )"
 		echo "$INSTALL_DIR"
 	)"
@@ -109,10 +109,13 @@ Core.BaseInstallation::cloneFrom () {
 
 
 Core.BaseInstallation::updateFromClone () {
+
+	requireConfig && requireAdmin || return
+
 	local REMOTE_DIR="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
 	# Rsync from the remote install dir into this install dir
 	log <<< "Cloning Base Installation (this may take a while) ..."
-	if rsync -az "$1:$REMOTE_DIR/" "$INSTALL_DIR"; then
+	if rsync -rlpt -z "$1:$REMOTE_DIR/" "$INSTALL_DIR"; then
 		success <<< "The server files have been cloned successfully."
 	else
 		error <<< "Error cloning the server files! (rsync exited with code $?)"
