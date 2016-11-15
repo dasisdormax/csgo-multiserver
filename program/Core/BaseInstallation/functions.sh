@@ -87,6 +87,8 @@ Core.BaseInstallation::cloneFrom () {
 	log <<< ""
 	requireAdmin || return
 
+	# TODO: Display a warning if the server is already installed
+
 	log <<< "Loading $APP server settings from $1 ..."
 
 	# Get remote install dir
@@ -118,7 +120,10 @@ Core.BaseInstallation::updateFromClone () {
 	log <<< "Cloning Base Installation (this may take a while) ..."
 
 	local SOURCE="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
-	if rsync -rlpt -z "$SOURCE/" "$INSTALL_DIR"; then
+	if
+		rsync -rlptz --info=progress2 --no-inc-recursive \
+		--include="/msm.d/cfg" --exclude="/msm.d/*" "$SOURCE/" "$INSTALL_DIR"
+	then
 		success <<< "The server files have been cloned successfully."
 	else
 		error <<< "Error cloning the server files! (rsync exited with code $?)"
