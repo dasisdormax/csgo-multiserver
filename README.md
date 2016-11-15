@@ -2,7 +2,9 @@
 
 Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
+**NOTE:** this is a temporary branch used for the campuslan event (https://campuslan.csn.tu-chemnitz.de) containing the specific server configurations. They will expect metamod, sourcemod, WarMod BFG and ckSurf to be installed.
 
+Those features will hopefully included properly in the future.
 
 
 ## About this project
