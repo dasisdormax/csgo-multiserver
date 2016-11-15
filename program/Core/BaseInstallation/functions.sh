@@ -83,9 +83,10 @@ Core.BaseInstallation::create () (
 Core.BaseInstallation::cloneFrom () {
 
 	[[ $1 ]] || return
-	requireConfig && requireAdmin || return
 
 	log <<< ""
+	requireAdmin || return
+
 	log <<< "Loading $APP server settings from $1 ..."
 
 	# Get remote install dir
@@ -102,21 +103,22 @@ Core.BaseInstallation::cloneFrom () {
 			that machine!
 		EOF
 
-	# Save host to base installation configuration
-	echo "$REMOTE_DIR" > "$INSTALL_DIR/msm.d/cloned-from"
+	# Save host:dir to base installation configuration
+	echo "$1:$REMOTE_DIR" > "$INSTALL_DIR/msm.d/cloned-from"
 
-	Core.BaseInstallation::updateFromClone
+	ACTION="update" Core.BaseInstallation::startUpdate
 }
 
 
 Core.BaseInstallation::updateFromClone () {
 
-	requireConfig && requireAdmin || return
+	log <<< ""
+	requireAdmin || return
 
-	local REMOTE_DIR="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
-	# Rsync from the remote install dir into this install dir
 	log <<< "Cloning Base Installation (this may take a while) ..."
-	if rsync -rlpt -z "$1:$REMOTE_DIR/" "$INSTALL_DIR"; then
+
+	local SOURCE="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
+	if rsync -rlpt -z "$SOURCE/" "$INSTALL_DIR"; then
 		success <<< "The server files have been cloned successfully."
 	else
 		error <<< "Error cloning the server files! (rsync exited with code $?)"
@@ -129,6 +131,7 @@ Core.BaseInstallation::updateFromClone () {
 ####################### UPDATE AND INSTALLATION HANDLING #######################
 
 requireUpdater () {
+	requireAdmin || return
 	App::isUpdaterInstalled || error <<-EOF
 		The updater for $APP is not installed!
 
@@ -138,19 +141,17 @@ requireUpdater () {
 
 
 Core.BaseInstallation::requestRepair () {
-	requireConfig && requireAdmin && requireUpdater || return
-
 	ACTION="repair" Core.BaseInstallation::startUpdate
 }
 
 
 Core.BaseInstallation::requestUpdate () {
 
-	requireConfig && requireAdmin && requireUpdater || return
+	log <<< ""
+	requireUpdater || return
 
 	########## Check if an update is available at all
 
-	log <<< ""
 	log <<< "Checking for updates ..."
 
 	Core.BaseInstallation::isUpToDate && {
@@ -167,8 +168,9 @@ Core.BaseInstallation::requestUpdate () {
 Core.BaseInstallation::isUpToDate () {
 	if [[ -e "$INSTALL_DIR/msm.d/cloned-from" ]]; then
 		# get timestamp of msm.d/app over ssh
-		local REMOTE_DIR="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
-		local REMOTE_HOST="${REMOTE_DIR%%:*}"
+		local SOURCE="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
+		local REMOTE_HOST="${SOURCE%%:*}"
+		local REMOTE_DIR="${SOURCE#*:}"
 		local REMOTE_TIME="$(ssh "$REMOTE_HOST" date -r "$REMOTE_DIR/msm.d/app" +%s)"
 		local LOCAL_TIME="$(date -r "$INSTALL_DIR/msm.d/app" +%s)"
 		(( LOCAL_TIME > REMOTE_TIME ))
@@ -177,7 +179,13 @@ Core.BaseInstallation::isUpToDate () {
 	fi
 }
 
+
+# Starts an update or repair of the base installation
+# Note: this requires $ACTION variable to be set to either 'update' or 'repair'
 Core.BaseInstallation::startUpdate () (
+
+	log <<< ""
+	requireUpdater || return
 
 	########## Tell running instances that the update is starting soon
 
@@ -190,18 +198,19 @@ Core.BaseInstallation::startUpdate () (
 
 	if Core.Instance::isRunnableInstance; then
 		trap "" SIGINT
-		log <<< ""
 		log <<< "Waiting $UPDATE_WAITTIME seconds for running instances to stop ..."
 		while (( $(date +%s) < $UPDATE_TIME )); do sleep 1; done
 		trap SIGINT
+		log <<< ""
 	fi
 
 	########## Done waiting, perform the update now.
 
-	log <<< ""
 	log <<< "Performing update/installation NOW."
 
-	if [[ -e "$INSTALL_DIR/msm.d/cloned-from" ]]; then
+	# if this is a clone, update from that host instead of the app updater
+	# Note: a repair action will always use the app updater
+	if [[ -e "$INSTALL_DIR/msm.d/cloned-from" && $ACTION = update ]]; then
 		Core.BaseInstallation::updateFromClone
 	else
 		App::performUpdate
@@ -218,8 +227,8 @@ Core.BaseInstallation::startUpdate () (
 
 	if (( $errno )); then
 		error <<-EOF
-			${ACTION^} failed. See the log file **$UPDATE_LOGFILE**
-			for more information.
+			${ACTION^} failed. For more information, see the log file
+			**$UPDATE_LOGFILE**.
 		EOF
 	else
 		success <<< "${ACTION^} of your $APP server completed successfully!"

@@ -152,13 +152,13 @@ Core.CommandLine::exec () (
 
 		if   [[ ${SIMPLE_COMMANDS[$1]} ]]; then
 			debug <<< "Executing ${SIMPLE_COMMANDS[$1]}"
-			"${SIMPLE_COMMANDS[$1]}"
+			${SIMPLE_COMMANDS[$1]}
 
 		elif [[ ${ONEARG_COMMANDS[$1]} ]]; then
 			local fun=${ONEARG_COMMANDS[$1]}
 			shift
 			debug <<< "Executing $fun $1"
-			"$fun" "$1"
+			$fun "$1"
 
 		elif [[ ${GREEDY_COMMANDS[$1]} ]]; then
 			local fun=${GREEDY_COMMANDS[$1]}
@@ -167,7 +167,7 @@ Core.CommandLine::exec () (
 				[[ $1 ]] && args+=( "$1" )
 			done
 			debug <<< "Executing $fun $(quote "${args[@]}")"
-			"$fun" "${args[@]}"
+			$fun "${args[@]}"
 
 		else
 			log <<< ""
@@ -190,7 +190,7 @@ Core.CommandLine::execRemotely () {
 
 	debug <<-EOF
 		Switching to machine **$HOST**, which is the
-		host of remote instance **$INSTANCE** ...
+		host of **remote instance @$INSTANCE** ...
 	EOF
 
 	ssh -t "$HOST" \

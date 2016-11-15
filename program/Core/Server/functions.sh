@@ -46,11 +46,11 @@ Core.Server::requestStart () {
 	requireRunnableInstance || return
 
 	Core.Server::isRunning && info <<-EOF && return
-			**$INSTANCE_TEXT** is already running! You can enter your
-			server's console using **$THIS_COMMAND @$INSTANCE console**.
+			$INSTANCE_TEXT is already running! Try entering your server's
+			console using **$THIS_COMMAND @$INSTANCE console**.
 		EOF
 
-	out <<< "Starting **$INSTANCE_TEXT** ..."
+	log <<< "Starting $INSTANCE_TEXT ..."
 
 	# Load instance configuration
 	App::buildLaunchCommand || return
@@ -107,7 +107,7 @@ Core.Server::requestStop () {
 
 		success <<< "Stopped **$INSTANCE_TEXT**."
 	else
-		info <<< "**$INSTANCE_TEXT** is already stopped."
+		info <<< "$INSTANCE_TEXT is already stopped."
 	fi
 }
 
@@ -123,16 +123,16 @@ Core.Server::printStatus () {
 	requireRunnableInstance || return
 
 	if ! Core.Server::isRunning; then
-		info <<< "**$INSTANCE_TEXT** is STOPPED."
+		info <<< "$INSTANCE_TEXT is STOPPED."
 		return
 	fi
 
 	if Core.Server::isUpdating; then
-		info <<< "**$INSTANCE_TEXT** is currently UPDATING."
+		info <<< "$INSTANCE_TEXT is currently UPDATING."
 		return
 	fi
 
-	info <<< "**$INSTANCE_TEXT** is RUNNING."
+	info <<< "$INSTANCE_TEXT is RUNNING."
 }
 
 
@@ -167,9 +167,9 @@ Core.Server::sendCommand () {
 		}
 
 		local args="$(quote "$@")"
-		echo "$args" | tmux-send -t ":$APP-server"
+		log <<< "Sending the following command to $INSTANCE_TEXT:"
+		log <<< "    $args"
 
-		out <<< "Sent the following command to **$INSTANCE_TEXT**:"
-		out <<< "    $args"
+		echo "$args" | tmux-send -t ":$APP-server"
 	fi
 }

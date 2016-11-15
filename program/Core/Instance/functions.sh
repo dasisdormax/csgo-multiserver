@@ -21,6 +21,7 @@ Core.Instance::registerCommands () {
 ################################ INSTANCE HELPERS ################################
 
 requireRunnableInstance () {
+	requireConfig || return
 	Core.Instance::isRunnableInstance || error <<-EOF
 		Cannot access or run **$INSTANCE_TEXT**!
 
@@ -232,21 +233,21 @@ Core.Instance::importFrom () (
 	INSTANCES="$(
 		ssh "$1" \
 			MSM_REMOTE=1 APP=$APP \
-			"$THIS_COMMAND" list-instances 2>/dev/null
+			"$THIS_COMMAND" list-instances
 	)"
 
 	[[ $INSTANCES ]] || error <<-EOF || return
-		Host $1 has no instances to import!
+		Host **$1** has no instances to import!
 	EOF
 
 	for INSTANCE in $INSTANCES; do
 		Core.Instance::select
 		if Core.Instance::isValidDir; then
-			out <<< "    Importing $INSTANCE_TEXT ..."
+			(( i++ ))
 			mkdir -p "$INSTANCE_DIR/msm.d"
 			echo $APP > "$INSTANCE_DIR/msm.d/app"
 			echo "$1" > "$INSTANCE_DIR/msm.d/host"
-			(( i++ ))
+			out <<< "    Imported **$INSTANCE_TEXT** ..."
 		else
 			out <<< "    $INSTANCE_TEXT already exists locally."
 		fi

@@ -28,6 +28,7 @@ requireConfig () {
 
 
 requireAdmin () {
+	requireConfig || return
 	[[ $USER == $ADMIN ]] || error <<-EOF
 		The user **$ADMIN** controls the base installation exclusively
 		and is the only one who can perform actions on it!
