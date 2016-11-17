@@ -39,8 +39,7 @@ EOF
 App::finalizeInstance () (
 	cd $INSTANCE_DIR/msm.d
 	mkdir -p cfg
-	cp -n "$APP_DIR/scripts/server.conf" "cfg/server.conf"
-	cp -n -R "$APP_DIR/scripts/modes" "cfg/modes"
+	cp -n -R "$APP_DIR"/scripts/* cfg/
 )
 
 
