@@ -12,7 +12,7 @@ CL_API_TOKEN="d05836cac806b383ea815d6416999908f93983ee"
 CL_API="https://campuslan.csn.tu-chemnitz.de/api/v1"
 
 cl_api_get () {
-	curl -L -X GET -H "Authorization: Token $CL_API_TOKEN" $CL_API/$1
+	curl -s -L -X GET -H "Authorization: Token $CL_API_TOKEN" $CL_API/$1
 }
 
 
