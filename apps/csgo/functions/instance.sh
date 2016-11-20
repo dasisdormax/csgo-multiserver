@@ -38,8 +38,22 @@ EOF
 
 App::finalizeInstance () (
 	cd $INSTANCE_DIR/msm.d
+
+	# copy cfg from APP_DIR
 	mkdir -p cfg
 	cp -n -R "$APP_DIR"/scripts/* cfg/
+
+	# create csgo directory
+	mkdir -p $INSTANCE_DIR/csgo
+
+	# put demos in a common directory for all instances
+	if [[ $INSTANCE ]]; then
+		mkdir -p $HOME/demos/$INSTANCE
+		ln -s $HOME/demos/$INSTANCE $INSTANCE_DIR/csgo/warmod
+	fi
+
+	# put server images in csgo directory
+	cp "$THIS_DIR"/campuslan/* "$INSTANCE_DIR/csgo"
 )
 
 
