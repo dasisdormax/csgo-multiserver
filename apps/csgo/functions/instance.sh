@@ -38,9 +38,13 @@ EOF
 
 App::finalizeInstance () (
 	cd $INSTANCE_DIR/msm.d
+
+	# copy cfg from APP_DIR
 	mkdir -p cfg
-	cp -n "$APP_DIR/scripts/server.conf" "cfg/server.conf"
-	cp -n -R "$APP_DIR/scripts/modes" "cfg/modes"
+	cp -n -R "$APP_DIR"/scripts/* cfg/
+
+	# create csgo directory
+	mkdir -p $INSTANCE_DIR/csgo
 )
 
 
@@ -52,3 +56,22 @@ App::applyInstancePermissions () {
 	chmod o-r "$INSTANCE_DIR/csgo/cfg/autoexec.cfg"
 	chmod o-r "$INSTANCE_DIR/csgo/cfg/server.cfg"
 } 2>/dev/null
+
+
+App::varsToPass () { cat <<-EOF; }
+	MODE
+	TEAM_T
+	TEAM_CT
+	GSLT
+	IP
+	PORT
+	TV_PORT
+	PASS
+	USE_RCON
+	RCON_PASS
+	TICKRATE
+	SLOTS
+	ADMIN_SLOTS
+	TAGS
+	TITLE
+EOF

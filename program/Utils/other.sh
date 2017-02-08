@@ -79,3 +79,11 @@ quote () {
 	done
 	echo "${args[@]}"
 }
+
+
+ssh-pass-vars () {
+	local var
+	for var; do
+		echo "${!var+"$var=${!var}"}"
+	done
+}

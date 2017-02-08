@@ -10,7 +10,7 @@
 
 App::buildLaunchCommand () {
 	# TODO: put those files in a proper location
-	. "$APP_DIR/scripts/server.conf"
+	. "$INSTANCE_DIR/msm.d/cfg/server.conf"
 }
 
 

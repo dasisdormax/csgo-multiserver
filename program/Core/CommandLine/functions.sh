@@ -194,7 +194,7 @@ Core.CommandLine::execRemotely () {
 	EOF
 
 	ssh -t "$HOST" \
-		MSM_DEBUG=$MSM_DEBUG MSM_REMOTE=1 APP=$APP \
+		MSM_REMOTE=1 $(ssh-pass-vars MSM_DEBUG APP $(App::varsToPass)) \
 		"$THIS_COMMAND" @$INSTANCE "$@"
 
 	return 0
