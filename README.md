@@ -1,4 +1,4 @@
-# CS:GO *Multi* Server Manager
+# CS:GO *Multi* Server Manager (MSM)
 
 Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
@@ -7,11 +7,17 @@ Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
 ## About this project
 
-This is a complete rewrite of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be primarily designed for rented root servers). Intention is to make server management easier in both shared server and LAN environments.
+*csgo-multiserver* is an administration tool for CS:GO that helps you with the setup, configuration and control of your server(s).
 
-The core features of this script are finally working enough for this script to be somewhat useful. A huge amount of changes (primarily helper functions, logging and code restructuring) is on the way and worked on in the develop branch. 
+Being specifically designed for LAN environments, it allows you to control many servers running on multiple machines simultaneously. In addition, multiple server instances can share the same base files, saving your precious disk space and bandwidth.
 
-Anyway, I haven't had many opportunities for testing yet, so I'd appreciate every bit of feedback. This script is nowhere near complete, there is still _a lot_ more to do (addons, etc). 
+*csgo-multiserver* started as a fork of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be designed for rented root servers). By now, all features have been rewritten by scratch.
+
+### Release 1.0
+
+As all the main features of this script are finally working, I declare this as the release 1.0. As I have implemented everything I needed in *csgo-multiserver*, I won't work on adding more features for now. If you find any bugs or problems, I'll be happy to fix them though.
+
+Feel free to work on *csgo-multiserver* yourself if you have any wishes and ideas for improvements. As an example, the configuration and customization aspect could still be improved. In addition, 'porting' *csgo-multiserver* for other games or applications should be not too difficult.
 
 
 
@@ -20,13 +26,14 @@ Anyway, I haven't had many opportunities for testing yet, so I'd appreciate ever
 
 * SteamCMD and Game Installation, checking for and performing updates
 * CS:GO Server instance creation
-* Instance-specific server configuration
-* Running a server basically works (Including logging)! Yay! 
+* Instance-specific server configuration (using config files)
+* Running a server basically works (Including logging)! Yay!
+* Copying and controlling instances over the network
 
 
 
 
-## Planned features
+## The vision / planned features
 
 The emphasis is on **MULTI**
 
@@ -34,10 +41,10 @@ The emphasis is on **MULTI**
 * **_MULTIPLE_ INSTANCES**: Each game server instance shares the base files, but has its own configuration. Multiple instances can run on a system simultaneously.
 * **_MULTIPLE_ CONFIGURATIONS**: Different gamemodes (like competitive/deathmatch/surfing) that can be chosen when starting the server
 
-Additional plans:
+Additional ideas:
 
 * While the _MULTI_ features are the highlight, managing a single server for yourself should be just as easy.
-* Sourcemod plugin management for each instance (including downloading them), and enabling/disabling them based on configuration
+* ~Sourcemod plugin management~
 * Game configuration upon launch with environment variables. Possible features:
 	- Mapcycle generator (as `MAPS` variable)
 	- automatic team assignment (as `TEAM_T` and `TEAM_CT` variable)
@@ -53,11 +60,8 @@ Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com
 
 Additional dependencies are:
 
-* _tmux_, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
-* _inotifywait_, found in the `inotify-tools` package for Ubuntu, used by the server control to efficiently wait for file changes 
-
-Highly recommended additions:
-
+* _tmux_, version 2.1+, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
+* _inotifywait_, found in the `inotify-tools` package for Ubuntu, used by the server control to efficiently wait for file changes
 * _unbuffer_, to make update and server output and logging smoother (try `sudo apt install expect`)
 
 Of course, you require a Steam account with the game owned to create a CS:GO dedicated server. If you wish anybody to be able to connect to your server, get your Gameserver auth tokens [here](http://steamcommunity.com/dev/managegameservers) (for CS:GO, use appid 730).
@@ -67,16 +71,16 @@ Of course, you require a Steam account with the game owned to create a CS:GO ded
 
 ## Configuration and Environment Variables
 
-The main configuration file, by default, will be placed in `~/msm.csgo.conf`. It will set up all the important environment variables.
+The main configuration file will be placed in `~/msm.d`. It will set up all the important environment variables.
 
 * **ADMIN** - Name of the user that 'controls' the installation
 * **INSTALL_DIR** - The directory of the base installation. In **ADMIN**'s control.
-* **DEFAULT\_INSTANCE** - The default server instance
-* **DEFAULT\_MODE** - The default server gamemode
+* **DEFAULT\_INSTANCE** - The instance to work on if no specific is selected
 
-The server settings themselves are instance-specific and can be configured in `$INSTANCE_DIR/msm.d/server.conf`. Most importantly, you should check and set the `GSLT`, `IP` and `PORT` variables for every new instance.
+The server settings themselves are instance-specific and can be configured in `$INSTANCE_DIR/msm.d/cfg/server.conf`. Most importantly, you should check and set the `GSLT`, `IP` and `PORT` variables for every new instance.
 
-**TO BE IMPLEMENTED:** Support for workshop maps, configuration and installation of addons, GOTV Settings have to be tested/refined.
+**TO BE IMPLEMENTED:** Support for workshop maps, GOTV Settings have to be tested/refined.
+
 
 
 
@@ -89,30 +93,27 @@ The server settings themselves are instance-specific and can be configured in `$
 3. For easier invocation of the main script (just by typing `csgo-server` in your terminal), do one of the following:
     * `ln -s /home/admin/csgo-multiserver/csgo-server /usr/bin/csgo-server` (create a symlink)
     * add that place to your `$PATH` environment variable
-4. As the admin user (__NOT root__), try `csgo-server admin-install`. This will guide you through creating the initial configuration, downloading SteamCMD, and optionally installing and updating the base game server installation.
-5. Manage regularly and install updates as the admin user, with `csgo-server update` (possibly automated by cron)
+4. As the admin user (__NOT root__), try `csgo-server setup`. This will guide you through creating the initial configuration.
+5. Install updates or the server itself as the admin user with `csgo-server update` (possibly automated by cron)
  
 #### Steps for the individual user
 
-Note that individual servers are called _instances_. These share most of the files (like maps, textures, etc.) with the base installation, but can have their own configurations.
+Note that individual servers are called _instances_. These share most of the files (like maps, textures, etc.) with the base installation, but can have their own configurations. The special command `@instance-name` selects the instance to run the future commands on. The command `@` without an instance name selects the base installation.
 
-It is, though, not required to create a separate instance if you do not intend to run more than one server on the machine. If you omit the instance parameter `@instance-name`, the base installation will be selected by default.
+It is, though, not required to create a separate instance if you do not intend to run more than one server on the machine. You can simply run the base installation if you want to.
 
-1. If this is the first time the script is used on the current account, type `csgo-server` and follow the instructions to import the configuration from the admin.
-2. (If applicable) Create your own instance (a fork of the base installation) named _myinstance_ using `csgo-server @myinstance create`.
-3. Manage mods/addons using `csgo-server @myinstance manage` (not implemented yet)
+1. If this is the first time the script is used on the current account, type `csgo-server setup` and follow the instructions to import the configuration from the admin.
+2. (If applicable) Create your own instance (a fork of the base installation) named _myinstance_ using `csgo-server @... create`.
 
 
 
 
 ## Usage, when fully set up
 
-* `csgo-server @instance-name ( start | stop | restart )` to start/stop/restart the given server instance respectively. The server will run in the background in a separate tmux environment. Please note that the selected _admin_ can stop the server to perform updates without nasty effects.
-* `csgo-server @instance-name console` to access the in-game console (= attach to the tmux environment) to manually enter commands. You can return to your original shell (detach) by typing CTRL-D, a frozen server can be killed using CTRL-K.
+* `csgo-server @... ( start | stop | restart )` to start/stop/restart the given server instance. The server will run in the background in a separate tmux environment. Please note that the selected _admin_ can stop the server to perform updates without nasty effects.
+* `csgo-server @... exec ...` to execute some command in the server's console
+* `csgo-server @... console` to access the in-game console (= attach to the tmux environment) to manually enter commands. You can return to your original shell (detach) by typing CTRL-D, a frozen server can be killed using CTRL-K.
 * `csgo-server usage` will display detailed usage information
-* `csgo-server info` for information about copyright and license.
-
-Other commands are sufficiently explained in the installation section above, I suppose.
 
 
 
