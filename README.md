@@ -13,13 +13,11 @@ Being specifically designed for LAN environments, it allows you to control many 
 
 *csgo-multiserver* started as a fork of [csgo-server-launcher](https://github.com/crazy-max/csgo-server-launcher) (which seemed to be designed for rented root servers). By now, all features have been rewritten by scratch.
 
-### The current state
+### Release 1.0
 
-This script is quite capable already, with the server setup, updating, and basic server control functions implemented. Next up are remote control features that allow you to control servers running on different machines.
+As all the main features of this script are finally working, I declare this as the release 1.0. As I have implemented everything I needed in *csgo-multiserver*, I won't work on adding more features for now. If you find any bugs or problems, I'll be happy to fix them though.
 
-However, this script is nowhere near complete. A lot of work still needs to be done regarding the _configuration_ and _customization_ of servers.
-
-In addition, I haven't had many opportunities for testing yet, so I'd appreciate every bit of feedback.
+Feel free to work on *csgo-multiserver* yourself if you have any wishes and ideas for improvements. As an example, the configuration and customization aspect could still be improved. In addition, 'porting' *csgo-multiserver* for other games or applications should be not too difficult.
 
 
 
@@ -28,13 +26,14 @@ In addition, I haven't had many opportunities for testing yet, so I'd appreciate
 
 * SteamCMD and Game Installation, checking for and performing updates
 * CS:GO Server instance creation
-* Instance-specific server configuration
-* Running a server basically works (Including logging)! Yay! 
+* Instance-specific server configuration (using config files)
+* Running a server basically works (Including logging)! Yay!
+* Copying and controlling instances over the network
 
 
 
 
-## Planned features
+## The vision / planned features
 
 The emphasis is on **MULTI**
 
@@ -42,10 +41,10 @@ The emphasis is on **MULTI**
 * **_MULTIPLE_ INSTANCES**: Each game server instance shares the base files, but has its own configuration. Multiple instances can run on a system simultaneously.
 * **_MULTIPLE_ CONFIGURATIONS**: Different gamemodes (like competitive/deathmatch/surfing) that can be chosen when starting the server
 
-Additional plans:
+Additional ideas:
 
 * While the _MULTI_ features are the highlight, managing a single server for yourself should be just as easy.
-* Sourcemod plugin management for each instance (including downloading them), and enabling/disabling them based on configuration
+* ~Sourcemod plugin management~
 * Game configuration upon launch with environment variables. Possible features:
 	- Mapcycle generator (as `MAPS` variable)
 	- automatic team assignment (as `TEAM_T` and `TEAM_CT` variable)
@@ -61,7 +60,7 @@ Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com
 
 Additional dependencies are:
 
-* _tmux_, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
+* _tmux_, version 2.1+, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
 * _inotifywait_, found in the `inotify-tools` package for Ubuntu, used by the server control to efficiently wait for file changes
 * _unbuffer_, to make update and server output and logging smoother (try `sudo apt install expect`)
 
@@ -80,7 +79,8 @@ The main configuration file will be placed in `~/msm.d`. It will set up all the 
 
 The server settings themselves are instance-specific and can be configured in `$INSTANCE_DIR/msm.d/cfg/server.conf`. Most importantly, you should check and set the `GSLT`, `IP` and `PORT` variables for every new instance.
 
-**TO BE IMPLEMENTED:** Support for workshop maps, configuration and installation of addons, GOTV Settings have to be tested/refined.
+**TO BE IMPLEMENTED:** Support for workshop maps, GOTV Settings have to be tested/refined.
+
 
 
 
