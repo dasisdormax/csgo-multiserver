@@ -9,16 +9,6 @@
 
 
 
-############################### COMMON VARIABLES ################################
-
-THIS_DIR="$(dirname "${BASH_SOURCE[0]}")"
-
-USER=$(whoami) # just in case
-USER_DIR="$HOME/msm.d"
-
-
-
-
 ############################### COMMON FUNCTIONS ################################
 
 # override dot builtin: execute a handler (either a .sh-file or .sh-files in a directory)
@@ -68,9 +58,29 @@ USER_DIR="$HOME/msm.d"
 }
 
 
+# apply default values for variables
+applyDefaults () {
+	local target
+	local source
+	for source in ${!__*}; do
+		[[ $source =~ __$ ]] || continue
+		# Strip underscores from varname
+		target=${source%__}
+		target=${target#__}
+		[[ ! ${!target} ]] && declare -g $target="${!source}"
+		unset $source
+	done
+}
 
 
-########################## LOAD GENERAL CONFIGURATION ##########################
 
-# This sets the default parameters such as $APP, if not given through the environment
-.conf "cfg/defaults.conf"
+
+############################### COMMON VARIABLES ################################
+
+
+UPDATE_WAITTIME=75
+USER=$(whoami) # just in case
+USER_DIR="$HOME/msm.d"
+
+# apply default APP
+applyDefaults

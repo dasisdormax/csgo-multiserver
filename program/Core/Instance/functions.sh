@@ -11,8 +11,9 @@
 
 Core.Instance::registerCommands () {
 	simpleCommand "Core.Instance::create" create create-instance
-	simpleCommand "Core.Instance::setDefault" set-default
 	simpleCommand "Core.Instance::listInstances" list-instances
+	simpleCommand "Core.Instance::resetDefault" reset-default
+	oneArgCommand "Core.Instance::setDefault" set-default
 	oneArgCommand "Core.Instance::importFrom" import-from
 }
 
@@ -216,9 +217,20 @@ Core.Instance::create () (
 )
 
 
+Core.Instance::resetDefault () {
+	Core.Instance::setDefault ""
+}
+
+
 Core.Instance::setDefault () {
 	log <<< ""
-	DEFAULT_INSTANCE="$INSTANCE"
+
+	if [[ $MSM_REMOTE ]]; then
+		error <<< "You cannot change the default instance on a remote server!"
+		return
+	fi
+
+	DEFAULT_INSTANCE="$1"
 	Core.Setup::writeConfig && {
 		success <<< "Your default instance now is: **$INSTANCE_TEXT**"
 	}

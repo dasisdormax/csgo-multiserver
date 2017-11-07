@@ -91,7 +91,7 @@ The server settings themselves are instance-specific and can be configured in `$
 1. (Optional, if you want to use installation sharing) Create a separate _admin_ user (__NOT root__, usually called _steam_) that controls SteamCMD and the base installation. You can, of course, be your own admin.
 2. Use `git clone https://github.com/dasisdormax/csgo-multiserver.git` to clone this repository to whatever place you like (preferably within the admin's home directory ~admin). Make sure this directory and all files in it are readable to all users who will use this script.
 3. For easier invocation of the main script (just by typing `csgo-server` in your terminal), do one of the following:
-    * `ln -s /home/admin/csgo-multiserver/csgo-server /usr/bin/csgo-server` (create a symlink)
+    * `ln -s /home/admin/csgo-multiserver/msm /usr/bin/csgo-server` (create a symlink)
     * add that place to your `$PATH` environment variable
 4. As the admin user (__NOT root__), try `csgo-server setup`. This will guide you through creating the initial configuration.
 5. Install updates or the server itself as the admin user with `csgo-server update` (possibly automated by cron)
