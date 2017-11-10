@@ -116,11 +116,15 @@ App::isUpToDate () {
 
 # Actually perform a requested update
 # Takes the action (either update or repair) as parameter
-App::performUpdate () {
+App::performUpdate () (
+
+	# Work in base installation directory
+	INSTANCE=
+	Core.Instance::select
 
 	# Prepare SteamCMD script
-	local STEAMCMD_SCRIPT="$TMPDIR/steamcmd-script"
-	local MSM_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
+	STEAMCMD_SCRIPT="$TMPDIR/steamcmd-script"
+	MSM_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
 	cat <<-EOF > "$STEAMCMD_SCRIPT"
 		login anonymous
 		force_install_dir "$INSTALL_DIR"
@@ -159,4 +163,4 @@ App::performUpdate () {
 	# App::applyInstancePermissions
 
 	return $code
-}
+)

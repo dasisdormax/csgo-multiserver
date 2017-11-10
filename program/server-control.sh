@@ -11,6 +11,7 @@
 
 # The caller script in "$INSTANCE_DIR/msm.d/tmp/server-control.sh" sets the
 # following variables:
+#    APP
 #    THIS_DIR
 #    INSTANCE
 

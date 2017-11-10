@@ -36,7 +36,7 @@ EOF
 
 
 
-#################### GET LOCATION OF CSGO-MSM ON THE SYSTEM ####################
+####################### GET LOCATION OF MSM ON THE SYSTEM #######################
 
 # this script's filename and directory
 get-location () {

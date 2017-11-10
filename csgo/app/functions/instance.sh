@@ -60,6 +60,7 @@ App::applyInstancePermissions () {
 
 
 App::varsToPass () { cat <<-EOF; }
+	APP
 	MODE
 	TEAM_T
 	TEAM_CT
