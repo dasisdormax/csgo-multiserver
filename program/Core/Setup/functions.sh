@@ -77,7 +77,6 @@ Core.Setup::validateConfig () {
 
 
 Core.Setup::writeConfig () {
-	CFG="$CFG_DIR/defaults.conf"
 	if Core.Setup::validateConfig; then
 		if mkdir -p "$CFG_DIR" && Core.Setup::printConfig > "$CFG"; then
 			[[ $USER != $ADMIN ]] || make-readable "$CFG"
@@ -167,7 +166,6 @@ Core.Setup::importFrom () {
 
 Core.Setup::beginSetup () {
 	out <<< ""
-	local CFG="$CFG_DIR/defaults.conf"
 
 	# Check, if config exists already
 	[[ -e "$CFG" ]] && {
@@ -281,7 +279,7 @@ Core.Setup::setupAsAdmin () {
 	######### Create base installation
 
 	INSTANCE=
-	INSTALL_DIR="$HOME/$APP-base"
+	INSTALL_DIR="$USER_DIR/$APP/base"
 	until Core.BaseInstallation::isExisting; do
 		bold <<-EOF
 

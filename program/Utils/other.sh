@@ -69,13 +69,9 @@ try () { declare -f -F "$1" >/dev/null && "$@"; }
 
 # Makes a file and upper directories public readable
 make-readable () {
-	file="$(readlink -f "$1")"
+	file="$(readlink -f "$1" 2>/dev/null)"
 	[[ -O $file && $file != / ]] || return 0
-	if [[ -d $file ]]; then
-		chmod +x "$file"
-	else
-		chmod +r "$file"
-	fi
+	chmod +rX "$file"
 	make-readable "$(dirname "$file")"
 }
 

@@ -104,6 +104,7 @@
 			# Set app-specific variables
 			APP_DIR="$dir"
 			CFG_DIR="$USER_DIR/$APP/cfg"
+			CFG="$CFG_DIR/defaults.conf"
 
 			# Load the app itself
 			.file "$dir/app.info" && . "$dir/functions"
