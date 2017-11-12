@@ -109,7 +109,7 @@ Core.Instance::select () {
 # Also checks the instances and performs necessary migrations
 Core.Instance::listInstances () (
 	list=" "
-	for file in "$USER_DIR/$APP/inst/"* "$HOME/$APP@*"; do
+	for file in "$USER_DIR/$APP/inst/"* "$HOME/$APP@"*; do
 		[[ -e $file ]] || continue
 		INSTANCE="${file##*[/@]}"
 		list-contains "$list" $INSTANCE && continue
