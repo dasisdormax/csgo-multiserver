@@ -54,24 +54,35 @@ Core.Instance::isValidDir () {
 }
 
 
-# migrates an instance's files from a previous msm version
-Core.Instance::migrate () (
-	Core.Instance::isInstance && {
-		mkdir -p -m o-rwx "$INSTCFGDIR" "$LOGDIR"
-		return
-	}
+# does all the necessary operations to run and manage an instance created using
+# a previous MSM version
+Core.Instance::migrate () {
+	local OLDINST_DIR="$HOME/$APP@$INSTANCE"
 
-	NEWINST_DIR="$INSTANCE_DIR"
-	if [[ $INSTANCE ]]; then
-		INSTANCE_DIR="$HOME/$APP@$INSTANCE"
+	# links an old instance to the new location
+	if ! Core.Instance::isInstance; then
+		if [[ $INSTANCE ]] && INSTANCE_DIR="$OLDINST_DIR" Core.Instance::isInstance; then
+			mkdir -p "$(dirname "$INSTANCE_DIR")"
+			ln -s "$OLDINST_DIR" "$INSTANCE_DIR" || return
+		else
+			return
+		fi
 	fi
-	Core.Instance::isInstance && {
-		mkdir -p -m o-rwx "$INSTCFGDIR" "$LOGDIR"
-		ln -s "$INSTANCE_DIR" "$NEWINST_DIR"
-		try App::migrateInstance
-		true
+
+	# NOTE: because of the 'return' further up, we can assume this to be a valid
+	# >     instance from now on
+	# move logs to the new directory
+	[[ -d $LOGDIR ]] || {
+		mkdir -p -m o-rwx "$LOGDIR"
+		mv "$OLDINST_DIR"/msm.d/log/* "$LOGDIR"
 	}
-)
+	# copy configs to the new directory
+	[[ -d $INSTCFGDIR ]] || {
+		mkdir -p -m o-rwx "$INSTCFGDIR"
+		cp -r "$OLDINST_DIR"/msm.d/cfg/* "$INSTCFGDIR"
+	}
+	true
+}
 
 
 # update instance-related variables

@@ -58,11 +58,6 @@ App::applyInstancePermissions () {
 } 2>/dev/null
 
 
-App::migrateInstance () {
-	cp -rn "$INSTANCE_DIR"/msm.d/cfg/* "$INSTCFGDIR"
-}
-
-
 App::varsToPass () { cat <<-EOF; }
 	APP
 	MODE
