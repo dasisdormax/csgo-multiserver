@@ -23,9 +23,7 @@
 
 # Search if an element is in a list
 # Usage: list-contains "$list" $elem
-list-contains () {
-	[[ " $1 " =~ " $2 " ]]
-}
+list-contains () [[ " $1 " =~ " $2 " ]]
 
 
 # Remove Elements from a list, Result is echoed

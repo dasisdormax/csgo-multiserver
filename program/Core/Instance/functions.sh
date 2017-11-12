@@ -105,11 +105,19 @@ Core.Instance::select () {
 }
 
 
+# Lists all instances (except the base installation) that the current user owns
+# Also checks the instances and performs necessary migrations
 Core.Instance::listInstances () (
-	for file in "$USER_DIR/$APP/inst/"*; do
-		INSTANCE="${file##*/}"
+	list=" "
+	for file in "$USER_DIR/$APP/inst/"* "$HOME/$APP@*"; do
+		[[ -e $file ]] || continue
+		INSTANCE="${file##*[/@]}"
+		list-contains "$list" $INSTANCE && continue
 		Core.Instance::select
-		Core.Instance::isInstance && echo "$INSTANCE"
+		Core.Instance::isInstance && {
+			echo "$INSTANCE"
+			list="$list$INSTANCE "
+		}
 	done
 )
 
