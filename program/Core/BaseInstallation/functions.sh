@@ -1,7 +1,7 @@
 #! /bin/bash
 ## vim: noet:sw=0:sts=0:ts=4
 
-# (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+# (C) 2016-2017 Maximilian Wende <dasisdormax@mailbox.org>
 #
 # This file is licensed under the Apache License 2.0. For more information,
 # see the LICENSE file or visit: http://www.apache.org/licenses/LICENSE-2.0
@@ -123,7 +123,7 @@ Core.BaseInstallation::updateFromClone () {
 	local SOURCE="$(cat "$INSTALL_DIR/msm.d/cloned-from")"
 	if
 		rsync -rlptz --info=progress2 --no-inc-recursive \
-		--include="/msm.d/cfg" --exclude="/msm.d/*" "$SOURCE/" "$INSTALL_DIR"
+		--exclude="/msm.d/*" "$SOURCE/" "$INSTALL_DIR"
 	then
 		success <<< "The server files have been cloned successfully."
 	else

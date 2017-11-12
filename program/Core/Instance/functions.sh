@@ -1,7 +1,7 @@
 #! /bin/bash
 ## vim: noet:sw=0:sts=0:ts=4
 
-# (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+# (C) 2016-2017 Maximilian Wende <dasisdormax@mailbox.org>
 #
 # This file is licensed under the Apache License 2.0. For more information,
 # see the LICENSE file or visit: http://www.apache.org/licenses/LICENSE-2.0
@@ -12,8 +12,6 @@
 Core.Instance::registerCommands () {
 	simpleCommand "Core.Instance::create" create create-instance
 	simpleCommand "Core.Instance::listInstances" list-instances
-	simpleCommand "Core.Instance::resetDefault" reset-default
-	oneArgCommand "Core.Instance::setDefault" set-default
 	oneArgCommand "Core.Instance::importFrom" import-from
 }
 
@@ -56,29 +54,51 @@ Core.Instance::isValidDir () {
 }
 
 
+# migrates an instance's files from a previous msm version
+Core.Instance::migrate () (
+	Core.Instance::isInstance && {
+		mkdir -p -m o-rwx "$INSTCFGDIR" "$LOGDIR"
+		return
+	}
+
+	NEWINST_DIR="$INSTANCE_DIR"
+	if [[ $INSTANCE ]]; then
+		INSTANCE_DIR="$HOME/$APP@$INSTANCE"
+	fi
+	Core.Instance::isInstance && {
+		mkdir -p -m o-rwx "$INSTCFGDIR" "$LOGDIR"
+		ln -s "$INSTANCE_DIR" "$NEWINST_DIR"
+		try App::migrateInstance
+		true
+	}
+)
+
+
 # update instance-related variables
 Core.Instance::select () {
 	if [[ $INSTANCE ]]; then
-		INSTANCE_DIR="$HOME/$APP@$INSTANCE"
+		INSTANCE_SUFFIX="inst/$INSTANCE"
+		INSTANCE_DIR="$USER_DIR/$APP/$INSTANCE_SUFFIX"
 		INSTANCE_TEXT="Instance @$INSTANCE"
 	else
+		INSTANCE_SUFFIX="base"
 		INSTANCE_DIR="$INSTALL_DIR"
 		INSTANCE_TEXT="Base Installation"
 	fi
 	# Other locations
+	INSTCFGDIR="$CFG_DIR/$INSTANCE_SUFFIX"
 	TMPDIR="$INSTANCE_DIR/msm.d/tmp"
-	LOGDIR="$INSTANCE_DIR/msm.d/log"
+	LOGDIR="$USER_DIR/$APP/log/$INSTANCE_SUFFIX"
 	SOCKET="$TMPDIR/server.tmux-socket"
+	Core.Instance::migrate
 }
 
 
 Core.Instance::listInstances () (
-	for file in ~/*; do
-		if [[ $file =~ ~/$APP@ ]]; then
-			INSTANCE="${file#~/$APP@}"
-			Core.Instance::select
-			Core.Instance::isInstance && echo "$INSTANCE"
-		fi
+	for file in "$USER_DIR/$APP/inst/"*; do
+		INSTANCE="${file##*/}"
+		Core.Instance::select
+		Core.Instance::isInstance && echo "$INSTANCE"
 	done
 )
 
@@ -196,45 +216,25 @@ Core.Instance::create () (
 	log <<< "Linking remaining files to base installation ..."
 	Core.Instance::symlinkFiles
 
-
 	log <<< "Finishing instance creation ..."
 
 	App::finalizeInstance
 	App::applyInstancePermissions
 
-	mkdir -m o-rwx "$TMPDIR" "$LOGDIR"
+	mkdir -p -m o-rwx "$TMPDIR" "$LOGDIR" "$INSTCFGDIR"
+	# Create the initial instance configuration files
+	cp -rn "$APP_DIR"/cfg/* "$INSTCFGDIR" 2>/dev/null
+	# Save the APP of this instance directory
 	echo $APP > "msm.d/app"
 
 	success <<-EOF
-		Instance created successfully! Use **$THIS_COMMAND
-		@$INSTANCE set-default** to make this your default
-		instance.
+		Instance created successfully!
 
-		Now, edit your instance's configuration file, located
-		in **$INSTANCE_DIR/msm.d/server.conf**, to set IP, port,
+		Now, edit your instance's configuration files, located
+		in **$INSTCFGDIR**, to set IP, port,
 		passwords and other game settings of your instance.
 	EOF
 )
-
-
-Core.Instance::resetDefault () {
-	Core.Instance::setDefault ""
-}
-
-
-Core.Instance::setDefault () {
-	log <<< ""
-
-	if [[ $MSM_REMOTE ]]; then
-		error <<< "You cannot change the default instance on a remote server!"
-		return
-	fi
-
-	DEFAULT_INSTANCE="$1"
-	Core.Setup::writeConfig && {
-		success <<< "Your default instance now is: **$INSTANCE_TEXT**"
-	}
-}
 
 
 Core.Instance::importFrom () (

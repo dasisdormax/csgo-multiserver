@@ -1,7 +1,7 @@
 #! /bin/bash
 ## vim: noet:sw=0:sts=0:ts=4
 
-# (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+# (C) 2016-2017 Maximilian Wende <dasisdormax@mailbox.org>
 #
 # This file is licensed under the Apache License 2.0. For more information,
 # see the LICENSE file or visit: http://www.apache.org/licenses/LICENSE-2.0
@@ -35,7 +35,7 @@ $(printf "\x1b[36m%s\x1b[m"   "**INSTANCE SELECTION:**")
              > If no name is given, work on the base installation instead.
 
     By default, the base installation is used. You may specify a different
-    default \$INSTANCE in your config file.
+    \$DEFAULT_INSTANCE in your config file.
 
 $(printf "\x1b[36m%s\x1b[m"   "**INSTANCE-SPECIFIC COMMANDS:**")
     create   > Create a new server instance
@@ -183,7 +183,7 @@ Core.CommandLine::exec () (
 # Try executing the commands on a remote machine
 # fails (exit code 1) if it is a local instance
 #
-# TODO: test this!
+# TODO: Seems to work, but test more!
 Core.CommandLine::execRemotely () {
 	[[ $INSTANCE && -e "$INSTANCE_DIR/msm.d/host" ]] || return 1
 
@@ -195,7 +195,7 @@ Core.CommandLine::execRemotely () {
 	EOF
 
 	ssh -t "$HOST" \
-		MSM_REMOTE=1 $(ssh-pass-vars MSM_DEBUG APP $(App::varsToPass)) \
+		MSM_REMOTE=1 $(ssh-pass-vars MSM_DEBUG APP $(try App::varsToPass)) \
 		"$THIS_COMMAND" @$INSTANCE "$@"
 
 	return 0

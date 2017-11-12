@@ -1,7 +1,7 @@
 #! /bin/bash
 ## vim: noet:sw=0:sts=0:ts=4
 
-# (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+# (C) 2016-2017 Maximilian Wende <dasisdormax@mailbox.org>
 #
 # This file is licensed under the Apache License 2.0. For more information,
 # see the LICENSE file or visit: http://www.apache.org/licenses/LICENSE-2.0
@@ -65,6 +65,19 @@ timestamp () { date +%y%m%d_%T; }
 
 
 try () { declare -f -F "$1" >/dev/null && "$@"; }
+
+
+# Makes a file and upper directories public readable
+make-readable () {
+	file="$(readlink -f "$1")"
+	[[ -O $file && $file != / ]] || return 0
+	if [[ -d $file ]]; then
+		chmod +x "$file"
+	else
+		chmod +r "$file"
+	fi
+	make-readable "$(dirname "$file")"
+}
 
 
 # Output an array of arguments as a shell-quoted string

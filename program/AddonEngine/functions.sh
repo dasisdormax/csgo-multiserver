@@ -1,7 +1,7 @@
 #! /bin/bash
 ## vim: noet:sw=0:sts=0:ts=4
 
-# (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+# (C) 2016-2017 Maximilian Wende <dasisdormax@mailbox.org>
 #
 # This file is licensed under the Apache License 2.0. For more information,
 # see the LICENSE file or visit: http://www.apache.org/licenses/LICENSE-2.0
@@ -97,9 +97,19 @@
 
 ::loadApp () {
 	local dir
-	local candidates=( "$THIS_DIR/apps/$APP" "$USER_DIR/apps/$APP" )
+	# The global app directory has priority over the user's
+	local candidates=( "$THIS_DIR/$APP/app" "$USER_DIR/$APP/app" )
 	for dir in ${candidates[@]}; do
-		[[ -d $dir ]] && . "$dir/app.info" && . "$dir/functions" && return 0; done
+		if [[ -r $dir/app.info ]]; then
+			# Set app-specific variables
+			APP_DIR="$dir"
+			CFG_DIR="$USER_DIR/$APP/cfg"
+
+			# Load the app itself
+			.file "$dir/app.info" && . "$dir/functions"
+			return
+		fi
+	done
 	return 1
 }
 

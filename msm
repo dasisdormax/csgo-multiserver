@@ -7,17 +7,17 @@ about-this-program () { cat <<EOF
 
 ================================================================================
 
-                           CS:GO Multi Server Manager
-                           --------------------------
+   >>>  ${APP_SHORT} Multi Server Manager
+   -----${APP_SHORT//?/-}---------------------
 
-   Launch and set up your Counter-Strike: Global Offensive Dedicated Servers.
+   Launch and set up your ${APP_LONG} dedicated Servers.
    Report bugs, get more information and receive updates to this script at:
 
                 $(printf "\x1b[36;1m%s\x1b[m"               "https://github.com/dasisdormax/csgo-multiserver")
 
 --------------------------------------------------------------------------------
 
-        Copyright (C) 2016 Maximilian Wende <maximilian.wende@gmail.com>
+       Copyright (C) 2016-2017 Maximilian Wende <dasisdormax@mailbox.org>
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use
 this  file except in compliance  with the License. You may obtain a  copy of the
@@ -41,6 +41,7 @@ EOF
 # this script's filename and directory
 get-location () {
 	local dirname="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	local __APP__
 
 	THIS_COMMAND="${BASH_SOURCE[0]}"
 	THIS_BASENAME="${THIS_COMMAND##*/}"
@@ -54,6 +55,7 @@ get-location () {
 	# Calculate the default APP name out of the way this program has been invoked with
 	__APP__=csgo
 	[[ $THIS_BASENAME =~ [-_] ]] && __APP__=${THIS_BASENAME%%[-_]*}
+	APP=${APP-$__APP__}
 }
 
 get-location
