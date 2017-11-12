@@ -54,8 +54,8 @@ Core.Instance::isValidDir () {
 }
 
 
-# does all the necessary operations to run and manage an instance created using
-# a previous MSM version
+# does all the necessary preparations to run and manage an instance that was
+# created by a previous MSM version
 Core.Instance::migrate () {
 	local OLDINST_DIR="$HOME/$APP@$INSTANCE"
 
@@ -74,12 +74,12 @@ Core.Instance::migrate () {
 	# move logs to the new directory
 	[[ -d $LOGDIR ]] || {
 		mkdir -p -m o-rwx "$LOGDIR"
-		mv "$OLDINST_DIR"/msm.d/log/* "$LOGDIR"
+		mv "$INSTANCE_DIR"/msm.d/log/* "$LOGDIR" 2>/dev/null
 	}
 	# copy configs to the new directory
 	[[ -d $INSTCFGDIR ]] || {
 		mkdir -p -m o-rwx "$INSTCFGDIR"
-		cp -r "$OLDINST_DIR"/msm.d/cfg/* "$INSTCFGDIR"
+		cp -r "$INSTANCE_DIR"/msm.d/cfg/* "$INSTCFGDIR" 2>/dev/null
 	}
 	true
 }
