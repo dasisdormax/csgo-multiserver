@@ -23,11 +23,10 @@ App::generateServerConfig () (
 	######## MAPCYCLE ########
 	# The map pool (and usually its order as well) when using sourcemod
 
-	(
-		for map in ${MAPS[@]}; do
-			echo "$map"
-		done
-	) > "$MAPCYCLE_TXT"
+	rm "$MAPCYCLE_TXT"
+	for map in ${MAPS[@]}; do
+		echo "$map" >> "$MAPCYCLE_TXT"
+	done
 
 
 

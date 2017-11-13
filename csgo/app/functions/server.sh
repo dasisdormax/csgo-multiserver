@@ -18,6 +18,7 @@ App::buildLaunchCommand () {
 	[[ $LAUNCH_CMD ]] && return
 
 	# Load preset (such as gamemode, maps, ...)
+	PRESET="${PRESET-"$__PRESET__"}"
 	[[ $PRESET ]] && .file "$CFG_DIR/presets/$PRESET.conf"
 	applyDefaults
 
