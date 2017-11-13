@@ -23,18 +23,18 @@ App::generateServerConfig () (
 	######## MAPCYCLE ########
 	# The map pool (and usually its order as well) when using sourcemod
 
-	> "$MAPCYCLE_TXT" (
+	(
 		for map in ${MAPS[@]}; do
 			echo "$map"
 		done
-	)
+	) > "$MAPCYCLE_TXT"
 
 
 
 	######## AUTOEXEC ########
 	# This is executed once when starting the server
 
-	> "$AUTOEXEC_CFG" (
+	(
 		disclaimer
 		cat <<-EOF
 			// -------- BASIC STUFF --------
@@ -91,12 +91,12 @@ App::generateServerConfig () (
 		for item in "${AUTOEXEC_ADDITIONAL[@]}"; do
 			echo "$item"
 		done
-	)
+	) > "$AUTOEXEC_CFG"
 
 	#### SERVER ####
 	# This file is executed on every map change
 
-	> "$SERVER_CFG" (
+	(
 		disclaimer
 		cat <<-EOF
 			writeid // Update banned_user.cfg
@@ -109,5 +109,5 @@ App::generateServerConfig () (
 		for item in "${SERVERCFG_ADDITIONAL[@]}"; do
 			echo "$item"
 		done
-	)
+	) > "$SERVER_CFG"
 )
