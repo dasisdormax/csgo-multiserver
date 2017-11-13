@@ -53,7 +53,6 @@ App::buildLaunchCommand () {
 	TAGS=$(tags)
 	TV_TITLE=$(tv_title)
 
-	SLOTS=$(( MAXPLAYERS + EXTRA_SLOTS ))
 	(( TV_ENABLE )) || unset TV_ENABLE
 
 	######## GENERATE SERVER CONFIG FILES ########
@@ -76,7 +75,7 @@ App::buildLaunchCommand () {
 		+mapgroup $MAPGROUP
 		+map $MAP
 
-		-maxplayers $SLOTS
+		-maxplayers_override $MAXPLAYERS
 
 		${TV_ENABLE:+
 			+tv_enable 1

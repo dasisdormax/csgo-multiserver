@@ -56,6 +56,9 @@ App::generateServerConfig () (
 			sv_cheats "$SV_CHEATS"
 			${SV_OCCLUDE_PLAYERS+"sv_occlude_players \"$SV_OCCLUDE_PLAYERS\""}
 
+			sv_mincmdrate "$TICKRATE"
+			sv_minrate "$(( TICKRATE * 500 ))"
+
 			exec banned_user.cfg // Read list of banned users
 		EOF
 
