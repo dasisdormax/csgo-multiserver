@@ -54,6 +54,7 @@ App::buildLaunchCommand () {
 	TV_TITLE=$(tv_title)
 
 	SLOTS=$(( MAXPLAYERS + EXTRA_SLOTS ))
+	(( TV_ENABLE )) || unset TV_ENABLE
 
 	######## GENERATE SERVER CONFIG FILES ########
 	App::generateServerConfig

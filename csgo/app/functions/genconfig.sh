@@ -61,7 +61,7 @@ App::generateServerConfig () (
 
 
 		# GOTV specific settings ####
-		(( $TV_ENABLE )) &&	cat <<-EOF
+		(( TV_ENABLE )) && cat <<-EOF
 
 
 			// -------- GOTV --------
