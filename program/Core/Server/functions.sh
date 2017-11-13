@@ -55,14 +55,16 @@ Core.Server::requestStart () {
 
 	# Load instance configuration
 	App::buildLaunchCommand || return
+	LAUNCH_DIR="${LAUNCH_DIR-"$INSTANCE_DIR"}"
 
-	info <<< "The launch command is:"
+	info <<< "Server working directory: **$LAUNCH_DIR**"
+	info <<< "Server launch command:"
 	fmt -w67 <<< "$LAUNCH_CMD" | sed 's/^/        /' | catinfo
 
 	cat > "$TMPDIR/server-start.sh"   <<-EOF
 			#! /bin/bash
 			$(declare -f timestamp)
-			cd "${LAUNCH_DIR-"$INSTANCE_DIR"}"
+			cd "$LAUNCH_DIR"
 			unbuffer -p $LAUNCH_CMD | tee "$LOGDIR/\$(timestamp)-server.log"
 			echo \$? > "$TMPDIR/server.exit-code"
 		EOF

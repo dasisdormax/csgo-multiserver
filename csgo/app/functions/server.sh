@@ -92,7 +92,8 @@ App::buildLaunchCommand () {
 		} # GOTV RELAY SETTINGS
 	)
 
-	LAUNCH_CMD="$(quote "$INSTANCE_DIR/srcds_run" "${LAUNCH_ARGS[@]}")"
+	LAUNCH_DIR="$INSTANCE_DIR"
+	LAUNCH_CMD="$(quote "./srcds_run" "${LAUNCH_ARGS[@]}")"
 }
 
 
