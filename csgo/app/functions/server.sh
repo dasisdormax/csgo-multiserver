@@ -66,16 +66,16 @@ App::buildLaunchCommand () {
 		-tickrate $TICKRATE
 
 		${GSLT:++sv_setsteamaccount $GSLT} # Game Server Login Token, if set
+		-ip $IP
 		-port $PORT
-		${LOCAL_IP:+"-ip $LOCAL_IP"}
-		${WAN_IP:+"+net_public_adr $WAN_IP"}
+		${WAN_IP:++net_public_adr "'$WAN_IP'"}
+
+		${SV_OCCLUDE_PLAYERS:++sv_occlude_players "$SV_OCCLUDE_PLAYERS"}
 
 		+game_type $GAMETYPE
 		+game_mode $GAMEMODE
 		+mapgroup $MAPGROUP
 		+map $MAP
-
-		-maxplayers_override $MAXPLAYERS
 
 		${TV_ENABLE:+
 			+tv_enable 1

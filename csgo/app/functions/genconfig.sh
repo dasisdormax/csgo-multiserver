@@ -16,25 +16,78 @@ App::generateServerConfig () (
 
 	EOF
 
+	gamemodenames () {
+		GTN="unknown"
+		GMN="unknown"
+		case $GAMETYPE in
+			0)	GTN="classic"
+				(( GAMEMODE == 0 )) && GMN="casual"
+				(( GAMEMODE == 1 )) && GMN="competitive"
+				(( GAMEMODE == 2 )) && GMN="scrimcomp2v2"
+				(( GAMEMODE == 3 )) && GMN="scrimcomp5v5";;
+			1)	GTN="gungame"
+				(( GAMEMODE == 0 )) && GMN="gungameprogressive"
+				(( GAMEMODE == 1 )) && GMN="gungametrbomb"
+				(( GAMEMODE == 2 )) && GMN="deathmatch";;
+			2)	GTN="training"
+				(( GAMEMODE == 0 )) && GMN="training";;
+			3)	GTN="custom"
+				(( GAMEMODE == 0 )) && GMN="custom";;
+			4)	GTN="cooperative"
+				(( GAMEMODE == 0 )) && GMN="cooperative"
+				(( GAMEMODE == 1 )) && GMN="coopmission";;
+			5)  GTN="skirmish"
+				(( GAMEMODE == 0 )) && GMN="skirmish";;
+		esac
+	}
+
 	MAPCYCLE_TXT="$INSTANCE_DIR/csgo/mapcycle.txt"
+	GAMEMODES_TXT="$INSTANCE_DIR/csgo/gamemodes_server.txt"
+	GAMEMODES_ORIG_TXT="$INSTANCE_DIR/csgo/gamemodes_server_orig.txt"
 	AUTOEXEC_CFG="$INSTANCE_DIR/csgo/cfg/autoexec.cfg"
 	SERVER_CFG="$INSTANCE_DIR/csgo/cfg/server.cfg"
+	LAST_CFG="$INSTANCE_DIR/csgo/cfg/server_last.cfg"
+
+
+	######## GAMEMODES ########
+	# We create our own gamemodes_server.txt
+	MARK="// <-- DO NOT DELETE OR CHANGE THIS LINE!"
+	if [[ -r "$GAMEMODES_TXT" && "$(head -n1 "$GAMEMODES_TXT" 2>/dev/null)" != $MARK ]]; then
+		# Backup the file
+		cp -n "$GAMEMODES_TXT" "$GAMEMODES_ORIG_TXT"
+	fi
+	rm "$GAMEMODES_TXT" 2>/dev/null
+	(	echo "$MARK"
+		# Include original gamemodes_server.txt, including rules and mapgroups
+		cat "$GAMEMODES_ORIG_TXT" 2>/dev/null
+
+		# Calculate Gamemode names and build our entry
+		gamemodenames
+		disclaimer
+		cat <<-EOF
+			"MSM_gamemodes_server.txt"{"gameTypes"{"$GTN"{"gameModes"{"$GMN"{
+		EOF
+		[[ $MAXPLAYERS ]] && echo "\"maxplayers\" \"$MAXPLAYERS\""
+		cat <<-EOF
+				"exec"{"exec" "server_last.cfg"}
+			}}}}}
+		EOF
+	) > "$GAMEMODES_TXT"
+
 
 	######## MAPCYCLE ########
 	# The map pool (and usually its order as well) when using sourcemod
 
-	rm "$MAPCYCLE_TXT"
+	rm "$MAPCYCLE_TXT" 2>/dev/null
 	for map in ${MAPS[@]}; do
 		echo "$map" >> "$MAPCYCLE_TXT"
 	done
 
 
-
 	######## AUTOEXEC ########
 	# This is executed once when starting the server
 
-	(
-		disclaimer
+	(	disclaimer
 		cat <<-EOF
 			// -------- BASIC STUFF --------
 
@@ -43,8 +96,6 @@ App::generateServerConfig () (
 			rcon_password "$RCON_PASS"
 
 			hostname "$TITLE"
-			${HOSTIP+"hostip \"$HOSTIP\""}
-			${HOSTPORT+"hostport \"$HOSTPORT\""}
 
 			sv_tags "$TAGS"
 
@@ -54,14 +105,20 @@ App::generateServerConfig () (
 
 			sv_pure "$SV_PURE"
 			sv_cheats "$SV_CHEATS"
-			${SV_OCCLUDE_PLAYERS+"sv_occlude_players \"$SV_OCCLUDE_PLAYERS\""}
 
 			sv_mincmdrate "$TICKRATE"
+			sv_minupdaterate "$TICKRATE"
 			sv_minrate "$(( TICKRATE * 500 ))"
 
 			exec banned_user.cfg // Read list of banned users
 		EOF
 
+		# Conditionals
+		[[ $HOSTIP           ]] && echo "hostip \"$HOSTIP\""
+		[[ $HOSTPORT         ]] && echo "hostport \"$HOSTPORT\""
+		[[ $SV_SPONSOR_IMAGE ]] && echo "sv_server_graphic1 \"$SV_SPONSOR_IMAGE\""
+		[[ $SV_HOST_IMAGE    ]] && echo "sv_server_graphic2 \"$SV_HOST_IMAGE\""
+		[[ $TV_CAMERAMAN     ]] && echo "tv_allow_camera_man_steamid \"$TV_CAMERAMAN\""
 
 		# GOTV specific settings ####
 		(( TV_ENABLE )) && cat <<-EOF
@@ -78,11 +135,6 @@ App::generateServerConfig () (
 			tv_relaytextchat "$TV_RELAYTEXTCHAT"
 			tv_relayvoice "$TV_RELAYVOICE"
 
-			${TV_CAMERAMAN+"tv_allow_camera_man_steamid \"$TV_CAMERAMAN\""}
-
-			${TV_SPONSOR_IMAGE+"sv_server_graphic1 \"$TV_SPONSOR_IMAGE\""}
-			${TV_HOST_IMAGE+"sv_server_graphic2 \"$TV_HOST_IMAGE\""}
-
 			tv_delaymapchange 1
 			tv_deltacache 2
 
@@ -90,26 +142,41 @@ App::generateServerConfig () (
 		EOF
 
 		# Additional commands, may be set through the gamemode script
-		for item in "${AUTOEXEC_ADDITIONAL[@]}"; do
+		for item in "${AUTOEXEC_CUSTOM[@]}"; do
 			echo "$item"
 		done
 	) > "$AUTOEXEC_CFG"
 
+
 	#### SERVER ####
 	# This file is executed on every map change
 
-	(
-		disclaimer
+	(	disclaimer
 		cat <<-EOF
 			writeid // Update banned_user.cfg
-			mp_maxplayers "$MAXPLAYERS"
 			// You could add 'writeip' here, but banning ips is generally
 			// not effective, with most people having dynamic ip addresses
 		EOF
 
 		# Additional commands, may be set through the gamemode script
-		for item in "${SERVERCFG_ADDITIONAL[@]}"; do
+		for item in "${MAPCHANGE_CUSTOM[@]}"; do
 			echo "$item"
 		done
 	) > "$SERVER_CFG"
+
+
+	#### LAST_CFG ####
+	# This file is executed AFTER the default gamemode settings have been
+	# loaded and can be used to override some of their settings
+
+	(	disclaimer
+
+		[[ $BOT_QUOTA ]] && echo "bot_quota \"$BOT_QUOTA\""
+		[[ $SV_OCCLUDE_PLAYERS ]] && echo "sv_occlude_players \"$SV_OCCLUDE_PLAYERS\""
+
+		# Additional commands, may be set through the gamemode script
+		for item in "${GAMEMODE_CUSTOM[@]}"; do
+			echo "$item"
+		done
+	) > "$LAST_CFG"
 )
