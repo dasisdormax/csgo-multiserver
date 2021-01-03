@@ -56,7 +56,7 @@ Additional ideas:
 
 These scripts run in `bash` in _GNU/Linux_, so it expects usual commands to be available. These include `awk sed readlink wget tar git`, of which all are installed by default in Ubuntu Server 16.04
 
-Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Linux)! (On Ubuntu/Debian 64 Bit: `sudo apt install lib32gcc1`)
+Also remember that SteamCMD and your game server are 32-bit applications, so you'll have to install the respective 32-bit support libraries! ([see also here](https://developer.valvesoftware.com/wiki/SteamCMD#Linux), on Ubuntu/Debian 64 Bit try: `sudo apt install lib32gcc1 lib32stdc++6`)
 
 Additional dependencies are:
 
