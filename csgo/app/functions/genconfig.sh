@@ -187,7 +187,8 @@ App::generateServerConfig () {
 
 
 			// -------- GOTV --------
-			tv_advertize_watchable "${TV_ADVERTIZE_WATCHABLE-0}"
+			tv_enable 1
+			tv_advertise_watchable "${TV_ADVERTISE_WATCHABLE-1}"
 			tv_autorecord "${TV_AUTORECORD-0}"
 
 			tv_password "$TV_PASS"
