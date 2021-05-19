@@ -61,6 +61,7 @@ Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com
 Additional dependencies are:
 
 * _tmux_, version 2.1+, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
+* _jq_, (optional) for workshop support
 * _inotifywait_, found in the `inotify-tools` package for Ubuntu, used by the server control to efficiently wait for file changes
 * _unbuffer_, to make update and server output and logging smoother (try `sudo apt install expect`)
 

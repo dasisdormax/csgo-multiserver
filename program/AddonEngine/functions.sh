@@ -95,6 +95,27 @@
 	local dir="$(::moduleDir $1)" && . "$dir/$2"
 }
 
+ALL_HOOKS=" "
+
+# Executes the functions registered to the given hook.
+#
+# Multiple functions may be registered to a single hook. They will be executed in the
+# order they were registered. If a function is not found or returns false, this function
+# will stop executing and return false too
+::hook () {
+	local line
+	for line in $ALL_HOOKS; do
+		[[ $line =~ ^$1@ ]] || continue
+		${line#$1@} || return
+	done
+}
+
+# Registers a function ($2) to a named hook ($1)
+::registerHook () {
+	local newhook="$1@$2"
+	ALL_HOOKS="${ALL_HOOKS//$newhook }$newhook "
+}
+
 ::loadApp () {
 	local dir
 	# The global app directory has priority over the user's

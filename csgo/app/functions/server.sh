@@ -43,9 +43,7 @@ App::buildLaunchCommand () {
 
 	# Convert MAPS to array
 	MAPS=( ${MAPS[*]} )
-	MAP=${MAP:-${MAPS[0]}}
-
-	# TODO: handle workshop maps
+	# Workshop maps are handled in generateServerConfig
 
 	# Generate Server and GOTV titles
 	TITLE=$(title)
@@ -56,7 +54,9 @@ App::buildLaunchCommand () {
 	(( TV_ENABLE )) || unset TV_ENABLE
 
 	######## GENERATE SERVER CONFIG FILES ########
-	App::generateServerConfig
+	App::generateServerConfig || return
+
+	MAP=${MAP:-${MAPS[0]//\\//}}
 
 	######## GENERATE LAUNCH COMMAND ########
 	LAUNCH_ARGS=(
@@ -66,6 +66,7 @@ App::buildLaunchCommand () {
 		-tickrate $TICKRATE
 
 		${GSLT:++sv_setsteamaccount $GSLT} # Game Server Login Token, if set
+		${APIKEY:+-authkey $APIKEY}
 		-ip $IP
 		-port $PORT
 		${WAN_IP:++net_public_adr "'$WAN_IP'"}

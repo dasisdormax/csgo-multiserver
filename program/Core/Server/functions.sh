@@ -54,7 +54,11 @@ Core.Server::requestStart () {
 	log <<< "Starting $INSTANCE_TEXT ..."
 
 	# Load instance configuration
-	App::buildLaunchCommand || return
+	{
+		::hook Core.Server::beforeBuildLaunchCommand &&
+		App::buildLaunchCommand &&
+		::hook Core.Server::afterBuildLaunchCommand
+	} || return
 	LAUNCH_DIR="${LAUNCH_DIR-"$INSTANCE_DIR"}"
 
 	info <<< "Server working directory: **$LAUNCH_DIR**"

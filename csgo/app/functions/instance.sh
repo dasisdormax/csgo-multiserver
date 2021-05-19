@@ -13,7 +13,7 @@ App::isRunnableInstance () [[ -x $INSTANCE_DIR/$SERVER_EXEC ]]
 
 
 # files/directories to copy fully 
-App::instanceCopiedFiles () { cat <<-EOF; }
+App::instanceCopiedFiles () { cat <<-EOF ; }
 	csgo/addons
 	csgo/cfg
 	csgo/models
@@ -22,7 +22,7 @@ EOF
 
 
 # directories, in which the user can put own files in addition to the provided ones
-App::instanceMixedDirs () { cat <<-EOF; }
+App::instanceMixedDirs () { cat <<-EOF ; }
 	csgo/maps
 	csgo/maps/cfg
 	csgo/maps/soundcache
@@ -32,7 +32,7 @@ EOF
 
 
 # files/directories which are not shared between the base installation and the instances
-App::instanceIgnoredFiles () { cat <<-EOF; }
+App::instanceIgnoredFiles () { cat <<-EOF ; }
 	csgo/addons
 EOF
 
@@ -58,7 +58,7 @@ App::applyInstancePermissions () {
 } 2>/dev/null
 
 
-App::varsToPass () { cat <<-EOF; }
+App::varsToPass () { cat <<-EOF ; }
 	APP
 	MODE
 	TEAM_T
