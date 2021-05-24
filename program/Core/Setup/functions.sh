@@ -100,6 +100,7 @@ Core.Setup::printConfig () {
 		__ADMIN__=$ADMIN
 		INSTALL_DIR="$INSTALL_DIR"
 		DEFAULT_INSTANCE="$DEFAULT_INSTANCE"
+		MSM_ADDONS="$MSM_ADDONS"
 	EOF
 
 	try App::printAdditionalConfig

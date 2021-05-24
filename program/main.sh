@@ -80,6 +80,7 @@ fi
 # if unset, the default instance is the base installation
 
 Core.Setup::loadConfig
+::loadAddons
 INSTANCE="$DEFAULT_INSTANCE" Core.CommandLine::parseArguments "$@"
 
 local errno=$?

@@ -61,7 +61,6 @@
 # modifications and triggers their load event
 ::loadModules () {
 	local module
-	local funs
 	local errno
 
 	# first: load module functions
@@ -69,11 +68,11 @@
 		# No Namespace filtering, you have to trust the module anyway to not mess stuff up
 		::execHandler $module functions && Modules="$module $Modules" || errno=1; done
 
-	# TODO: second: update functions with before and after handlers
-
-	# third: execute load handler
+	# second: execute load handler
 	for module in $*; do
 		::execHandler $module load; done
+
+	return $errno
 }
 
 ::moduleDir () {
@@ -95,25 +94,42 @@
 	local dir="$(::moduleDir $1)" && . "$dir/$2"
 }
 
+###### Hook system for addons ######
 ALL_HOOKS=" "
+
+::hookable () {
+	[[ $1 ]] && ::hook "before~$@" && "$@" && ::hook "after~$@"
+}
 
 # Executes the functions registered to the given hook.
 #
 # Multiple functions may be registered to a single hook. They will be executed in the
 # order they were registered. If a function is not found or returns false, this function
 # will stop executing and return false too
+# The hook is passed the hook name and all extra arguments given
 ::hook () {
 	local line
 	for line in $ALL_HOOKS; do
 		[[ $line =~ ^$1@ ]] || continue
-		${line#$1@} || return
+		${line#$1@} "$@" || return
 	done
+	return 0
 }
 
 # Registers a function ($2) to a named hook ($1)
 ::registerHook () {
 	local newhook="$1@$2"
 	ALL_HOOKS="${ALL_HOOKS//$newhook }$newhook "
+}
+
+
+
+::loadAddons () {
+	local addon
+	for addon in $MSM_ADDONS; do
+		::add $addon
+	done
+	::update
 }
 
 ::loadApp () {

@@ -109,7 +109,7 @@ Core.CommandLine::parseArguments () {
 	local ARGS=( )
 	while [[ $1 ]]; do
 		if [[ $1 =~ ^@ ]]; then
-			Core.CommandLine::exec "${ARGS[@]}"
+			::hookable Core.CommandLine::exec "${ARGS[@]}"
 			[[ ! ${1:1} =~ @ ]] && INSTANCE="${1:1}"
 			ARGS=( )
 		else
@@ -117,7 +117,7 @@ Core.CommandLine::parseArguments () {
 		fi
 		shift
 	done
-	Core.CommandLine::exec "${ARGS[@]}"
+	::hookable Core.CommandLine::exec "${ARGS[@]}"
 }
 
 
