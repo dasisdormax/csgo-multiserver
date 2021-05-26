@@ -24,8 +24,11 @@ SourcemodHelper::updateInstance () {
 		SourcemodHelper::updateConfig || return
 		SourcemodHelper::updatePlugins || return
 	) || return
-	# TODO: sensible copying strategy for not overwriting existing configs / files
+
+	# Copy addon files to instance's game directory
 	cp -r "$SM_TMP_DIR"/* "$SM_TARGET_DIR"
+
+	# Move to last_state directory for easier debugging
 	rm -r "$SM_HOME/last_state"
 	mv "$SM_TMP_DIR" "$SM_HOME/last_state"
 }
@@ -43,8 +46,12 @@ SourcemodHelper::updateConfig () {
 
 SourcemodHelper::updatePlugins () {
 	echo "Updating sourcemod plugins ..."
+
+	# Disable all plugins first
 	mkdir -p "$SM_TMP_PLUGIN_DIR/disabled"
 	mv "$SM_TMP_PLUGIN_DIR"/*.smx "$SM_TMP_PLUGIN_DIR/disabled"
+
+	# Re-enable the plugins that the user wants
 	local plugin
 	for plugin in $SM_PLUGINS; do
 		mv "$SM_TMP_PLUGIN_DIR/disabled/$plugin.smx" "$SM_TMP_PLUGIN_DIR"

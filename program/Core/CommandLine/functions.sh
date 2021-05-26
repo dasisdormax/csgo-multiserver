@@ -10,7 +10,7 @@
 
 
 Core.CommandLine::registerCommands () {
-	simpleCommand "Core.CommandLine::usage" help --help usage
+	simpleCommand "Core.CommandLine::usage" help --help -h /? usage
 	simpleCommand "about-this-program" info about license
 }
 
