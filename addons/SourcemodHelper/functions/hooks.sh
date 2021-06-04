@@ -7,6 +7,7 @@
 SourcemodHelper::updateInstance () {
 	[[ $SM_PLUGINS ]] || {
 		rmdir "$SM_TMP_DIR" 2>/dev/null
+		return
 	}
 	warning <<-EOF
 		The Sourcemod helper plugin is in alpha stage! This will overwrite
@@ -29,7 +30,7 @@ SourcemodHelper::updateInstance () {
 	cp -r "$SM_TMP_DIR"/* "$SM_TARGET_DIR"
 
 	# Move to last_state directory for easier debugging
-	rm -r "$SM_HOME/last_state"
+	rm -rf "$SM_HOME/last_state"
 	mv "$SM_TMP_DIR" "$SM_HOME/last_state"
 }
 

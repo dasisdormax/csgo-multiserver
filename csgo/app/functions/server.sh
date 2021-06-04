@@ -85,7 +85,6 @@ App::buildLaunchCommand () {
 		${TV_ENABLE:+
 			+tv_enable 1
 			+tv_port "$TV_PORT"
-			+tv_delay "$TV_DELAY"
 			+tv_snapshotrate "$TV_SNAPSHOTRATE"
 			+tv_maxclients "$TV_MAXCLIENTS"
 		} # GOTV Settings
