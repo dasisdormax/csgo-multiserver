@@ -9,6 +9,21 @@
 
 
 
+App::validateGSLT () {
+	[[ $GSLT ]] && return
+	warning <<-EOF
+		No Game Server Login Token (GSLT) has been specified! This means that
+		nobody (including yourself) will be able to connect to this server from
+		the internet! Get your GSLT (AppID 730) on
+
+			  **http://steamcommunity.com/dev/managegameservers**
+
+		and insert it into your instance's **server.conf**.
+	EOF
+	promptY "Launch this server anyway?"
+}
+
+
 App::buildLaunchCommand () {
 	# Read general config
 	.file "$INSTCFGDIR/server.conf"
@@ -26,18 +41,7 @@ App::buildLaunchCommand () {
 	.conf "$APP/cfg/$INSTANCE_SUFFIX/gotv.conf"
 
 	######## Check GSLT ########
-	if [[ ! $GSLT ]]; then
-		warning <<-EOF
-			No Game Server Login Token (GSLT) has been specified! This means that
-			nobody (including yourself) will be able to connect to this server from
-			the internet! Get your GSLT (AppID 730) on
-
-				  **http://steamcommunity.com/dev/managegameservers**
-
-			and insert it into your instance's **server.conf**.
-		EOF
-		promptY "Launch this server anyway?" || return
-	fi
+	::hookable App::validateGSLT || return
 
 	######## PARSE MAPS AND MAPCYCLE ########
 

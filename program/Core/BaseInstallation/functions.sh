@@ -21,8 +21,8 @@ Core.BaseInstallation::applyPermissions() {
 
 	chmod -R a+rX "$INSTALL_DIR"
 
-	chmod -R o-rx "$INSTALL_DIR/msm.d/tmp"
-	chmod -R o-rx "$INSTALL_DIR/msm.d/log"
+	chmod -R o-rx "$TMPDIR"
+	chmod -R o-rx "$LOGDIR"
 }
 
 
@@ -67,13 +67,13 @@ Core.BaseInstallation::create () (
 	rm -rf "$INSTALL_DIR/msm.d" 2>/dev/null
 
 	# Create new configuration
-	mkdir "$INSTALL_DIR/msm.d"
+	mkdir -p "$INSTALL_DIR/msm.d"
 	echo $APP > "$INSTALL_DIR/msm.d/app"
 	touch "$INSTALL_DIR/msm.d/is-admin" # Mark as base installation
 
 	# Create temporary and logging directories
-	mkdir -m o-rwx "$TMPDIR"
-	mkdir -m o-rwx "$LOGDIR"
+	mkdir -p -m o-rwx "$TMPDIR"
+	mkdir -p -m o-rwx "$LOGDIR"
 )
 
 
