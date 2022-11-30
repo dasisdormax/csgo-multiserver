@@ -59,9 +59,7 @@ Additional ideas:
 
 ## Requirements
 
-These scripts run in `bash` in _Linux_ or _WSL2_ for Windows, and require several typical and some less common utilities installed. Also remember that SteamCMD requires the 32-bit support libraries for your system, as described on [its Wiki page](https://developer.valvesoftware.com/wiki/SteamCMD#Linux).
-
-On Ubuntu 22.04.1 LTS, try:
+These scripts run in `bash` in _Linux_ or _WSL2_ for Windows, and require several typical and some less common utilities installed. Also note that SteamCMD and your game server are 32-bit applications, so you'll have to install the 32-bit support libraries for your system, as described on [the SteamCMD Wiki page](https://developer.valvesoftware.com/wiki/SteamCMD#Linux).
 
 ```
 sudo apt install lib32gcc-s1 lib32stdc++6 jq unzip inotify-tools expect
