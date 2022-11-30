@@ -126,8 +126,8 @@ App::performUpdate () (
 	STEAMCMD_SCRIPT="$TMPDIR/steamcmd-script"
 	MSM_LOGFILE="$LOGDIR/$(timestamp)-$ACTION.log"
 	cat <<-EOF > "$STEAMCMD_SCRIPT"
-		login anonymous
 		force_install_dir "$INSTALL_DIR"
+		login anonymous
 		app_update 740 $( [[ $ACTION == repair ]] && echo "validate" )
 		quit
 	EOF

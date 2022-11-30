@@ -59,19 +59,17 @@ Additional ideas:
 
 ## Requirements
 
-These scripts run in `bash` in _GNU/Linux_, so it expects usual commands to be available. These include `awk sed readlink wget tar git`, of which all are installed by default in Ubuntu Server 16.04
+These scripts run in `bash` in _Linux_ or _WSL2_ for Windows, and require several typical and some less common utilities installed. Also remember that SteamCMD requires the 32-bit support libraries for your system, as described on [its Wiki page](https://developer.valvesoftware.com/wiki/SteamCMD#Linux).
 
-Also remember the [dependencies of SteamCMD](https://developer.valvesoftware.com/wiki/SteamCMD#Linux)! (On Ubuntu/Debian 64 Bit: `sudo apt install lib32gcc1 lib32stdc++6`)
+On Ubuntu 22.04.1 LTS, try:
 
-Additional dependencies are:
+```
+sudo apt install lib32gcc-s1 lib32stdc++6 jq unzip inotify-tools expect
+```
 
-* _tmux_, version 2.1+, see https://tmux.github.io/ (Installed by default in Ubuntu Server 16.04)
-* _jq_, (optional) for workshop support
-* _unzip_, (optional) for sourcemod support
-* _inotifywait_, found in the `inotify-tools` package for Ubuntu, used by the server control to efficiently wait for file changes
-* _unbuffer_, to make update and server output and logging smoother (try `sudo apt install expect`)
+If you run a different Linux distribution, the commands and package names may differ. If you need to install additional applications, the script will tell you which commands are unavailable.
 
-Of course, you require a Steam account with the game owned to create a CS:GO dedicated server. If you wish anybody to be able to connect to your server, get your Gameserver auth tokens [here](http://steamcommunity.com/dev/managegameservers) (for CS:GO, use appid 730).
+Also, you need a Steam account that owns the game to create a CS:GO dedicated server. Follow the instructions on the first launch of your instance to register your server; otherwise, players from the internet won't be able to connect.
 
 
 
