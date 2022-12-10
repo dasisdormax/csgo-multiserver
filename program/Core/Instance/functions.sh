@@ -182,7 +182,7 @@ Core.Instance::makeDirectories () {
 	done
 	# Create base for ignored dirs
 	for dir in $(App::instanceIgnoredFiles); do
-		local dir="$(basename "$dir")"
+		local dir="$(dirname "$dir")"
 		[[ $dir ]] && mkdir -p "$dir"
 	done
 }

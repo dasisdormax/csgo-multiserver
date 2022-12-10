@@ -3,6 +3,6 @@
 
 SourcemodPackage.metamod::download () {
 	SourcemodHelper::unpackTar \
-		https://mms.alliedmods.net/mmsdrop/1.11/mmsource-1.11.0-git1144-linux.tar.gz \
-		7f41c7cfcd86aa9e610b2e341b30edd9618d5c4533fa982721c564e47487e96e
+		https://mms.alliedmods.net/mmsdrop/1.11/mmsource-1.11.0-git1148-linux.tar.gz \
+		187dc6ecc398c1df7b5c001442e5e44f9d3179aabce1738e24099b5907c36b2c
 }

@@ -4,5 +4,5 @@
 SourcemodPackage.warmod::download () {
 	SourcemodHelper::downloadSmx \
 		https://warmod.bitbucket.io/plugins/warmod.smx \
-		90c5bf7b3ca4edaad4d9dcbe25c0027614f4f6f3570886efe0012bd7c9014023
+		286581d4fd87ed3d8c2a74836fc8d101f8126a39ccccb8984dcb275dbd7f2bcd
 }

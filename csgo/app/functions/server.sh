@@ -68,9 +68,6 @@ App::buildLaunchCommand () {
 		-console
 		$USE_RCON
 		-tickrate $TICKRATE
-
-		${GSLT:++sv_setsteamaccount $GSLT} # Game Server Login Token, if set
-		${APIKEY:+-authkey $APIKEY}
 		-ip $IP
 		-port $PORT
 		${WAN_IP:++net_public_adr "'$WAN_IP'"}
@@ -93,6 +90,9 @@ App::buildLaunchCommand () {
 			+tv_relay "$TV_RELAY"
 			+tv_relaypassword "$TV_RELAYPASS"
 		} # GOTV RELAY SETTINGS
+
+		${GSLT:++sv_setsteamaccount $GSLT} # Game Server Login Token, if set
+		${APIKEY:+-authkey $APIKEY}
 	)
 
 	LAUNCH_DIR="$INSTANCE_DIR"
