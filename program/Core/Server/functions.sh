@@ -76,7 +76,7 @@ Core.Server::requestStart () {
 
 	# LAUNCH! (in tmux)
 
-	tmux -f "$THIS_DIR/cfg/tmux.conf" -S "$SOCKET" new-session -n "server-control" -s "$APP@$INSTANCE" /bin/bash "$INSTANCE_DIR/msm.d/tmp/server-control.sh" \; detach
+	tmux -f "$THIS_DIR/cfg/tmux.conf" -S "$SOCKET" new-session -n "server-control" -s "$APP@$INSTANCE" -d /bin/bash "$INSTANCE_DIR/msm.d/tmp/server-control.sh" \; detach
 
 	success <<-EOF
 		**$INSTANCE_TEXT** started successfully!
