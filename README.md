@@ -5,6 +5,13 @@ Launch and set up **Counter-Strike: Global Offensive** Dedicated Servers.
 
 
 
+## Project Status after CS2 release
+
+After the release of Counter-Strike 2, I moved to the new repository [cs2-multiserver](https://github.com/dasisdormax/cs2-multiserver) for the development of a CS2 version. This project is archived and will no longer be updated. Thank you to everyone for using csgo-multiserver and contributing to the project.
+
+
+
+
 ## About this project
 
 *csgo-multiserver* is an administration tool for CS:GO that helps you with the setup, configuration and control of your server(s).
